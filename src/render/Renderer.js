@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GAME_CONFIG } from '../config.js';
 import { CameraRig } from './CameraRig.js';
 import { buildKenai } from './KenaiModel.js';
@@ -16,6 +17,14 @@ const FIGHTER_BUILDERS = {
   domono: buildDomono,
   faxo: buildFaxo,
 };
+
+// Autos de Vita Machines (con créditos en README): se usan en el tráfico del escenario
+const CAR_MODEL_FILES = [
+  { id: 'corolla', url: '/assets/models/cars/corolla.glb' },
+  { id: 'clio', url: '/assets/models/cars/clio.glb' },
+  { id: 'peugeot', url: '/assets/models/cars/peugeot.glb' },
+  { id: 'moto', url: '/assets/models/cars/moto.glb' },
+];
 
 const MOVES = GAME_CONFIG.moves;
 const CAM = GAME_CONFIG.camera;
@@ -49,7 +58,39 @@ export class Renderer {
 
     this.setupLights();
     this.setupPostFX(container);
+    this.loadCarModels();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  /** Carga los GLB de los autos de Vita Machines (una sola vez, en background). */
+  loadCarModels() {
+    if (this.carModelPool) return;
+    this.carModelPool = new Map();
+    const loader = new GLTFLoader();
+    for (const def of CAR_MODEL_FILES) {
+      loader.load(
+        def.url,
+        (gltf) => {
+          const model = gltf.scene;
+          // normalizar: escalar para que el largo sea ~4.2 y apoyar en y=0
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const largo = Math.max(size.x, size.z);
+          const escala = 4.2 / (largo || 1);
+          model.scale.setScalar(escala);
+          // recentrar tras escalar
+          const box2 = new THREE.Box3().setFromObject(model);
+          const c = box2.getCenter(new THREE.Vector3());
+          model.position.x -= c.x;
+          model.position.z -= c.z;
+          model.position.y -= box2.min.y;
+          model.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
+          this.carModelPool.set(def.id, model);
+        },
+        undefined,
+        () => { /* si falla, drawCars usa el auto procedural de fallback */ },
+      );
+    }
   }
 
   setupLights() {
@@ -496,8 +537,7 @@ export class Renderer {
   }
 
   /** Auto detallado: cuerpo + cabina + paragolpes + faros emissive + ruedas. */
-  makeCar(color) {
-    const c = new THREE.Group();
+  makeCar(color) {    const c = new THREE.Group();
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(3.2, 0.8, 1.5),
       new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.45 }),
@@ -595,21 +635,64 @@ export class Renderer {
     }
   }
 
-  /** Dibuja los autos del tráfico (hazards del Match, estilo Onett). */
+  /** Muestra los 4 personajes paraditos en el escenario (fondo del lobby). */
+  showLineup() {
+    this.clearLineup();
+    this.lineup = new THREE.Group();
+    const spots = [
+      ['pablo', -5.2],
+      ['coco', -1.8],
+      ['faxo', 1.8],
+      ['domono', 5.2],
+    ];
+    this.lineupBobs = [];
+    for (const [id, x] of spots) {
+      const builder = FIGHTER_BUILDERS[id];
+      if (!builder) continue;
+      const model = builder();
+      model.group.position.set(x, 0, 1.6);
+      model.group.rotation.y = Math.PI * 0.06 * (x < 0 ? 1 : -1);
+      this.lineup.add(model.group);
+      this.lineupBobs.push({ group: model.group, baseY: 0, phase: Math.abs(x) * 0.9 });
+    }
+    this.scene.add(this.lineup);
+  }
+
+  /** Saca el lineup (al arrancar la partida). */
+  clearLineup() {
+    if (!this.lineup) return;
+    this.scene.remove(this.lineup);
+    this.lineup.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+    this.lineup = null;
+    this.lineupBobs = [];
+  }
+
+  /** Bob sutil de los personajes en el lobby (llamado cada frame desde main). */
+  updateLineup(dt) {
+    if (!this.lineupBobs) return;
+    const t = performance.now() / 1000;
+    for (const b of this.lineupBobs) {
+      b.group.position.y = b.baseY + Math.abs(Math.sin(t * 2.2 + b.phase)) * 0.12;
+    }
+  }
+
+  /** Dibuja los autos del tráfico (hazards del Match, estilo Onett).
+   *  Usa los GLB de Vita Machines cuando ya cargaron; si no, el auto procedural. */
   drawCars(match, alpha) {
     const seen = new Set();
     const carColors = [0xd8352a, 0xf4f1e8, 0x4d8bff, 0xf2c94c, 0x2dd4bf, 0xe5449d, 0x3fa34d];
+    const poolIds = CAR_MODEL_FILES.map((d) => d.id);
     const floorTop = match.stage.solids[0]?.top ?? 0;
     for (const c of match.cars) {
       seen.add(c.id);
       let mesh = this.carMeshes.get(c.id);
       if (!mesh) {
-        mesh = this.makeCar(carColors[c.id % carColors.length]);
+        mesh = this.makeTrafficCar(c.id, carColors, poolIds);
         this.scene.add(mesh);
         this.carMeshes.set(c.id, mesh);
       }
       mesh.position.set(c.prevX + (c.x - c.prevX) * alpha, floorTop, 0.8);
-      mesh.rotation.y = c.dir > 0 ? 0 : Math.PI;
+      mesh.rotation.y = c.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
     }
     for (const [id, mesh] of this.carMeshes) {
       if (seen.has(id)) continue;
@@ -617,6 +700,21 @@ export class Renderer {
       mesh.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
       this.carMeshes.delete(id);
     }
+  }
+
+  /** Crea el mesh de un auto del tráfico: GLB de Vita Machines si está listo, si no el procedural. */
+  makeTrafficCar(id, carColors, poolIds) {
+    // rotar entre los 4 modelos reales según el id del auto
+    const poolId = poolIds[id % poolIds.length];
+    const src = this.carModelPool?.get(poolId);
+    if (src) {
+      const clone = src.clone(true);
+      const holder = new THREE.Group();
+      holder.add(clone);
+      return holder;
+    }
+    // fallback mientras cargan los GLB
+    return this.makeCar(carColors[id % carColors.length]);
   }
 
   /** Pájaros cruzando el cielo con aleteo; recicla al salir de cuadro. */

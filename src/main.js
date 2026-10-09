@@ -68,8 +68,8 @@ const ui = new UI(document.body, {
 
 function setState(s) {
   app.state = s;
-  if (s === 'menu') ui.showMenu();
-  else if (s === 'lobby') ui.showLobby(app.slots);
+  if (s === 'menu') { renderer.clearLineup(); ui.showMenu(); }
+  else if (s === 'lobby') { renderer.showLineup(); ui.showLobby(app.slots); }
 }
 
 /** Crea una partida con los slots activos del lobby.
@@ -80,6 +80,7 @@ function startMatch(slots) {
     .sort((a, b) => (b.type === 'human') - (a.type === 'human'));
   if (active.length < 2) return;
   app.slots = slots;
+  renderer.clearLineup();
   app.match = new Match({
     players: active.map((s) => ({
       character: s.character,
@@ -130,8 +131,9 @@ function loop(now) {
       setState('lobby');
     }
   } else {
-    // menú / lobby / resultados: solo el escenario de fondo
+    // menú / lobby / resultados: solo el escenario de fondo + lineup si estamos en lobby
     accumulator = 0;
+    if (app.state === 'lobby') renderer.updateLineup(frameTime);
     renderer.render(emptyMatch, 0, DT);
   }
 
