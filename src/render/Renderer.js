@@ -29,6 +29,7 @@ const CAR_MODEL_FILES = [
 
 const MOVES = GAME_CONFIG.moves;
 const CAM = GAME_CONFIG.camera;
+const GFX = GAME_CONFIG.graphics;
 
 /**
  * Todo lo que se dibuja. Solo LEE el estado de la simulación (Match): nunca lo modifica.
@@ -38,9 +39,9 @@ const CAM = GAME_CONFIG.camera;
 export class Renderer {
   constructor(container) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, GFX.pixelRatioMax));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = GFX.shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(this.renderer.domElement);
@@ -98,8 +99,8 @@ export class Renderer {
     this.scene.add(new THREE.HemisphereLight(0xcfe4ff, 0x3d6b35, 1.15));
     const sun = new THREE.DirectionalLight(0xfff1d6, 2.6);
     sun.position.set(-12, 28, 20);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.castShadow = GFX.shadows;
+    sun.shadow.mapSize.set(GFX.shadowMapSize, GFX.shadowMapSize);
     Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 24, bottom: -18, near: 1, far: 90 });
     sun.shadow.bias = -0.0005;
     this.scene.add(sun);
@@ -114,13 +115,18 @@ export class Renderer {
   setupPostFX(container) {
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.rig.camera));
-    this.bloom = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.32,  // strength: sutil
-      0.65,  // radius
-      0.82,  // threshold: solo lo emisivo/muy claro
-    );
-    this.composer.addPass(this.bloom);
+    if (GFX.bloom) {
+      // bloom a media resolución: mismo look, mucho más barato (config.graphics)
+      const w = GFX.bloomHalfRes ? window.innerWidth / 2 : window.innerWidth;
+      const h = GFX.bloomHalfRes ? window.innerHeight / 2 : window.innerHeight;
+      this.bloom = new UnrealBloomPass(
+        new THREE.Vector2(w, h),
+        GFX.bloomStrength,
+        GFX.bloomRadius,
+        GFX.bloomThreshold,
+      );
+      this.composer.addPass(this.bloom);
+    }
     this.composer.addPass(new OutputPass());
 
     // vignette con CSS (cero costo de GPU)

@@ -259,7 +259,7 @@ export const GAME_CONFIG = {
       // el spawn sale de un hash del frame (snapshot-safe, sin RNG de estado).
       traffic: {
         startDelay: 240,            // frames de pelea antes del primer auto
-        interval: [200, 360],       // rango de frames entre autos
+        interval: [320, 520],       // rango de frames entre autos (menos simultáneos = más fluido)
         speed: [9, 14],             // rango de velocidad (u/s)
         spawnX: 32,                 // aparecen fuera de cuadro
         despawnX: 34,               // se reciclan al salir
@@ -288,6 +288,20 @@ export const GAME_CONFIG = {
     zoomSmoothing: 3,
     elevation: 1.5,
     shake: { hit: 0.18, ko: 0.6, decay: 7 },
+  },
+
+  // ------------------------------------------------------------------ gráficos / performance
+  // Ajustes para que el juego corra fluido sin perder el look (bloom y sombras
+  // se mantienen pero a menor resolución; el pixelRatio queda acotado).
+  graphics: {
+    pixelRatioMax: 1.5,     // tope de devicePixelRatio (en retina no renderiza 2x)
+    shadows: true,          // sombras del sol sobre la escena (el blob fake de contacto va aparte)
+    shadowMapSize: 1024,    // 1024 en vez de 2048: mitad de memoria, se ve casi igual
+    bloom: true,            // bloom sutil (se renderiza a media resolución)
+    bloomStrength: 0.26,
+    bloomRadius: 0.55,
+    bloomThreshold: 0.85,
+    bloomHalfRes: true,     // bloom a media resolución: mismo look, mucho más barato
   },
 
   // ------------------------------------------------------------------ jugadores locales (teclado y joystick)
