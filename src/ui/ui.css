@@ -66,6 +66,25 @@
 }
 
 /* ---------- lobby ---------- */
+/* El lobby deja ver el escenario + el lineup de personajes (sin overlay pesado) */
+.lobby-screen {
+  background: linear-gradient(rgba(12, 16, 30, 0.10), rgba(12, 16, 30, 0.35) 82%);
+  justify-content: space-between !important;
+  padding: 2vh 0 3vh;
+}
+.lobby-screen .ui-title {
+  font-size: 2.4rem;
+  text-shadow: 0 3px 0 #7a5c1e, 0 6px 18px rgba(0,0,0,0.75);
+}
+.lobby-screen .ui-subtitle {
+  margin-top: -14px;
+}
+.lobby-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
 .lobby-slots {
   display: flex;
   gap: 16px;

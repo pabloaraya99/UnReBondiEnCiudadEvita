@@ -89,7 +89,7 @@ export class UI {
   /** @param slots array editable de { type:'off'|'human'|'cpu', character, difficulty } */
   showLobby(slots) {
     this.clear();
-    const s = el('div', 'ui-screen');
+    const s = el('div', 'ui-screen lobby-screen');
     s.append(el('div', 'ui-title', 'LOBBY'), el('div', 'ui-subtitle', 'Elegí jugadores y personajes'));
 
     const row = el('div', 'lobby-slots');
@@ -136,11 +136,13 @@ export class UI {
     s.append(row);
 
     const active = slots.filter((x) => x.type !== 'off').length;
+    const bottom = el('div', 'lobby-bottom');
     const fight = btn(`¡A PELEAR! (${active} jugadores)`, () => this.actions.onFight(slots));
     fight.disabled = active < 2;
     const back = btn('VOLVER', () => this.actions.onMenu());
     back.classList.add('secondary');
-    s.append(fight, back);
+    bottom.append(row, fight, back);
+    s.append(bottom);
     this.root.append(s);
   }
 

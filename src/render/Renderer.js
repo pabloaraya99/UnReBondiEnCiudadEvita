@@ -19,11 +19,12 @@ const FIGHTER_BUILDERS = {
 };
 
 // Autos de Vita Machines (con créditos en README): se usan en el tráfico del escenario
+// rotY: corrección de orientación del modelo (si van de culata/de costado, se ajusta acá)
 const CAR_MODEL_FILES = [
-  { id: 'corolla', url: '/assets/models/cars/corolla.glb' },
-  { id: 'clio', url: '/assets/models/cars/clio.glb' },
-  { id: 'peugeot', url: '/assets/models/cars/peugeot.glb' },
-  { id: 'moto', url: '/assets/models/cars/moto.glb' },
+  { id: 'corolla', url: '/assets/models/cars/corolla.glb', rotY: 0 },
+  { id: 'clio', url: '/assets/models/cars/clio.glb', rotY: 0 },
+  { id: 'peugeot', url: '/assets/models/cars/peugeot.glb', rotY: 0 },
+  { id: 'moto', url: '/assets/models/cars/moto.glb', rotY: 0 },
 ];
 
 const MOVES = GAME_CONFIG.moves;
@@ -656,6 +657,9 @@ export class Renderer {
       this.lineupBobs.push({ group: model.group, baseY: 0, phase: Math.abs(x) * 0.9 });
     }
     this.scene.add(this.lineup);
+    // enfocar la cámara hacia los personajes para que el lobby los muestre
+    this.rig.focus.set(0, 1.2, 0);
+    this.rig.distance = Math.max(this.rig.distance, 18);
   }
 
   /** Saca el lineup (al arrancar la partida). */
@@ -692,7 +696,7 @@ export class Renderer {
         this.carMeshes.set(c.id, mesh);
       }
       mesh.position.set(c.prevX + (c.x - c.prevX) * alpha, floorTop, 0.8);
-      mesh.rotation.y = c.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+      mesh.rotation.y = c.dir > 0 ? 0 : Math.PI;
     }
     for (const [id, mesh] of this.carMeshes) {
       if (seen.has(id)) continue;
@@ -704,11 +708,12 @@ export class Renderer {
 
   /** Crea el mesh de un auto del tráfico: GLB de Vita Machines si está listo, si no el procedural. */
   makeTrafficCar(id, carColors, poolIds) {
-    // rotar entre los 4 modelos reales según el id del auto
     const poolId = poolIds[id % poolIds.length];
+    const def = CAR_MODEL_FILES.find((d) => d.id === poolId);
     const src = this.carModelPool?.get(poolId);
     if (src) {
       const clone = src.clone(true);
+      if (def?.rotY) clone.rotation.y = def.rotY;
       const holder = new THREE.Group();
       holder.add(clone);
       return holder;
