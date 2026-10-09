@@ -6,6 +6,16 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GAME_CONFIG } from '../config.js';
 import { CameraRig } from './CameraRig.js';
 import { buildKenai } from './KenaiModel.js';
+import { buildCoco } from './CocoModel.js';
+import { buildDomono } from './DomonoModel.js';
+import { buildFaxo } from './FaxoModel.js';
+
+const FIGHTER_BUILDERS = {
+  pablo: buildKenai,
+  coco: buildCoco,
+  domono: buildDomono,
+  faxo: buildFaxo,
+};
 
 const MOVES = GAME_CONFIG.moves;
 const CAM = GAME_CONFIG.camera;
@@ -636,7 +646,9 @@ export class Renderer {
   }
 
   makeView(f) {
-    if (f.characterId === 'pablo') return this.makeKenaiView(f);
+    // Personaje con modelo propio (Kenai y los de Vita Machines) o cápsula provisoria
+    const builder = FIGHTER_BUILDERS[f.characterId];
+    if (builder) return this.makeFighterView(f, builder);
     return this.makeCapsuleView(f);
   }
 
@@ -670,28 +682,33 @@ export class Renderer {
     return ring;
   }
 
-  /** Vista de Kenai: modelo detallado con primitivas (KenaiModel.js). */
-  makeKenaiView(f) {
+  /** Vista de personaje con modelo detallado (Kenai, Coco, Domono, Faxo). */
+  makeFighterView(f, builder) {
     const spec = f.spec;
     const group = new THREE.Group();
     const color = new THREE.Color(spec.color);
-    const kenai = buildKenai();
+    const model = builder();
     const pivot = new THREE.Group();
-    pivot.add(kenai.group);
+    pivot.add(model.group);
     const ring = this.makeSlotRing(f);
     group.add(pivot, ring);
     this.scene.add(group);
     const blob = this.makeBlob();
     return {
       group, pivot, ring, blob,
-      mat: kenai.hoodieMat,
-      mats: kenai.mats,
+      mat: model.hoodieMat,
+      mats: model.mats,
       isKenai: true,
       baseColor: color,
       turn: f.facing > 0 ? 0 : Math.PI,
       debugHurt: this.makeEdges(0x44ff77),
       debugHit: this.makeEdges(0xff4444),
     };
+  }
+
+  /** Compatibilidad con el nombre anterior. */
+  makeKenaiView(f) {
+    return this.makeFighterView(f, buildKenai);
   }
 
   /** Vista cápsula provisoria para el resto de los personajes. */
