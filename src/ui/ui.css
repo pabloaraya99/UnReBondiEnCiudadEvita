@@ -1,0 +1,426 @@
+/* ============================================================
+   UI genérica de Un Re Bondi En Ciudad Evita
+   Todo es HTML encima del canvas. La estética final se rehace
+   después: acá solo importa que la interfaz funcione.
+   ============================================================ */
+
+/* Fuentes graffiti (Google Fonts): Bungee para títulos sólidos, Spray para detalle */
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rubik+Spray+Paint&display=swap');
+
+#ui-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none; /* el canvas sigue recibiendo foco de teclado */
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  color: #f4f1e8;
+  z-index: 10;
+  user-select: none;
+}
+#ui-root .clickable { pointer-events: auto; }
+
+/* ---------- genéricos ---------- */
+.ui-panel {
+  background: rgba(16, 18, 26, 0.88);
+  border: 2px solid #3a3f52;
+  border-radius: 10px;
+  padding: 18px 22px;
+}
+.ui-btn {
+  pointer-events: auto;
+  font: inherit;
+  font-weight: 700;
+  color: #10121a;
+  background: #e9c46a;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 26px;
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.1s;
+}
+.ui-btn:hover { filter: brightness(1.12); transform: translateY(-2px); }
+.ui-btn:active { transform: translateY(0); }
+.ui-btn:disabled { opacity: 0.35; cursor: default; transform: none; }
+.ui-btn.secondary { background: #4a5168; color: #f4f1e8; }
+
+.ui-title {
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: #e9c46a;
+  text-shadow: 0 3px 0 #7a5c1e, 0 6px 18px rgba(0,0,0,0.6);
+}
+.ui-subtitle { text-align: center; opacity: 0.75; margin-top: 6px; }
+
+/* ---------- pantalla completa (menú / lobby / resultados) ---------- */
+.ui-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: rgba(10, 12, 20, 0.72); /* oscurece el escenario de fondo */
+  pointer-events: auto;
+}
+
+/* ---------- lobby ---------- */
+.lobby-slots {
+  display: flex;
+  gap: 16px;
+}
+.lobby-slot {
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  text-align: center;
+}
+.lobby-slot .slot-tag {
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  padding: 4px 0;
+  border-radius: 6px;
+  background: #262a3a;
+}
+.lobby-slot.off { opacity: 0.45; }
+.slot-btn {
+  pointer-events: auto;
+  font: inherit;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border: 2px solid #3a3f52;
+  background: #202434;
+  color: #f4f1e8;
+  cursor: pointer;
+}
+.slot-btn:hover { border-color: #e9c46a; }
+.slot-btn:disabled { opacity: 0.35; cursor: default; }
+.slot-char {
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.slot-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.75);
+}
+
+/* ---------- HUD ---------- */
+#hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+.hud-card {
+  min-width: 170px;
+  padding: 8px 14px 10px;
+  border-radius: 10px;
+  background: rgba(16, 18, 26, 0.82);
+  border: 2px solid #3a3f52;
+  border-top-width: 5px;
+}
+.hud-name {
+  font-weight: 800;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-percent {
+  font-size: 1.9rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.hud-stocks { display: flex; gap: 5px; margin-top: 2px; }
+.hud-stock {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.85);
+}
+.hud-stock.lost { background: transparent !important; opacity: 0.25; }
+.hud-card.dead { opacity: 0.4; filter: grayscale(0.8); }
+
+/* ---------- cuenta regresiva / mensajes centrales ---------- */
+#center-msg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+#center-msg span {
+  font-size: 7rem;
+  font-weight: 900;
+  color: #e9c46a;
+  text-shadow: 0 6px 0 #7a5c1e, 0 10px 30px rgba(0,0,0,0.7);
+  animation: centerPop 0.45s ease-out;
+}
+@keyframes centerPop {
+  from { transform: scale(2.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* ---------- ayuda de controles ---------- */
+.controls-help {
+  font-size: 0.85rem;
+  opacity: 0.65;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   MENÚ PRINCIPAL — estilo Smash: escenario 3D vivo de fondo,
+   logo flotante con rayos, Kenai con bob de boxeador, hojas.
+   ============================================================ */
+.menu-screen {
+  /* deja ver el escenario 3D del juego (nubes, autos, templo, pájaros) */
+  background: linear-gradient(rgba(12, 16, 30, 0.06), rgba(12, 16, 30, 0.30) 85%);
+  overflow: hidden;
+}
+
+/* rayos de luz girando detrás del logo (anime/smash) */
+.menu-rays {
+  position: absolute;
+  top: -42%;
+  left: 50%;
+  width: 110vmin;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 244, 200, 0.14) 0deg 14deg,
+    transparent 14deg 34deg
+  );
+  animation: menuSpin 46s linear infinite;
+  pointer-events: none;
+}
+@keyframes menuSpin { to { transform: translateX(-50%) rotate(360deg); } }
+
+/* glow cálido detrás del logo */
+.menu-glow {
+  position: absolute;
+  top: -6%;
+  left: 50%;
+  width: 74%;
+  height: 52%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(255, 236, 170, 0.34), rgba(255, 236, 170, 0.10) 55%, transparent 75%);
+  animation: glowPulse 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.75; }
+  50%      { opacity: 1; }
+}
+
+/* logo: stack con texto 3D + nube animada */
+.menu-logo-stack {
+  position: absolute;
+  top: 3%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  animation: logoIn 0.5s ease-out, stackFloat 3.6s 0.5s ease-in-out infinite;
+}
+@keyframes stackFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0) rotate(-0.3deg); }
+  50%      { transform: translateX(-50%) translateY(-10px) rotate(0.4deg); }
+}
+
+/* título principal: fuente graffiti con extrusión 3D + sombra magenta gangster */
+.t-main {
+  font-family: 'Bungee', 'Arial Black', sans-serif;
+  font-size: clamp(2.6rem, 7.5vw, 5.8rem);
+  letter-spacing: 0.04em;
+  color: #4CC458;
+  -webkit-text-stroke: 3px #14161a;
+  paint-order: stroke fill;
+  text-shadow:
+    0 1px 0 #1E5B2E, 0 2px 0 #1E5B2E, 0 3px 0 #1E5B2E,
+    0 4px 0 #1E5B2E, 0 5px 0 #1E5B2E, 0 6px 0 #1E5B2E,
+    0 9px 16px rgba(0, 0, 0, 0.55),
+    -7px 7px 0 rgba(229, 69, 157, 0.8);
+  white-space: nowrap;
+}
+
+/* subtítulo: spray dibujado a mano */
+.t-sub {
+  font-family: 'Rubik Spray Paint', 'Bungee', Impact, sans-serif;
+  font-size: clamp(1.5rem, 3.6vw, 2.7rem);
+  letter-spacing: 0.14em;
+  color: #F2C94C;
+  -webkit-text-stroke: 2px #14161a;
+  paint-order: stroke fill;
+  text-shadow:
+    0 2px 0 #B8860B, 0 3px 0 #B8860B,
+    0 6px 12px rgba(0, 0, 0, 0.6),
+    -4px 4px 0 rgba(229, 69, 157, 0.65);
+  margin-top: -8px;
+  white-space: nowrap;
+}
+
+/* nube de pelea entre los textos */
+.menu-cloud {
+  width: clamp(300px, 34vw, 460px);
+  margin: -14px 0 -6px;
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45));
+}
+.menu-cloud svg { width: 100%; height: auto; display: block; }
+
+/* ---- animaciones internas de la nube ---- */
+.cloud-body {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cloudShake 0.36s steps(2) infinite;
+}
+@keyframes cloudShake {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(2.5px, -2px); }
+  50%  { transform: translate(-2.5px, 1.5px); }
+  75%  { transform: translate(2px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+.glove {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: glovePop 2.6s ease-in-out infinite;
+}
+.g2 { animation-delay: 0.55s; }
+.g3 { animation-delay: 1.1s; }
+.g4 { animation-delay: 1.65s; }
+@keyframes glovePop {
+  0%, 100% { transform: scale(1); }
+  10%      { transform: scale(1.22); }
+  22%      { transform: scale(1); }
+}
+.pow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: powShake 0.42s steps(2) infinite;
+}
+.p2 { animation-delay: 0.2s; }
+@keyframes powShake {
+  0%   { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(-3deg) scale(1.06); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+.est {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: twinkle 1.3s ease-in-out infinite;
+}
+.e2 { animation-delay: 0.25s; }
+.e3 { animation-delay: 0.5s; }
+.e4 { animation-delay: 0.75s; }
+.e5 { animation-delay: 1s; }
+@keyframes twinkle {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.4) rotate(18deg); opacity: 0.75; }
+}
+.speedlines {
+  animation: speedPulse 0.36s steps(2) infinite;
+}
+@keyframes speedPulse {
+  0%, 100% { opacity: 0.9; }
+  50%      { opacity: 0.45; }
+}
+@keyframes logoFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0) rotate(-0.4deg); }
+  50%      { transform: translateX(-50%) translateY(-13px) rotate(0.5deg); }
+}
+
+/* Kenai a la IZQUIERDA, espejado para mirar al centro, con bob de boxeador */
+.menu-kenai {
+  position: absolute;
+  left: 1.5%;
+  right: auto;
+  bottom: 0;
+  height: 92%;
+  max-width: 44%;
+  object-fit: contain;
+  filter: drop-shadow(12px 16px 28px rgba(0, 0, 0, 0.5));
+  animation: kenaiInL 0.55s ease-out, kenaiBobL 1.05s 0.55s ease-in-out infinite;
+}
+@keyframes kenaiInL {
+  from { transform: scaleX(-1) translateX(-70px); opacity: 0; }
+  to   { transform: scaleX(-1) translateX(0);     opacity: 1; }
+}
+@keyframes kenaiBobL {
+  0%, 100% { transform: scaleX(-1) translateY(0) rotate(0deg); }
+  50%      { transform: scaleX(-1) translateY(-11px) rotate(1.1deg); }
+}
+
+/* hojas flotando (lore verde) */
+.menu-leaves { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.menu-leaf {
+  position: absolute;
+  top: -6%;
+  width: 22px;
+  height: 22px;
+  background: #3FA34D;
+  border-radius: 0 60% 0 60%;
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.18);
+  opacity: 0.85;
+  animation: leafFall linear infinite;
+}
+@keyframes leafFall {
+  0%   { transform: translateY(-8vh) translateX(0) rotate(0deg); opacity: 0; }
+  10%  { opacity: 0.85; }
+  50%  { transform: translateY(50vh) translateX(4vw) rotate(220deg); }
+  100% { transform: translateY(108vh) translateX(-3vw) rotate(460deg); opacity: 0.2; }
+}
+
+/* botón pulsante PRESS START */
+.menu-play {
+  position: absolute;
+  bottom: 13%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.55rem;
+  letter-spacing: 0.06em;
+  padding: 18px 66px;
+  border-radius: 14px;
+  animation: kenaiIn 0.55s 0.2s ease-out backwards, playPulse 1.5s 0.8s ease-in-out infinite;
+}
+@keyframes playPulse {
+  0%, 100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 rgba(233, 196, 106, 0); }
+  50%      { transform: translateX(-50%) scale(1.07); box-shadow: 0 0 34px rgba(233, 196, 106, 0.65); }
+}
+
+.menu-help {
+  position: absolute;
+  bottom: 6.5%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  opacity: 0.85;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
+  animation: kenaiIn 0.55s 0.35s ease-out backwards;
+}
+
+/* pantallas chicas: Kenai tenue de fondo, todo centrado */
+@media (max-width: 900px) {
+  .menu-kenai { opacity: 0.24; left: -12%; max-width: 85%; }
+  .t-main { font-size: clamp(2rem, 9vw, 3.4rem); }
+  .t-sub { font-size: clamp(1.1rem, 5vw, 1.8rem); }
+  .menu-cloud { width: min(78vw, 340px); }
+  .menu-play { bottom: 16%; }
+}

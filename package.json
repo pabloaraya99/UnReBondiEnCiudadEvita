@@ -1,0 +1,24 @@
+{
+  "name": "un-re-bondi-en-ciudad-evita",
+  "version": "1.0.0",
+  "description": "Juego web estilo Smash con barrio y amigos",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test test/"
+  },
+  "keywords": [
+    "smash",
+    "three.js",
+    "multiplayer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.186.1",
+    "vite": "^8.3.3"
+  }
+}

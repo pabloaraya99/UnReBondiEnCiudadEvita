@@ -1,0 +1,970 @@
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GAME_CONFIG } from '../config.js';
+import { CameraRig } from './CameraRig.js';
+import { buildKenai } from './KenaiModel.js';
+
+const MOVES = GAME_CONFIG.moves;
+const CAM = GAME_CONFIG.camera;
+
+/**
+ * Todo lo que se dibuja. Solo LEE el estado de la simulación (Match): nunca lo modifica.
+ * Todo lo visual de esta etapa es provisorio (cajas y cápsulas de colores): la estética se cambia
+ * acá y en src/config.js sin tocar las reglas del juego.
+ */
+export class Renderer {
+  constructor(container) {
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    container.appendChild(this.renderer.domElement);
+
+    this.scene = new THREE.Scene();
+    this.rig = new CameraRig(window.innerWidth / window.innerHeight);
+    this.views = [];
+    this.stageGroup = null;
+    this.stage = null;
+    this.debug = false;
+    this.particles = [];
+    this.projectileMeshes = new Map();
+    this.carMeshes = new Map(); // autos del tráfico (hazards del Match)
+    this.tmp = new THREE.Vector3();
+    this.tmpColor = new THREE.Color();
+
+    this.setupLights();
+    this.setupPostFX(container);
+    window.addEventListener('resize', () => this.resize());
+  }
+
+  setupLights() {
+    this.scene.add(new THREE.HemisphereLight(0xcfe4ff, 0x3d6b35, 1.15));
+    const sun = new THREE.DirectionalLight(0xfff1d6, 2.6);
+    sun.position.set(-12, 28, 20);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 24, bottom: -18, near: 1, far: 90 });
+    sun.shadow.bias = -0.0005;
+    this.scene.add(sun);
+    this.sun = sun;
+    // luz de relleno fría desde el frente: despega a los personajes del fondo (rim/fill)
+    const fill = new THREE.DirectionalLight(0xbfd9ff, 0.9);
+    fill.position.set(8, 6, 30);
+    this.scene.add(fill);
+  }
+
+  /** Post-processing: bloom sutil (brillan faros/ángel/partículas) + vignette CSS gratis. */
+  setupPostFX(container) {
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.rig.camera));
+    this.bloom = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.32,  // strength: sutil
+      0.65,  // radius
+      0.82,  // threshold: solo lo emisivo/muy claro
+    );
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
+
+    // vignette con CSS (cero costo de GPU)
+    const vig = document.createElement('div');
+    vig.style.cssText =
+      'position:fixed;inset:0;pointer-events:none;z-index:5;' +
+      'background:radial-gradient(ellipse at center, transparent 55%, rgba(8,10,20,0.42) 100%);';
+    container.appendChild(vig);
+  }
+
+  resize() {
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.composer.setSize(window.innerWidth, window.innerHeight);
+    this.rig.setAspect(window.innerWidth / window.innerHeight);
+  }
+
+  // ------------------------------------------------------------------ escenario
+
+  setStage(stage) {
+    if (this.stageGroup) {
+      this.scene.remove(this.stageGroup);
+      this.stageGroup.traverse((o) => {
+        o.geometry?.dispose();
+        o.material?.dispose?.();
+      });
+    }
+    this.stage = stage;
+    const g = new THREE.Group();
+
+    // ---- cielo con degradado (celeste arriba, casi blanco en el horizonte) ----
+    this.scene.background = this.makeSkyTexture();
+    this.scene.fog = new THREE.Fog(0x9fd4f5, 80, 230);
+
+    const box = (w, h, d, color, x, y, z, opts = {}) => {
+      const { shadow, ...matOpts } = opts;
+      const m = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0, ...matOpts }),
+      );
+      m.position.set(x, y, z);
+      m.castShadow = shadow ?? true;
+      m.receiveShadow = true;
+      g.add(m);
+      return m;
+    };
+
+    let cseed = 11;
+    const crnd = () => ((cseed = (cseed * 16807) % 2147483647) / 2147483647);
+
+    // ================================================================ CAPA JUEGO (sin parallax)
+    // ---- EL PISO ES LA CALLE: asfalto texturizado con líneas, de borde a borde ----
+    const asphaltTex = this.makeAsphaltTexture();
+    const grassTex = this.makeGrassTexture();
+    for (const s of stage.solids) {
+      const w = s.r - s.l;
+      const h = s.top - s.bottom;
+      const cx = (s.l + s.r) / 2;
+      // losa de asfalto con textura procedural (grietas, manchas)
+      const slabTex = asphaltTex.clone();
+      slabTex.repeat.set(Math.max(1, w / 10), Math.max(1, h / 4));
+      const slab = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, 9),
+        new THREE.MeshStandardMaterial({ map: slabTex, roughness: 0.95, metalness: 0 }),
+      );
+      slab.position.set(cx, (s.top + s.bottom) / 2, 0);
+      slab.castShadow = true;
+      slab.receiveShadow = true;
+      g.add(slab);
+      // línea central quebrada
+      for (let x = s.l + 2; x < s.r - 2; x += 6) {
+        box(2.8, 0.06, 0.32, 0xf4f1e8, x, s.top + 0.03, 0, { shadow: false });
+      }
+      // bordes amarillos
+      box(w, 0.1, 0.4, 0xf2c94c, cx, s.top + 0.05, 4.2, { shadow: false });
+      box(w, 0.1, 0.4, 0xf2c94c, cx, s.top + 0.05, -4.2, { shadow: false });
+      // hombros de pasto por fuera del asfalto (visual, sin colisión extra)
+      box(4, h, 9, 0x58c24e, s.l - 2, (s.top + s.bottom) / 2, 0, { shadow: false });
+      box(4, h, 9, 0x58c24e, s.r + 2, (s.top + s.bottom) / 2, 0, { shadow: false });
+    }
+
+    // ---- terraplén de pasto (plataforma de spawn, losa fina para ver abajo) ----
+    const spawn = stage.oneWays[0];
+    if (spawn) {
+      const cx = (spawn.l + spawn.r) / 2;
+      const w = spawn.r - spawn.l;
+      const topTex = grassTex.clone();
+      topTex.repeat.set(Math.max(1, w / 6), 1);
+      const topSlab = new THREE.Mesh(
+        new THREE.BoxGeometry(w, 0.4, 6),
+        new THREE.MeshStandardMaterial({ map: topTex, roughness: 0.9, metalness: 0 }),
+      );
+      topSlab.position.set(cx, spawn.top - 0.2, 0);
+      topSlab.castShadow = true;
+      topSlab.receiveShadow = true;
+      g.add(topSlab);
+      box(w - 0.3, 0.8, 5.7, 0x8a5a33, cx, spawn.top - 0.8, 0, { roughness: 0.95 }); // tierra
+    }
+
+    // ---- plataformas flotantes: guardarraíles ----
+    for (const o of stage.oneWays.slice(1)) {
+      const cx = (o.l + o.r) / 2;
+      const w = o.r - o.l;
+      box(w, 0.26, 0.34, 0xc9ced4, cx, o.top - 0.13, 0, { metalness: 0.75, roughness: 0.3 });
+      box(w, 0.26, 0.34, 0x9aa0a6, cx, o.top - 0.4, 0, { metalness: 0.75, roughness: 0.3 });
+      box(0.18, 1.0, 0.18, 0x7a7f85, cx - w / 2 + 0.45, o.top - 0.95, 0, { metalness: 0.6, roughness: 0.4 });
+      box(0.18, 1.0, 0.18, 0x7a7f85, cx + w / 2 - 0.45, o.top - 0.95, 0, { metalness: 0.6, roughness: 0.4 });
+    }
+
+    // ---- cartel de ruta azul (primer plano, se mueve con el mundo) ----
+    const sign = new THREE.Mesh(
+      new THREE.PlaneGeometry(8.4, 5.2),
+      new THREE.MeshStandardMaterial({ map: this.makeSignTexture(), roughness: 0.6, metalness: 0.1 }),
+    );
+    sign.position.set(-24, 0.5, -10);
+    sign.rotation.y = 0.22;
+    g.add(sign);
+    box(0.35, 8.5, 0.35, 0x6b5637, -26.6, -3.3, -10.4, { shadow: false });
+    box(0.35, 8.5, 0.35, 0x6b5637, -21.6, -3.3, -10.4, { shadow: false });
+
+    // ================================================================ CAPA MEDIA (bgMid, parallax 0.7)
+    this.bgMid = new THREE.Group();
+    const mid = this.makeGrouper(this.bgMid);
+
+    // pradera entre la calle de juego y el templo
+    mid(360, 2, 90, 0x4a9e42, 0, -8.2, -34, { shadow: false });
+    g.add(this.bgMid);
+
+    // ================================================================ CAPA LEJANA (bgFar, parallax 0.88)
+    this.bgFar = new THREE.Group();
+    const far = this.makeGrouper(this.bgFar);
+
+    // colinas verdes azuladas (perspectiva atmosférica)
+    const hillMat = new THREE.MeshStandardMaterial({ color: 0x6fbf73, roughness: 1 });
+    for (let i = 0; i < 4; i++) {
+      const hill = new THREE.Mesh(new THREE.SphereGeometry(22 + i * 7, 16, 12), hillMat);
+      hill.scale.set(1.7, 0.32, 0.6);
+      hill.position.set(-55 + i * 38, -7.5, -70 - i * 4);
+      this.bgFar.add(hill);
+    }
+
+    // pasto lejano bajo el templo
+    far(360, 2, 60, 0x55ab4e, 0, -7.8, -52, { shadow: false });
+
+    // ---- EL TEMPLO: centrado, imponente, visible sobre el horizonte ----
+    const temple = this.makeTemple();
+    temple.scale.setScalar(1.5);
+    temple.position.set(0, -7, -56);
+    this.bgFar.add(temple);
+
+    // palmeras junto al templo
+    for (const [px, pz] of [[-20, -50], [-14, -54], [22, -51], [28, -55], [32, -50]]) {
+      const palm = this.makePalm(5 + crnd() * 2);
+      palm.position.set(px, -7, pz);
+      this.bgFar.add(palm);
+    }
+    g.add(this.bgFar);
+
+    // ---- nubes en dos profundidades (más parallax natural) ----
+    this.clouds = [];
+    for (let i = 0; i < 11; i++) {
+      const cloud = new THREE.Group();
+      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const puffs = 3 + Math.floor(crnd() * 3);
+      for (let p = 0; p < puffs; p++) {
+        const s = new THREE.Mesh(new THREE.SphereGeometry(1.6 + crnd() * 1.3, 12, 10), mat);
+        s.position.set(p * 2.1 - puffs, crnd() * 0.8, crnd() * 0.5);
+        s.scale.y = 0.62;
+        cloud.add(s);
+      }
+      const lejos = i % 2 === 0;
+      cloud.position.set(-70 + crnd() * 140, 10 + crnd() * 18, lejos ? -55 - crnd() * 20 : -20 - crnd() * 15);
+      g.add(cloud);
+      this.clouds.push({ group: cloud, speed: lejos ? 0.4 + crnd() * 0.5 : 0.9 + crnd() * 0.9 });
+    }
+
+    // ---- pájaros cruzando el cielo ----
+    this.birds = [];
+    for (let i = 0; i < 3; i++) {
+      const bird = this.makeBird();
+      bird.group.position.set(-80 - i * 25, 13 + i * 3, -30 - i * 8);
+      g.add(bird.group);
+      this.birds.push({ ...bird, speed: 5 + crnd() * 3, phase: crnd() * 6 });
+    }
+
+    // zona de KO (solo en modo debug)
+    const b = stage.blast;
+    const blast = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(b.right - b.left, b.top - b.bottom, 0.1)),
+      new THREE.LineBasicMaterial({ color: 0xff3b3b }),
+    );
+    blast.position.set((b.left + b.right) / 2, (b.top + b.bottom) / 2, 0);
+    blast.visible = this.debug;
+    blast.name = 'blast';
+    g.add(blast);
+
+    this.stageGroup = g;
+    this.scene.add(g);
+  }
+
+  /** Helper: devuelve una función `box` que agrega meshes a un grupo dado. */
+  makeGrouper(group) {
+    return (w, h, d, color, x, y, z, opts = {}) => {
+      const { shadow, ...matOpts } = opts;
+      const m = new THREE.Mesh(
+        new THREE.BoxGeometry(w, h, d),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0, ...matOpts }),
+      );
+      m.position.set(x, y, z);
+      m.castShadow = shadow ?? true;
+      m.receiveShadow = true;
+      group.add(m);
+      return m;
+    };
+  }
+
+  /** Asfalto procedural: gris con ruido, manchas de aceite y grietas. */
+  makeAsphaltTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#4a4d52';
+    ctx.fillRect(0, 0, 256, 256);
+    // ruido de granulado
+    let s = 13;
+    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 2600; i++) {
+      const v = rnd();
+      ctx.fillStyle = v > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.09)';
+      ctx.fillRect(rnd() * 256, rnd() * 256, 1.6, 1.6);
+    }
+    // manchas de aceite
+    for (let i = 0; i < 7; i++) {
+      ctx.fillStyle = 'rgba(20,22,26,0.16)';
+      ctx.beginPath();
+      ctx.ellipse(rnd() * 256, rnd() * 256, 12 + rnd() * 26, 8 + rnd() * 16, rnd() * 3, 0, 7);
+      ctx.fill();
+    }
+    // grietas oscuras
+    ctx.strokeStyle = 'rgba(25,27,31,0.55)';
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      let x = rnd() * 256, y = rnd() * 256;
+      ctx.moveTo(x, y);
+      for (let k = 0; k < 5; k++) { x += (rnd() - 0.5) * 46; y += (rnd() - 0.5) * 46; ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** Pasto procedural: verde base con pinceladas de tonos (claro/oscuro). */
+  makeGrassTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#58c24e';
+    ctx.fillRect(0, 0, 256, 256);
+    let s = 29;
+    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const tones = ['#4fb345', '#63d35a', '#55bd4a', '#6adb60', '#49a83f'];
+    for (let i = 0; i < 900; i++) {
+      ctx.strokeStyle = tones[(rnd() * tones.length) | 0];
+      ctx.lineWidth = 1.6;
+      const x = rnd() * 256, y = rnd() * 256;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (rnd() - 0.5) * 3, y - 3 - rnd() * 4);
+      ctx.stroke();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** Sombra de contacto (radial negro con bordes suaves). */
+  makeBlobTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+    grad.addColorStop(0, 'rgba(0,0,0,0.55)');
+    grad.addColorStop(0.7, 'rgba(0,0,0,0.28)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(c);
+    return tex;
+  }
+
+  /** Degradado vertical de cielo (canvas 1x256 estirado a toda la pantalla). */
+  makeSkyTexture() {
+    const c = document.createElement('canvas');
+    c.width = 1; c.height = 256;
+    const ctx = c.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, '#3d9be9');   // celeste intenso arriba
+    grad.addColorStop(0.55, '#7ec8f7');
+    grad.addColorStop(1, '#d9f0ff');   // casi blanco en el horizonte
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1, 256);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** Pájaro simple en V con aleteo (dos planos, MeshBasic negro). */
+  makeBird() {
+    const group = new THREE.Group();
+    const mat = new THREE.MeshBasicMaterial({ color: 0x22303c, side: THREE.DoubleSide });
+    const wingL = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.28), mat);
+    const wingR = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.28), mat);
+    wingL.position.x = -0.5;
+    wingR.position.x = 0.5;
+    group.add(wingL, wingR);
+    return { group, wingL, wingR };
+  }
+
+  /** Templo de Buenos Aires: cuerpo blanco, frontón, agujas con ventanales, ángel dorado. */
+  makeTemple() {
+    const t = new THREE.Group();
+    const blanco = new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 0.7, metalness: 0.05 });
+    const gris = new THREE.MeshStandardMaterial({ color: 0xd8d5ce, roughness: 0.8, metalness: 0.05 });
+    const vidrio = new THREE.MeshStandardMaterial({ color: 0x2e3d54, roughness: 0.25, metalness: 0.4 });
+
+    const add = (geo, mat, x, y, z) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.castShadow = true;
+      t.add(m);
+      return m;
+    };
+
+    // cerco perimetral bajo (como en la foto)
+    add(new THREE.BoxGeometry(30, 1.1, 0.5), blanco, 0, 0.55, 5.5);
+    add(new THREE.BoxGeometry(0.5, 1.1, 11), blanco, -15, 0.55, 0);
+    add(new THREE.BoxGeometry(0.5, 1.1, 11), blanco, 15, 0.55, 0);
+
+    // cuerpo principal
+    add(new THREE.BoxGeometry(24, 7, 7), blanco, 0, 3.5, 0);
+
+    // ventanales verticales altos (rasgo típico del templo)
+    for (let i = -5; i <= 5; i++) {
+      if (i === 0) continue;
+      add(new THREE.BoxGeometry(0.85, 3.6, 0.25), vidrio, i * 2.05, 4.1, 3.56);
+    }
+    // puerta central
+    add(new THREE.BoxGeometry(2.3, 4, 0.3), vidrio, 0, 3, 3.58);
+
+    // techo a dos aguas (prisma triangular) con ventana circular
+    const tri = new THREE.Shape();
+    tri.moveTo(-12.4, 0); tri.lineTo(0, 4.2); tri.lineTo(12.4, 0); tri.closePath();
+    const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 7, bevelEnabled: false }), gris);
+    roof.position.set(0, 7, -3.5);
+    roof.castShadow = true;
+    t.add(roof);
+    const round = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.3, 20), vidrio);
+    round.rotation.x = Math.PI / 2;
+    round.position.set(0, 8.4, 3.6);
+    t.add(round);
+
+    // anexo lateral derecho (más bajo)
+    add(new THREE.BoxGeometry(10, 4.5, 6), blanco, 16, 2.25, 0);
+    add(new THREE.BoxGeometry(10.6, 0.8, 6.6), gris, 16, 4.8, 0);
+    for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(0.8, 2.4, 0.25), vidrio, 13.5 + i * 2.5, 2.4, 3.06);
+
+    // agujas: base + tramo medio + ventanal + punta cónica
+    const spire = (x, z, base, mid, tip) => {
+      add(new THREE.BoxGeometry(1.9, base, 1.9), blanco, x, 7 + base / 2, z);
+      add(new THREE.BoxGeometry(1.1, mid, 1.1), blanco, x, 7 + base + mid / 2, z);
+      add(new THREE.BoxGeometry(0.6, mid * 0.7, 0.15), vidrio, x, 7 + base + mid / 2, z + 0.6);
+      add(new THREE.ConeGeometry(0.65, tip, 4), gris, x, 7 + base + mid + tip / 2, z);
+      return 7 + base + mid + tip;
+    };
+    // torre central (la más alta) con ángel Moroni dorado
+    const topY = spire(0, 0, 7, 5.5, 5);
+    const angel = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.28, 0.9, 4, 8),
+      new THREE.MeshStandardMaterial({ color: 0xf2c94c, metalness: 0.85, roughness: 0.25 }),
+    );
+    angel.position.set(0, topY + 0.8, 0);
+    t.add(angel);
+    // torres laterales sobre el cuerpo
+    spire(-8.5, 0, 4.5, 3.5, 3.5);
+    spire(8.5, 0, 4.5, 3.5, 3.5);
+    // agujas chicas del anexo
+    spire(13.5, 0, 3, 2.5, 2.5);
+    spire(18.5, 0, 3, 2.5, 2.5);
+
+    return t;
+  }
+
+  /** Palmera simple: tronco + hojas cónicas aplanadas. */
+  makePalm(h = 5) {
+    const p = new THREE.Group();
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.22, 0.34, h, 7),
+      new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.9 }),
+    );
+    trunk.position.y = h / 2;
+    trunk.castShadow = true;
+    p.add(trunk);
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.8 });
+    for (let i = 0; i < 6; i++) {
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.8, 5), leafMat);
+      const a = (i / 6) * Math.PI * 2;
+      leaf.position.set(Math.cos(a) * 1.2, h + 0.25, Math.sin(a) * 1.2);
+      leaf.rotation.set(Math.sin(a) * 1.15, 0, -Math.cos(a) * 1.15);
+      p.add(leaf);
+    }
+    return p;
+  }
+
+  /** Auto detallado: cuerpo + cabina + paragolpes + faros emissive + ruedas. */
+  makeCar(color) {
+    const c = new THREE.Group();
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(3.2, 0.8, 1.5),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.45 }),
+    );
+    body.position.y = 0.75;
+    body.castShadow = true;
+    c.add(body);
+    const cabin = new THREE.Mesh(
+      new THREE.BoxGeometry(1.7, 0.65, 1.35),
+      new THREE.MeshStandardMaterial({ color: 0x9fc6e8, roughness: 0.15, metalness: 0.35 }),
+    );
+    cabin.position.set(-0.2, 1.45, 0);
+    cabin.castShadow = true;
+    c.add(cabin);
+    // paragolpes (más oscuros)
+    const bumperMat = new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.6, metalness: 0.5 });
+    const bFront = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 1.55), bumperMat);
+    bFront.position.set(1.68, 0.5, 0);
+    c.add(bFront);
+    const bBack = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 1.55), bumperMat);
+    bBack.position.set(-1.68, 0.5, 0);
+    c.add(bBack);
+    // faros delanteros (emissive: brillan con el bloom)
+    const headMat = new THREE.MeshStandardMaterial({
+      color: 0xfff6c9, emissive: 0xffe27a, emissiveIntensity: 1.6, roughness: 0.2,
+    });
+    for (const z of [-0.5, 0.5]) {
+      const h = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.34), headMat);
+      h.position.set(1.62, 0.85, z);
+      c.add(h);
+    }
+    // faros traseros (rojos)
+    const tailMat = new THREE.MeshStandardMaterial({
+      color: 0x8a1616, emissive: 0xd8352a, emissiveIntensity: 0.9, roughness: 0.2,
+    });
+    for (const z of [-0.5, 0.5]) {
+      const t = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.3), tailMat);
+      t.position.set(-1.62, 0.85, z);
+      c.add(t);
+    }
+    // patente blanca atrás
+    const plate = new THREE.Mesh(
+      new THREE.BoxGeometry(0.06, 0.22, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.5 }),
+    );
+    plate.position.set(-1.79, 0.55, 0);
+    c.add(plate);
+    // ruedas
+    const wheelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.3, 10);
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1b1d22, roughness: 0.9 });
+    const hubMat = new THREE.MeshStandardMaterial({ color: 0x8f959c, roughness: 0.3, metalness: 0.7 });
+    for (const [wx, wz] of [[-1.05, 0.75], [1.05, 0.75], [-1.05, -0.75], [1.05, -0.75]]) {
+      const w = new THREE.Mesh(wheelGeo, wheelMat);
+      w.rotation.x = Math.PI / 2;
+      w.position.set(wx, 0.38, wz);
+      c.add(w);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.32, 8), hubMat);
+      hub.rotation.x = Math.PI / 2;
+      hub.position.set(wx, 0.38, wz);
+      c.add(hub);
+    }
+    return c;
+  }
+
+  /** Textura del cartel de ruta (azul con texto blanco, lore del barrio). */
+  makeSignTexture() {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 320;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#1d5fbf';
+    ctx.fillRect(0, 0, 512, 320);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(8, 8, 496, 304);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.font = '900 52px Arial, sans-serif';
+    ctx.fillText('CIUDAD EVITA', 256, 90);
+    ctx.font = '700 34px Arial, sans-serif';
+    ctx.fillText('Los Mormones', 256, 155);
+    ctx.fillText('Templo 400 m', 256, 210);
+    ctx.font = '900 44px Arial, sans-serif';
+    ctx.fillText('↓ salida ↓', 256, 285);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** Mueve las nubes lentamente; recicla cuando salen de cuadro. */
+  updateClouds(dt) {
+    if (!this.clouds) return;
+    for (const c of this.clouds) {
+      c.group.position.x += c.speed * dt;
+      if (c.group.position.x > 70) c.group.position.x = -70;
+    }
+  }
+
+  /** Dibuja los autos del tráfico (hazards del Match, estilo Onett). */
+  drawCars(match, alpha) {
+    const seen = new Set();
+    const carColors = [0xd8352a, 0xf4f1e8, 0x4d8bff, 0xf2c94c, 0x2dd4bf, 0xe5449d, 0x3fa34d];
+    const floorTop = match.stage.solids[0]?.top ?? 0;
+    for (const c of match.cars) {
+      seen.add(c.id);
+      let mesh = this.carMeshes.get(c.id);
+      if (!mesh) {
+        mesh = this.makeCar(carColors[c.id % carColors.length]);
+        this.scene.add(mesh);
+        this.carMeshes.set(c.id, mesh);
+      }
+      mesh.position.set(c.prevX + (c.x - c.prevX) * alpha, floorTop, 0.8);
+      mesh.rotation.y = c.dir > 0 ? 0 : Math.PI;
+    }
+    for (const [id, mesh] of this.carMeshes) {
+      if (seen.has(id)) continue;
+      this.scene.remove(mesh);
+      mesh.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+      this.carMeshes.delete(id);
+    }
+  }
+
+  /** Pájaros cruzando el cielo con aleteo; recicla al salir de cuadro. */
+  updateBirds(dt) {
+    if (!this.birds) return;
+    const t = performance.now() / 1000;
+    for (const b of this.birds) {
+      b.group.position.x += b.speed * dt;
+      if (b.group.position.x > 85) {
+        b.group.position.x = -85;
+        b.group.position.y = 11 + Math.random() * 9;
+      }
+      // aleteo: las alas suben y bajan
+      const flap = Math.sin(t * 9 + b.phase) * 0.55;
+      b.wingL.rotation.z = 0.35 + flap;
+      b.wingR.rotation.z = -0.35 - flap;
+    }
+  }
+
+  // ------------------------------------------------------------------ peleadores
+
+  setPlayers(match) {
+    for (const v of this.views) this.scene.remove(v.group);
+    for (const v of this.views) this.scene.remove(v.debugHurt, v.debugHit);
+    this.views = match.fighters.map((f) => this.makeView(f));
+    this.rig.focus.set(0, 3, 0);
+  }
+
+  makeView(f) {
+    if (f.characterId === 'pablo') return this.makeKenaiView(f);
+    return this.makeCapsuleView(f);
+  }
+
+  /** Helpers compartidos por todas las vistas. */
+  makeEdges(color) {
+    const l = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color }));
+    l.visible = false;
+    this.scene.add(l);
+    return l;
+  }
+
+  makeBlob() {
+    if (!this.blobTex) this.blobTex = this.makeBlobTexture();
+    const blob = new THREE.Mesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: this.blobTex, transparent: true, depthWrite: false }),
+    );
+    blob.rotation.x = -Math.PI / 2;
+    this.scene.add(blob);
+    return blob;
+  }
+
+  makeSlotRing(f) {
+    const slot = GAME_CONFIG.players[f.index % GAME_CONFIG.players.length];
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(f.spec.width * 0.62, 0.07, 8, 28),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(slot.color) }),
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.06;
+    return ring;
+  }
+
+  /** Vista de Kenai: modelo detallado con primitivas (KenaiModel.js). */
+  makeKenaiView(f) {
+    const spec = f.spec;
+    const group = new THREE.Group();
+    const color = new THREE.Color(spec.color);
+    const kenai = buildKenai();
+    const pivot = new THREE.Group();
+    pivot.add(kenai.group);
+    const ring = this.makeSlotRing(f);
+    group.add(pivot, ring);
+    this.scene.add(group);
+    const blob = this.makeBlob();
+    return {
+      group, pivot, ring, blob,
+      mat: kenai.hoodieMat,
+      mats: kenai.mats,
+      isKenai: true,
+      baseColor: color,
+      turn: f.facing > 0 ? 0 : Math.PI,
+      debugHurt: this.makeEdges(0x44ff77),
+      debugHit: this.makeEdges(0xff4444),
+    };
+  }
+
+  /** Vista cápsula provisoria para el resto de los personajes. */
+  makeCapsuleView(f) {
+    const spec = f.spec;
+    const group = new THREE.Group();
+    const color = new THREE.Color(spec.color);
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05, emissive: 0x000000 });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(spec.width / 2, spec.height - spec.width, 6, 14), mat);
+    body.position.y = spec.height / 2;
+    body.castShadow = true;
+    const visor = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.2, 0.62),
+      new THREE.MeshStandardMaterial({ color: 0x1b1d22, roughness: 0.3 }),
+    );
+    visor.position.set(spec.width * 0.34, spec.height * 0.78, 0);
+    const pivot = new THREE.Group(); // lo que se inclina / aplasta / mira hacia un lado
+    pivot.add(body, visor);
+    const ring = this.makeSlotRing(f);
+    group.add(pivot, ring);
+    this.scene.add(group);
+    const blob = this.makeBlob();
+    return { group, pivot, body, mat, ring, blob, baseColor: color, turn: f.facing > 0 ? 0 : Math.PI, debugHurt: this.makeEdges(0x44ff77), debugHit: this.makeEdges(0xff4444) };
+  }
+
+  /** Altura del piso más alto debajo del personaje (para la sombra de contacto). */
+  floorYUnder(fighter, stage) {
+    let y = -Infinity;
+    const hw = fighter.width / 2;
+    for (const s of stage.solids) {
+      if (fighter.x + hw > s.l && fighter.x - hw < s.r && fighter.y >= s.top - 0.01) y = Math.max(y, s.top);
+    }
+    for (const o of stage.oneWays) {
+      if (fighter.x + hw > o.l && fighter.x - hw < o.r && fighter.y >= o.top - 0.01) y = Math.max(y, o.top);
+    }
+    return y === -Infinity ? stage.solids[0]?.top ?? 0 : y;
+  }
+
+  // ------------------------------------------------------------------ cuadro
+
+  /**
+   * @param match estado de la simulación
+   * @param alpha 0..1: cuánto avanzó el cuadro actual entre dos pasos fijos (interpolación)
+   * @param dt segundos reales desde el cuadro anterior
+   */
+  render(match, alpha, dt) {
+    const f = match.fighters;
+    const targets = [];
+
+    f.forEach((fighter, i) => {
+      const v = this.views[i];
+      if (!v) return;
+      const visible = fighter.alive;
+      v.group.visible = visible;
+      if (v.blob) v.blob.visible = visible;
+      if (!visible) return;
+      const x = fighter.prevX + (fighter.x - fighter.prevX) * alpha;
+      const y = fighter.prevY + (fighter.y - fighter.prevY) * alpha;
+      v.group.position.set(x, y, 0);
+      targets.push({ x, y: y + fighter.height * 0.5 });
+
+      // girar hacia donde mira
+      const goal = fighter.facing > 0 ? 0 : Math.PI;
+      let d = goal - v.turn;
+      v.turn += d * (1 - Math.exp(-22 * dt));
+      v.pivot.rotation.y = v.turn;
+
+      // inclinación y aplastado según lo que hace
+      let lean = 0;
+      let sx = 1;
+      let sy = 1;
+      const t = performance.now() / 1000;
+      if (fighter.state === 'run') {
+        lean = -0.12 * fighter.facing;
+        sy = 1 + Math.sin(t * 22) * 0.03;
+      } else if (fighter.state === 'air') {
+        const s = Math.max(-0.15, Math.min(0.15, fighter.vy * 0.012));
+        sy = 1 + s;
+        sx = 1 - s * 0.6;
+      } else if (fighter.state === 'attack' && fighter.attack) {
+        const m = MOVES[fighter.attack.id];
+        const fr = fighter.attack.frame;
+        const active = fr >= m.startup && fr < m.startup + m.active;
+        lean = (active ? -0.35 : fr < m.startup ? 0.18 : -0.1) * fighter.facing;
+        if (fighter.attack.id === 'up' || fighter.attack.id === 'upSpecial') lean *= 0.3;
+      } else if (fighter.state === 'hitstun') {
+        lean = (fighter.vx >= 0 ? 1 : -1) * 0.5 * (-1);
+        sx = 1.08;
+        sy = 0.92;
+      }
+      v.pivot.rotation.z += (lean - v.pivot.rotation.z) * (1 - Math.exp(-18 * dt));
+      // tamaño del stance (Gordo/Flaco cambian el ancho y el alto reales) + bloque aplastado
+      const wr = fighter.width / fighter.spec.width;
+      const hr = fighter.height / fighter.spec.height;
+      const block = fighter.state === 'blockForm';
+      v.pivot.scale.set(sx * wr * (block ? 1.12 : 1), sy * hr * (block ? 0.82 : 1), wr);
+
+      // color: hitstun = flash blanco-rojo · invulnerable = parpadeo · porcentaje alto = más rojizo
+      const flash = fighter.state === 'hitstun' || fighter.hitlag > 0;
+      const invOp = fighter.invuln > 0 ? (Math.floor(t * 14) % 2 ? 0.35 : 0.8) : 1;
+      if (v.isKenai) {
+        // Kenai tiene varios materiales: flash/opacity a todos, tinte de stance solo al hoodie
+        for (const m of v.mats) {
+          m.emissive.setRGB(flash ? 0.55 : 0, flash ? 0.12 : 0, flash ? 0.1 : 0);
+          m.color.copy(m.userData.base);
+          if (block) m.color.lerp(this.tmpColor.set(0x8d9096), 0.75);
+          m.transparent = fighter.invuln > 0;
+          m.opacity = invOp;
+        }
+        if (fighter.stance === 'gordo') v.mat.color.lerp(this.tmpColor.set(0x6b3a10), 0.3);
+        else if (fighter.stance === 'flaco') v.mat.color.lerp(this.tmpColor.set(0xffe6b8), 0.3);
+      } else {
+        v.mat.emissive.setRGB(flash ? 0.55 : 0, flash ? 0.12 : 0, flash ? 0.1 : 0);
+        v.mat.color.copy(v.baseColor).lerp(new THREE.Color(0xd8352a), Math.min(0.35, fighter.percent / 600));
+        if (fighter.stance === 'gordo') v.mat.color.lerp(new THREE.Color(0x6b3a10), 0.3);
+        else if (fighter.stance === 'flaco') v.mat.color.lerp(new THREE.Color(0xffe6b8), 0.3);
+        if (block) v.mat.color.lerp(new THREE.Color(0x8d9096), 0.75);
+        v.mat.transparent = fighter.invuln > 0;
+        v.mat.opacity = invOp;
+      }
+
+      // sombra de contacto: sigue al personaje, se achica y desvanece con la altura
+      if (v.blob) {
+        const floorY = this.floorYUnder(fighter, match.stage);
+        const heightAbove = Math.max(0, y - floorY);
+        const spread = Math.max(0.35, 1 - heightAbove * 0.055);
+        v.blob.position.set(x, floorY + 0.03, 0.9);
+        v.blob.scale.set(fighter.width * 2.1 * spread, fighter.width * 2.1 * spread, 1);
+        v.blob.material.opacity = Math.max(0, 0.85 - heightAbove * 0.06);
+      }
+
+      // cajas de debug
+      v.debugHurt.visible = this.debug;
+      if (this.debug) {
+        const hb = fighter.hurtbox();
+        v.debugHurt.position.set((hb.l + hb.r) / 2, (hb.b + hb.t) / 2, 0.5);
+        v.debugHurt.scale.set(hb.r - hb.l, hb.t - hb.b, 0.4);
+      }
+      const hit = this.debug ? fighter.hitbox() : null;
+      v.debugHit.visible = !!hit;
+      if (hit) {
+        v.debugHit.position.set((hit.l + hit.r) / 2, (hit.b + hit.t) / 2, 0.5);
+        v.debugHit.scale.set(hit.r - hit.l, hit.t - hit.b, 0.5);
+      }
+    });
+
+    this.drawProjectiles(match, alpha);
+    this.drawCars(match, alpha);
+    this.updateParticles(dt);
+    this.updateClouds(dt);
+    this.updateBirds(dt);
+    this.rig.update(dt, targets, match.stage, false);
+
+    // ---- parallax de fondo (estilo Smash: el fondo sigue apenas a la cámara) ----
+    const fx = this.rig.focus.x;
+    const fy = this.rig.focus.y;
+    if (this.bgMid) this.bgMid.position.set(fx * 0.7, fy * 0.18, 0);
+    if (this.bgFar) this.bgFar.position.set(fx * 0.88, fy * 0.32, 0);
+    const blast = this.stageGroup?.getObjectByName('blast');
+    if (blast) blast.visible = this.debug;
+    this.composer.render();
+  }
+
+  drawProjectiles(match, alpha) {
+    const seen = new Set();
+    for (const p of match.projectiles) {
+      seen.add(p.id);
+      let mesh = this.projectileMeshes.get(p.id);
+      if (!mesh) {
+        const r = MOVES[p.move].projectile.radius;
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffd23c }));
+        this.scene.add(mesh);
+        this.projectileMeshes.set(p.id, mesh);
+      }
+      mesh.position.set(p.prevX + (p.x - p.prevX) * alpha, p.y, 0);
+    }
+    for (const [id, mesh] of this.projectileMeshes) {
+      if (seen.has(id)) continue;
+      this.scene.remove(mesh);
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+      this.projectileMeshes.delete(id);
+    }
+  }
+
+  // ------------------------------------------------------------------ efectos (se disparan con los eventos de la simulación)
+
+  onEvents(events, match) {
+    for (const e of events) {
+      if (e.type === 'hit') {
+        const strong = Math.min(1, e.kb / 22);
+        this.burst(e.x, e.y, 6 + Math.floor(strong * 14), 0xfff2b0, 4 + strong * 12, 0.28 + strong * 0.2, 0.12 + strong * 0.1);
+        this.burst(e.x, e.y, 4, 0xff6a3d, 3 + strong * 8, 0.22, 0.1);
+        this.rig.addShake(CAM.shake.hit * (0.4 + strong));
+      } else if (e.type === 'ko') {
+        const c = this.views[e.i]?.baseColor.getHex() ?? 0xffffff;
+        this.burst(e.x, e.y, 40, c, 22, 0.8, 0.25);
+        this.burst(e.x, e.y, 24, 0xffffff, 30, 0.5, 0.15);
+        this.rig.addShake(CAM.shake.ko);
+      } else if (e.type === 'jump') {
+        this.burst(e.x, e.y + 0.05, e.double ? 8 : 5, 0xe8eef5, 2.5, 0.3, 0.1);
+      } else if (e.type === 'land' && e.speed > 6) {
+        this.burst(e.x, e.y + 0.05, 6, 0xd6d0c4, 3, 0.3, 0.1);
+      } else if (e.type === 'respawn') {
+        this.burst(e.x, e.y + 0.9, 18, 0x9fe8ff, 6, 0.6, 0.14);
+      } else if (e.type === 'shot-end') {
+        this.burst(e.x, e.y, 6, 0xffd23c, 5, 0.25, 0.1);
+      } else if (e.type === 'boost') {
+        this.burst(e.x, e.y, 10, 0xffffff, 6, 0.35, 0.12);
+      } else if (e.type === 'car-spawn') {
+        // bocina de advertencia: flash amarillo en el borde por donde viene el auto
+        const warnX = -e.dir * 22;
+        this.burst(warnX, -5.2, 10, 0xffd23c, 5, 0.5, 0.18);
+      } else if (e.type === 'car-hit') {
+        // choque: explosión roja fuerte + shake grande
+        this.burst(e.x, e.y + 1, 26, 0xff5a36, 16, 0.6, 0.22);
+        this.burst(e.x, e.y + 1, 14, 0xffd23c, 10, 0.4, 0.14);
+        this.rig.addShake(CAM.shake.ko * 0.8);
+      }
+    }
+  }
+
+  burst(x, y, count, color, speed, life, size) {
+    for (let i = 0; i < count; i++) {
+      if (this.particles.length > 220) return;
+      const a = Math.random() * Math.PI * 2;
+      const s = speed * (0.35 + Math.random() * 0.65);
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 6, 5), new THREE.MeshBasicMaterial({ color, transparent: true }));
+      mesh.position.set(x, y, 0.4);
+      this.scene.add(mesh);
+      this.particles.push({ mesh, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: life * (0.6 + Math.random() * 0.4), max: life });
+    }
+  }
+
+  updateParticles(dt) {
+    const alive = [];
+    for (const p of this.particles) {
+      p.life -= dt;
+      if (p.life <= 0) {
+        this.scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mesh.material.dispose();
+        continue;
+      }
+      p.vy -= 14 * dt;
+      p.mesh.position.x += p.vx * dt;
+      p.mesh.position.y += p.vy * dt;
+      p.mesh.material.opacity = Math.min(1, p.life / (p.max * 0.5));
+      p.mesh.scale.setScalar(0.4 + (p.life / p.max) * 0.8);
+      alive.push(p);
+    }
+    this.particles = alive;
+  }
+
+  // ------------------------------------------------------------------ utilidades
+
+  /** Posición en pantalla de un punto del mundo: { x, y } en píxeles y si está dentro del cuadro. */
+  project(x, y) {
+    this.tmp.set(x, y, 0).project(this.rig.camera);
+    return {
+      x: (this.tmp.x * 0.5 + 0.5) * window.innerWidth,
+      y: (-this.tmp.y * 0.5 + 0.5) * window.innerHeight,
+      inside: Math.abs(this.tmp.x) <= 1 && Math.abs(this.tmp.y) <= 1,
+    };
+  }
+
+  snapCamera(match) {
+    const targets = match.fighters.filter((f) => f.alive).map((f) => ({ x: f.x, y: f.y + f.height / 2 }));
+    this.rig.update(0.016, targets, match.stage, true);
+  }
+
+  toggleDebug() {
+    this.debug = !this.debug;
+    return this.debug;
+  }
+}
