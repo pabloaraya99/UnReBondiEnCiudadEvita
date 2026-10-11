@@ -208,6 +208,8 @@
 .menu-screen {
   /* deja ver el escenario 3D del juego (nubes, autos, templo, pájaros) */
   background: linear-gradient(rgba(12, 16, 30, 0.06), rgba(12, 16, 30, 0.30) 85%);
+  /* viñeta sutil para que la lineup y el logo "floten" */
+  box-shadow: inset 0 0 120px 40px rgba(5, 8, 16, 0.5);
   overflow: hidden;
 }
 
@@ -366,25 +368,133 @@
   50%      { transform: translateX(-50%) translateY(-13px) rotate(0.5deg); }
 }
 
-/* Kenai a la IZQUIERDA, espejado para mirar al centro, con bob de boxeador */
-.menu-kenai {
+/* lineup tipo champion select: los 4 personajes como siluetas recortadas,
+   igual que Kenai (sin recuadros), flotando con bob de boxeador */
+.menu-lineup {
   position: absolute;
-  left: 1.5%;
-  right: auto;
-  bottom: 0;
-  height: 92%;
-  max-width: 44%;
+  left: 50%;
+  bottom: 23.5%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: clamp(6px, 1.6vw, 22px);
+  align-items: flex-end;
+  pointer-events: none;
+}
+.menu-lineup-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  animation: champDrop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards, champBob 1.15s 0.5s ease-in-out infinite;
+}
+.menu-lineup-slot:nth-child(2) { animation-delay: 0.1s, 0.62s; }
+.menu-lineup-slot:nth-child(3) { animation-delay: 0.2s, 0.74s; }
+.menu-lineup-slot:nth-child(4) { animation-delay: 0.3s, 0.86s; }
+@keyframes champDrop {
+  from { transform: translateY(-26px) scale(0.72); opacity: 0; }
+}
+@keyframes champBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-9px) rotate(0.8deg); }
+}
+/* estallido de caricatura detrás de cada persona (estilo emblema de CSS Smash) */
+.menu-slot-burst {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  width: clamp(150px, 18vw, 262px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 12deg,
+    var(--ch-burst, #f2c94c) 0 17deg,
+    var(--ch-burst-dark, #b8860b) 17deg 34deg
+  );
+  -webkit-mask-image: radial-gradient(circle at center, transparent 27%, #000 28%);
+  mask-image: radial-gradient(circle at center, transparent 27%, #000 28%);
+  pointer-events: none;
+  z-index: -2;
+  animation: burstSpin 34s linear infinite, burstIn 0.6s ease-out backwards;
+}
+@keyframes burstSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes burstIn {
+  from { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+}
+/* glow de color por personaje (a lo "challenger" Smash, sin recuadro) */
+.menu-slot-glow {
+  position: absolute;
+  left: 50%;
+  bottom: 6%;
+  width: 140%;
+  aspect-ratio: 1.5;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, var(--ch-glow, rgba(255, 255, 255, 0.25)), transparent 70%);
+  filter: blur(3px);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: -1;
+}
+/* sombra de contacto (el personaje "apoya los pies") */
+.menu-lineup-slot::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 86%;
+  height: 13px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), transparent 68%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.menu-lineup-slot img {
+  width: auto;
+  height: clamp(120px, 15vw, 200px);
   object-fit: contain;
-  filter: drop-shadow(12px 16px 28px rgba(0, 0, 0, 0.5));
-  animation: kenaiInL 0.55s ease-out, kenaiBobL 1.05s 0.55s ease-in-out infinite;
+  /* contorno de cómic grueso alrededor de la silueta + sombra flotante */
+  filter:
+    drop-shadow(2px 0 0 #14161a) drop-shadow(-2px 0 0 #14161a)
+    drop-shadow(0 2px 0 #14161a) drop-shadow(0 -2px 0 #14161a)
+    drop-shadow(2px 2px 0 #14161a) drop-shadow(-2px -2px 0 #14161a)
+    drop-shadow(2px -2px 0 #14161a) drop-shadow(-2px 2px 0 #14161a)
+    drop-shadow(10px 14px 22px rgba(0, 0, 0, 0.5));
 }
-@keyframes kenaiInL {
-  from { transform: scaleX(-1) translateX(-70px); opacity: 0; }
-  to   { transform: scaleX(-1) translateX(0);     opacity: 1; }
+.menu-lineup-name {
+  font-family: 'Bungee', 'Arial Black', sans-serif;
+  font-size: clamp(0.6rem, 1.15vw, 0.85rem);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #14161a;
+  background: var(--ch-ribbon, #e9c46a);
+  border: 2px solid #14161a;
+  border-radius: 5px;
+  padding: 3px 12px 2px;
+  transform: rotate(-2deg) translateY(-3px);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
 }
-@keyframes kenaiBobL {
-  0%, 100% { transform: scaleX(-1) translateY(0) rotate(0deg); }
-  50%      { transform: scaleX(-1) translateY(-11px) rotate(1.1deg); }
+
+/* chispas de caricatura a los costados de la lineup */
+.menu-star {
+  position: absolute;
+  bottom: 33%;
+  width: 36px;
+  height: 36px;
+  background: #F2C94C;
+  filter: drop-shadow(2px 2px 0 #14161a);
+  clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
+  animation: starTwinkle 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+.star-l { left: 13%; }
+.star-r { right: 13%; animation-delay: 0.4s; }
+@keyframes starTwinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  50%      { transform: scale(1.3) rotate(22deg); opacity: 0.55; }
 }
 
 /* hojas flotando (lore verde) */
@@ -437,9 +547,13 @@
 
 /* pantallas chicas: Kenai tenue de fondo, todo centrado */
 @media (max-width: 900px) {
-  .menu-kenai { opacity: 0.24; left: -12%; max-width: 85%; }
   .t-main { font-size: clamp(2rem, 9vw, 3.4rem); }
   .t-sub { font-size: clamp(1.1rem, 5vw, 1.8rem); }
   .menu-cloud { width: min(78vw, 340px); }
+  .menu-lineup { bottom: 27.5%; gap: 1px; }
+  .menu-lineup-slot img { height: clamp(46px, 12vw, 78px); }
+  .menu-lineup-slot { animation: none; }
+  .menu-lineup-name { font-size: 0.42rem; }
+  .menu-slot-burst, .menu-star { display: none; }
   .menu-play { bottom: 16%; }
 }

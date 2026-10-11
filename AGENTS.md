@@ -41,10 +41,13 @@ src/
     Renderer.js      → escena Three.js, EffectComposer (bloom), escenario "Los Mormones",
                        partículas, eventos visuales, drawCars (tráfico), sombras de contacto
     CameraRig.js     → cámara compartida: encuadra luchadores, zoom acotado, shake
-    KenaiModel.js    → modelo de Kenai con primitivas (hoodie, cargo, cadenas, blunt)
+    KenaiModel.js    → modelo de Kenai con primitivas (hoodie/campera azul-gris, cargo, cadenas, blunt)
+    CocoModel.js     → modelo de El Coco (cuero manchado de grasa, tatuajes, jogging azul, llave inglesa)
+    DomonoModel.js   → modelo de Dj Domono (campera verde camuflada, consola de mano, auriculares)
+    FaxoModel.js     → modelo de Dr Faxo (flaco, bata, anteojos, cámara, ojotas con medias)
   ui/                → interfaz genérica HTML/CSS sobre el canvas
-    UI.js            → pantallas: menú (logo 3D + nube de pelea animada + Kenai PNG),
-                       lobby (selección jugadores/personajes), HUD (vidas/%), resultados
+    UI.js            → pantallas: menú (logo 3D + nube de pelea animada + lineup champ-select con
+                       bursts de caricatura), lobby (selección jugadores/personajes), HUD, resultados
                        + cutoutPng() (recorte de fondo de imágenes por flood fill)
     ui.css           → estilos + Google Fonts (Bungee, Rubik Spray Paint)
 test/
@@ -53,6 +56,8 @@ public/assets/
   models/            → GLB de modelos 3D (cuando se generen con IAs externas)
   concept/kenai/     → imágenes de referencia de personajes
   ui/                → logo SVG, fondos de menú
+  ui/pilots/         → retratos de coco/domono/faxo (personas, sin autos; copiados de vita-machines);
+                       Kenai usa /assets/concept/kenai/Kenai3Dreferencia.png (mismo recurso del menú)
 ART_DIRECTION.md     → biblia visual: paleta, estilo "gangster de barrio verde", prompts para IAs
 start-server.bat     → levanta el dev server en Windows con doble clic
 ```
@@ -69,17 +74,22 @@ start-server.bat     → levanta el dev server en Windows con doble clic
 
 ## Estado actual (qué funciona)
 
-- Menú Smash-style (logo 3D, nube de pelea animada, Kenai PNG recortado, escenario 3D vivo)
+- Menú Smash-style (logo 3D, nube de pelea animada, línea de personajes tipo champion select con
+  los 4 retratos: Kenai + Coco + Domono + Faxo — sin los autos, bursts + contorno de cómic + cinta de
+  nombre por personaje, escenario 3D vivo)
 - Lobby con selección de 4 slots (humano/CPU/cerrado, personaje, dificultad)
 - Partida: countdown, HUD con % y vidas, KO por blast zones, resultados, revancha
-- 4 personajes (pablo con stances/especiales, coco, faxo, domono — cápsulas provisorias)
+- 4 personajes con modelos 3D propios (primitivas): pablo/kenai con stances/especiales, coco (cuero,
+  tatuajes, llave), domono (camuflada, consola), faxo (flaco, cámara)
 - Escenario "Los Mormones": templo de fondo (parallax), calle = piso con autos que PEGAN
 - Tráfico determinista de autos (hazards), guardarraíles como plataformas
 
 ## Qué falta / siguiente
 
-- Modelos 3D de los demás personajes (Kenai ya está con primitivas; los demás son cápsulas)
+- Pulir modelos 3D (más detalle por personaje sin pasar el presupuesto web) y sus poses en el lineup 3D
 - Autos argentinos (Falcon, 128, Torino...) como variantes del tráfico
 - HUD con retratos de personajes
 - Online (netcode autoritativo, rollback — la simulación ya es determinista y tiene snapshot/restore)
 - Audio (Web Audio sintetizado, estilo Vita Machines)
+- Stats estilo Smash por champion (el usuario va a indicar qué peleador de Smash usa cada personaje)
+- Git: todavía no hay user.name/email configurados → no se commiteó hasta autorización explícita

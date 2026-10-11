@@ -3,9 +3,9 @@ import * as THREE from 'three';
 /**
  * Dj Domono — modelado con primitivas (sin assets externos).
  * De Vita Machines: el más resistente (Peugeot Partner blanca). El DJ del barrio:
- * remera crema oversize con boombox, AURICULARES grandes al cuello, jogger gris,
- * zapatillas crema, anillos chunky, diente de oro. Más ancho que los demás
- * (weight 128: es el pesado). Origen en los pies (y=0), altura ≈ 1.95.
+ * CAMPERA VERDE CAMUFLADA y su CONSOLA de mano, AURICULARES grandes al cuello,
+ * jogger gris, zapatillas crema con detalle verde, anillos chunky, diente de oro.
+ * Más ancho que los demás (weight 128: es el pesado). Origen en los pies (y=0), altura ≈ 1.95.
  *
  * Devuelve { group, mats, hoodieMat, parts } — misma interfaz que KenaiModel.
  */
@@ -19,7 +19,7 @@ export function buildDomono() {
   };
 
   // paleta
-  const PIEL = 0xa86b42;
+  const PIEL = 0xa78063;       // piel (del retrato)
   const CREMA = 0xf3f0e8;      // su color: crema/blanco hueso
   const CREMA_OSC = 0xd8d2c2;
   const GRIS = 0x6b6f76;       // jogger gris
@@ -27,6 +27,11 @@ export function buildDomono() {
   const ORO = 0xf2c94c;
   const NEGRO = 0x14161a;
   const VERDE = 0x3fa34d;      // acento verde (lore)
+  // camuflado: base oliva + parches claro/oscuro + caqui (sin texturas: paneles)
+  const CAMO = 0x3f5a33;
+  const CAMO_OSC = 0x2c4025;
+  const CAMO_CLARO = 0x587a44;
+  const CAMO_KHAKI = 0x75693f;
 
   const pielMat = mkMat(PIEL);
   const cremaMat = mkMat(CREMA);
@@ -37,6 +42,10 @@ export function buildDomono() {
   const negroMat = mkMat(NEGRO, { roughness: 0.5 });
   const blancoMat = mkMat(0xffffff, { roughness: 0.3 });
   const verdeMat = mkMat(VERDE);
+  const camoMat = mkMat(CAMO, { roughness: 0.85 });
+  const camoOscMat = mkMat(CAMO_OSC, { roughness: 0.9 });
+  const camoClaroMat = mkMat(CAMO_CLARO, { roughness: 0.85 });
+  const camoKhakiMat = mkMat(CAMO_KHAKI, { roughness: 0.85 });
 
   const root = new THREE.Group();
   const add = (mesh, parent = root) => {
@@ -65,36 +74,61 @@ export function buildDomono() {
   const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.26, 0.38), grisMat));
   cadera.position.set(0, 0.9, 0);
 
-  // ======================== remera crema oversize con boombox ========================
-  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.44, 8, 16), cremaMat));
+  // ======================== campera verde CAMUFLADA oversize ========================
+  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.44, 8, 16), camoMat));
   torso.position.set(0, 1.24, 0);
-  // boombox estampada: caja negra con 2 parlantes (círculos)
-  const boombox = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 0.02), negroMat));
-  boombox.position.set(0, 1.3, 0.37);
-  for (const side of [-1, 1]) {
-    const parlante = add(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.025, 14), grisMat));
-    parlante.position.set(side * 0.1, 1.3, 0.385);
-    parlante.rotation.x = Math.PI / 2;
-    const centro = add(new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.03, 10), verdeMat));
-    centro.position.set(side * 0.1, 1.3, 0.39);
-    centro.rotation.x = Math.PI / 2;
+  // parches de camuflado (paneles sin texturas: claro/oscuro/caqui)
+  for (const [x, y, z, s, r] of [
+    [-0.2, 1.32, 0.36, 0.2, 0.4], [0.18, 1.22, 0.36, 0.16, -0.3],
+    [0.22, 1.4, 0.25, 0.14, 0.5], [-0.18, 1.1, 0.3, 0.13, -0.6],
+    [0, 1.18, 0.35, 0.1, 0.2],
+  ]) {
+    const patchMat = (r % 3 < 1) ? camoOscMat : (r % 3 < 2) ? camoClaroMat : camoKhakiMat;
+    const patch = add(new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.62, 0.03), patchMat));
+    patch.position.set(x, y, z);
+    patch.rotation.z = r;
   }
-  // bolsillo
-  const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.16, 0.08), cremaOscMat));
-  bolsillo.position.set(0, 1.05, 0.34);
+  // cierre central adelante
+  const cierre = add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.52, 0.02), camoOscMat));
+  cierre.position.set(0, 1.24, 0.4);
+  // cuello de la remera crema asomando (su color de identidad)
+  const cuelloCrema = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.05), cremaMat));
+  cuelloCrema.position.set(0, 1.42, 0.36);
+  cuelloCrema.rotation.x = -0.35;
+  // bolsillos grandes de la campera
+  const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 0.05), camoOscMat));
+  bolsillo.position.set(0, 1.02, 0.38);
 
   // ======================== brazos (pose de pelea, con anillos) ========================
   const armL = new THREE.Group();
   armL.position.set(-0.44, 1.5, 0);
   root.add(armL);
-  const mangaL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.26, 6, 10), cremaMat), armL);
+  const mangaL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.26, 6, 10), camoMat), armL);
   mangaL.position.set(0, -0.13, 0.05);
   mangaL.rotation.x = 0.5;
+  // parche de camuflado en la manga
+  const parcheL = add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 0.03), camoClaroMat), armL);
+  parcheL.position.set(0, -0.13, -0.02);
   const anteL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.2, 6, 10), pielMat), armL);
   anteL.position.set(0.06, -0.08, 0.24);
   anteL.rotation.set(-1.1, 0, -0.4);
   const punoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), pielMat), armL);
   punoL.position.set(0.09, 0.12, 0.36);
+
+  // CONSOLA de mano en la mano izquierda (screen + botones, estilo retro)
+  const consola = new THREE.Group();
+  consola.position.set(0.09, 0.12, 0.5);
+  armL.add(consola);
+  const carcasa = add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 0.16), negroMat), consola);
+  const screen = add(new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.045, 0.012),
+    mkMat(0xbfe3ff, { emissive: 0x7fd0ff, emissiveIntensity: 0.45, roughness: 0.2 }),
+  ), consola);
+  screen.position.set(0, 0.013, 0.085);
+  for (const [bx, bz] of [[-0.03, -0.05], [0.03, -0.05]]) {
+    const boton = add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.012, 8), verdeMat), consola);
+    boton.position.set(bx, -0.026, bz);
+  }
   // anillo chunky
   const anilloL = add(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.018, 8, 14), oroMat), armL);
   anilloL.position.set(0.09, 0.12, 0.36);
@@ -103,7 +137,7 @@ export function buildDomono() {
   const armR = new THREE.Group();
   armR.position.set(0.44, 1.5, 0);
   root.add(armR);
-  const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.26, 6, 10), cremaMat), armR);
+  const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.26, 6, 10), camoMat), armR);
   mangaR.position.set(0, -0.13, 0.08);
   mangaR.rotation.x = 0.7;
   const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.2, 6, 10), pielMat), armR);
@@ -185,5 +219,5 @@ export function buildDomono() {
   const diente = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.045, 0.022), oroMat), head);
   diente.position.set(-0.035, 0.07, 0.202);
 
-  return { group: root, mats, hoodieMat: cremaMat, parts: { armL, armR, head } };
+  return { group: root, mats, hoodieMat: camoMat, parts: { armL, armR, head } };
 }

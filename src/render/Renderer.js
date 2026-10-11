@@ -273,7 +273,8 @@ export class Renderer {
     // ---- EL TEMPLO: centrado, imponente, visible sobre el horizonte ----
     const temple = this.makeTemple();
     temple.scale.setScalar(1.5);
-    temple.position.set(0, -7, -56);
+    // bajado un toque para que se vea la estatua dorada de la punta (ángel)
+    temple.position.set(0, -8.2, -56);
     this.bgFar.add(temple);
 
     // palmeras junto al templo

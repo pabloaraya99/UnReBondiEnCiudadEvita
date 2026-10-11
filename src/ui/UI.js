@@ -1,6 +1,13 @@
 import { GAME_CONFIG } from '../config.js';
 
 const CHARACTER_IDS = Object.keys(GAME_CONFIG.characters); // ['coco','domono','faxo','pablo']
+// retratos de los personajes (personas, sin autos) para la lineup del menú
+const CHAMPION_LINEUP = [
+  { id: 'coco', img: '/assets/ui/pilots/coco.webp' },
+  { id: 'domono', img: '/assets/ui/pilots/domono.webp' },
+  { id: 'faxo', img: '/assets/ui/pilots/faxo.webp' },
+  { id: 'pablo', img: '/assets/concept/kenai/Kenai3Dreferencia.png' },
+];
 const DIFFICULTIES = ['easy', 'normal', 'hard'];
 const DIFFICULTY_LABEL = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };
 const TYPE_LABEL = { off: 'Cerrado', human: 'Humano', cpu: 'CPU' };
@@ -51,16 +58,29 @@ export class UI {
     stack.append(tMain, cloud, tSub);
     s.append(stack);
 
-    // Kenai a la IZQUIERDA, espejado para mirar al centro, con bob de boxeador.
-    // El PNG de assets tiene fondo blanco: lo recortamos en runtime (ver cutoutPng).
-    const kenai = document.createElement('img');
-    kenai.className = 'menu-kenai';
-    kenai.alt = 'Kenai';
-    kenai.draggable = false;
-    cutoutPng('/assets/concept/kenai/Kenai3Dreferencia.png').then((url) => {
-      kenai.src = url;
-    });
-    s.append(kenai);
+    // lineup tipo champion select: Kenai + Coco + Domono + Faxo (las personas, sin autos)
+    const lineup = el('div', 'menu-lineup');
+    for (const entry of CHAMPION_LINEUP) {
+      const ch = GAME_CONFIG.characters[entry.id];
+      const slot = el('div', 'menu-lineup-slot');
+      const r = parseInt(ch.color.slice(1, 3), 16);
+      const g = parseInt(ch.color.slice(3, 5), 16);
+      const b = parseInt(ch.color.slice(5, 7), 16);
+      const shade = (k) => `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`;
+      slot.style.setProperty('--ch-glow', `rgba(${r},${g},${b},0.5)`);
+      slot.style.setProperty('--ch-burst', shade(1));
+      slot.style.setProperty('--ch-burst-dark', shade(0.45));
+      slot.style.setProperty('--ch-ribbon', shade(1));
+      const img = document.createElement('img');
+      img.alt = ch.name;
+      img.draggable = false;
+      cutoutPng(entry.img).then((url) => { img.src = url; });
+      slot.append(el('div', 'menu-slot-burst'), el('div', 'menu-slot-glow'), img, el('div', 'menu-lineup-name', ch.name));
+      lineup.append(slot);
+    }
+    s.append(lineup);
+    // chispas de caricatura a los costados (arman con la nube de pelea)
+    s.append(el('div', 'menu-star star-l'), el('div', 'menu-star star-r'));
 
     // hojas verdes flotando por la pantalla
     const leaves = el('div', 'menu-leaves');
@@ -386,6 +406,48 @@ async function cutoutPng(src, tolerance = 120) {
     if (x < W - 1) seed(x + 1, y);
     if (y > 0) seed(x, y - 1);
     if (y < H - 1) seed(x, y + 1);
+  }
+
+  // Huecos internos de fondo SIN conexión al borde (ej: triángulo blanco entre
+  // las piernas de Kenai, que el flood fill de arriba no alcanza). Se eliminan
+  // solo si son regiones grandes, para no borrar detalles blancos del personaje
+  // (dientes, ojos, brillos).
+  const MIN_HOLE = 200; // px²
+  const pot = new Uint8Array(W * H);
+  for (let p = 0; p < W * H; p++) pot[p] = isBg(p * 4) ? 1 : 0;
+  const edgePot = new Uint8Array(W * H);
+  const stackE = [];
+  const seedE = (x, y) => {
+    const p = y * W + x;
+    if (pot[p] && !edgePot[p]) { edgePot[p] = 1; stackE.push(p); }
+  };
+  for (let x = 0; x < W; x++) { seedE(x, 0); seedE(x, H - 1); }
+  for (let y = 0; y < H; y++) { seedE(0, y); seedE(W - 1, y); }
+  while (stackE.length) {
+    const p = stackE.pop();
+    const x = p % W, y = (p / W) | 0;
+    if (x > 0) seedE(x - 1, y);
+    if (x < W - 1) seedE(x + 1, y);
+    if (y > 0) seedE(x, y - 1);
+    if (y < H - 1) seedE(x, y + 1);
+  }
+  const seen = new Uint8Array(W * H);
+  for (let p0 = 0; p0 < W * H; p0++) {
+    if (pot[p0] && !edgePot[p0] && !seen[p0]) {
+      const comp = [];
+      const st2 = [p0];
+      seen[p0] = 1;
+      while (st2.length) {
+        const p = st2.pop();
+        comp.push(p);
+        const x = p % W, y = (p / W) | 0;
+        if (x > 0) { const np = p - 1; if (pot[np] && !edgePot[np] && !seen[np]) { seen[np] = 1; st2.push(np); } }
+        if (x < W - 1) { const np = p + 1; if (pot[np] && !edgePot[np] && !seen[np]) { seen[np] = 1; st2.push(np); } }
+        if (y > 0) { const np = p - W; if (pot[np] && !edgePot[np] && !seen[np]) { seen[np] = 1; st2.push(np); } }
+        if (y < H - 1) { const np = p + W; if (pot[np] && !edgePot[np] && !seen[np]) { seen[np] = 1; st2.push(np); } }
+      }
+      if (comp.length >= MIN_HOLE) for (const p of comp) bgMask[p] = 1;
+    }
   }
   for (let p = 0; p < W * H; p++) if (bgMask[p]) px[p * 4 + 3] = 0;
 

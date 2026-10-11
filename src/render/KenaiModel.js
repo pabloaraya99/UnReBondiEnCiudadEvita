@@ -18,10 +18,10 @@ export function buildKenai() {
     return m;
   };
 
-  // paleta (de las referencias)
-  const PIEL = 0xc98a5f;
-  const HOODIE = 0x9ba1ab;
-  const HOODIE_OSC = 0x7d838d;
+  // paleta (de las referencias; piel y campera calibradas al retrato del title)
+  const PIEL = 0xab7a6a;
+  const HOODIE = 0x3d444f;     // campera azul-grisácea (retrato: slate #31353D)
+  const HOODIE_OSC = 0x262c36;
   const CARGO = 0x20232a;
   const CARGO_BOL = 0x2b2f38;
   const ZAPA = 0x16181d;

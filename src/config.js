@@ -150,7 +150,7 @@ export const GAME_CONFIG = {
     
     // === PABLO QUEMANDO RUEDAS (Kenai) - Kirby-like ===
     pablo: { 
-      name: 'PabloQuemandoRuedas', 
+      name: 'Kenai', 
       color: '#ff8a1f', 
       
       // Base stats (se modifican por stance)

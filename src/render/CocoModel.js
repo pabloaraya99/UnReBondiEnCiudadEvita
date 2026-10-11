@@ -2,9 +2,10 @@ import * as THREE from 'three';
 
 /**
  * El Coco — modelado con primitivas (sin assets externos).
- * De Vita Machines: el más veloz (Corolla azul medianoche). Pibito ágil del barrio:
- * jogging azul con franja blanca, headband, rizos oscuros, zapatillas deportivas,
- * reloj dorado. Origen en los pies (y=0), altura ≈ 1.8.
+ * De Vita Machines: el más veloz (Corolla azul medianoche). Pibito mecánico del barrio:
+ * cuerito gris-negro manchado de grasa, tatuajes en los antebrazos, jogging azul con
+ * franja blanca, headband, rizos oscuros, zapatillas deportivas, reloj dorado y
+ * LLAVE INGLESA en la mano (tuercas del taller). Origen en los pies (y=0), altura ≈ 1.8.
  *
  * Devuelve { group, mats, hoodieMat, parts } — misma interfaz que KenaiModel.
  */
@@ -18,7 +19,7 @@ export function buildCoco() {
   };
 
   // paleta
-  const PIEL = 0xb8764a;       // piel trigueña
+  const PIEL = 0xa17862;       // piel trigueña (del retrato)
   const AZUL = 0x4d8bff;       // jogging azul (su color)
   const AZUL_OSC = 0x3568c9;
   const BLANCO = 0xf4f1e8;
@@ -34,6 +35,12 @@ export function buildCoco() {
   const oroMat = mkMat(ORO, { metalness: 0.85, roughness: 0.25 });
   const zapaMat = mkMat(ZAPA, { roughness: 0.45 });
   const negroMat = mkMat(0x14161a, { roughness: 0.5 });
+  // cuero del mecánico (gris-negro con brillo, como el retrato) + accesorios
+  const cueroMat = mkMat(0x32353c, { roughness: 0.3, metalness: 0.3 });
+  const cueroOscMat = mkMat(0x1d2026, { roughness: 0.4, metalness: 0.2 });
+  const grasaMat = mkMat(0x26231a, { roughness: 0.95, metalness: 0 });
+  const tatuMat = mkMat(0x171a20, { roughness: 0.9 });
+  const metalMat = mkMat(0xb9bec5, { metalness: 0.85, roughness: 0.25 });
 
   const root = new THREE.Group();
   const add = (mesh, parent = root) => {
@@ -66,44 +73,88 @@ export function buildCoco() {
   const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.32), azulMat));
   cadera.position.set(0, 0.88, 0);
 
-  // ======================== remera azul atlética ========================
-  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 8, 16), azulMat));
+  // ======================== campera de cuero manchada de grasa ========================
+  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 8, 16), cueroMat));
   torso.position.set(0, 1.2, 0);
-  // franja blanca central de la remera
-  const franjaRemera = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.45, 0.02), blancoMat));
-  franjaRemera.position.set(0, 1.2, 0.3);
-  // número deportivo (10) como caja blanca atrás
-  const numero = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.2, 0.02), blancoMat));
-  numero.position.set(0, 1.28, -0.3);
+  // cierre central + solapas
+  const cierre = add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.02), cueroOscMat));
+  cierre.position.set(0, 1.2, 0.315);
+  for (const side of [-1, 1]) {
+    const solapa = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.03), cueroOscMat));
+    solapa.position.set(side * 0.13, 1.16, 0.3);
+    solapa.rotation.y = side * -0.18;
+  }
+  // manchas de grasa (tuerca que no afloja): parches oscuros apenas fuera del cuero
+  for (const [x, y, z, s, r] of [
+    [-0.05, 1.26, 0.32, 0.11, 0.15], [0.09, 1.32, 0.32, 0.06, -0.3],
+    [0.03, 1.1, 0.315, 0.08, 0.4], [-0.15, 1.34, 0.29, 0.07, 0.1],
+  ]) {
+    const grasa = add(new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.7, 0.02), grasaMat));
+    grasa.position.set(x, y, z);
+    grasa.rotation.z = r;
+  }
 
-  // ======================== brazos atléticos (pose de pelea) ========================
+  // ======================== brazos con mangas de cuero + tatuajes ========================
+  // tatuajes: bandas de tinta alrededor del antebrazo (va adentro del mismo antebrazo)
+  const tattoo = (brazo) => {
+    for (const dy of [-0.04, 0.05]) {
+      const banda = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.045, 12), tatuMat);
+      banda.position.y = dy;
+      brazo.add(banda);
+    }
+    const cruz = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.012), tatuMat);
+    cruz.position.set(0, 0, 0.1);
+    cruz.rotation.z = 0.7;
+    brazo.add(cruz);
+  };
+
   const armL = new THREE.Group();
   armL.position.set(-0.37, 1.46, 0);
   root.add(armL);
-  const mangaL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.22, 6, 10), azulMat), armL);
+  const mangaL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.22, 6, 10), cueroMat), armL);
   mangaL.position.set(0, -0.12, 0.05);
   mangaL.rotation.x = 0.5;
   const anteL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.2, 6, 10), pielMat), armL);
   anteL.position.set(0.05, -0.08, 0.22);
   anteL.rotation.set(-1.1, 0, -0.4);
+  tattoo(anteL);
   const punoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), pielMat), armL);
   punoL.position.set(0.08, 0.1, 0.32);
 
   const armR = new THREE.Group();
   armR.position.set(0.37, 1.46, 0);
   root.add(armR);
-  const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.22, 6, 10), azulMat), armR);
+  const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.22, 6, 10), cueroMat), armR);
   mangaR.position.set(0, -0.12, 0.08);
   mangaR.rotation.x = 0.7;
   const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.2, 6, 10), pielMat), armR);
   anteR.position.set(-0.02, -0.16, 0.24);
   anteR.rotation.x = 1.2;
+  tattoo(anteR);
   const punoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), pielMat), armR);
   punoR.position.set(-0.03, -0.2, 0.4);
   // reloj dorado en la muñeca derecha (detalle de facha)
   const reloj = add(new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.018, 8, 16), oroMat), armR);
   reloj.position.set(-0.03, -0.2, 0.3);
   reloj.rotation.x = Math.PI / 2.2;
+
+  // ======================== llave inglesa (mecánico, "justo a mano") ========================
+  const llave = new THREE.Group();
+  llave.position.set(-0.03, -0.2, 0.58);
+  armR.add(llave);
+  const mango = add(new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.03, 0.34, 8), metalMat), llave);
+  mango.rotation.x = Math.PI / 2;
+  const grip = add(new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.008, 6, 12), grasaMat), llave);
+  grip.position.z = -0.06;
+  grip.rotation.x = Math.PI / 2;
+  const cabeza = new THREE.Group();
+  cabeza.position.z = 0.19;
+  llave.add(cabeza);
+  const barra = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.1), metalMat), cabeza);
+  const dienteSup = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.045, 0.1), metalMat), cabeza);
+  dienteSup.position.y = 0.055;
+  const dienteInf = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.045, 0.1), metalMat), cabeza);
+  dienteInf.position.y = -0.055;
 
   // ======================== cabeza con rizos y headband ========================
   const head = new THREE.Group();
@@ -148,5 +199,5 @@ export function buildCoco() {
   sonrisa.position.set(0, 0.07, 0.185);
   sonrisa.rotation.x = 0.1;
 
-  return { group: root, mats, hoodieMat: azulMat, parts: { armL, armR, head } };
+  return { group: root, mats, hoodieMat: cueroMat, parts: { armL, armR, head } };
 }
