@@ -252,18 +252,19 @@
 /* logo: stack con texto 3D + nube animada */
 .menu-logo-stack {
   position: absolute;
-  top: 3%;
+  top: 2%;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   pointer-events: none;
+  z-index: 2;
   animation: logoIn 0.5s ease-out, stackFloat 3.6s 0.5s ease-in-out infinite;
 }
 @keyframes stackFloat {
   0%, 100% { transform: translateX(-50%) translateY(0) rotate(-0.3deg); }
-  50%      { transform: translateX(-50%) translateY(-10px) rotate(0.4deg); }
+  50%      { transform: translateX(-50%) translateY(-8px) rotate(0.4deg); }
 }
 
 /* título principal: fuente graffiti con extrusión 3D + sombra magenta gangster */
@@ -575,19 +576,19 @@
 .menu-fight-group {
   position: absolute;
   left: 50%;
-  top: 50%;
+  top: 58%;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: clamp(20px, 5vw, 70px);
+  gap: clamp(12px, 3vw, 32px);
   pointer-events: none;
   z-index: 1;
   animation: fightGroupBob 3.2s ease-in-out infinite;
 }
 @keyframes fightGroupBob {
   0%, 100% { transform: translate(-50%, -50%) translateY(0); }
-  50%      { transform: translate(-50%, -50%) translateY(-12px); }
+  50%      { transform: translate(-50%, -50%) translateY(-10px); }
 }
 .menu-fighter {
   position: relative;
@@ -600,28 +601,28 @@
 .menu-fighter:nth-child(3) { animation-delay: 0.3s; }
 .menu-fighter:nth-child(4) { animation-delay: 0.45s; }
 @keyframes fighterIdle {
-  0%, 100% { transform: translateY(0) rotate(-0.5deg); }
-  50%      { transform: translateY(-6px) rotate(0.5deg); }
+  0%, 100% { transform: translateY(0) rotate(-0.3deg); }
+  50%      { transform: translateY(-5px) rotate(0.3deg); }
 }
 .menu-fighter img {
   width: auto;
-  height: clamp(140px, 22vw, 320px);
+  height: clamp(120px, 18vw, 240px);
   object-fit: contain;
   /* contorno de cómic grueso + sombra flotante */
   filter:
-    drop-shadow(3px 0 0 #14161a) drop-shadow(-3px 0 0 #14161a)
-    drop-shadow(0 3px 0 #14161a) drop-shadow(0 -3px 0 #14161a)
-    drop-shadow(3px 3px 0 #14161a) drop-shadow(-3px -3px 0 #14161a)
-    drop-shadow(3px -3px 0 #14161a) drop-shadow(-3px 3px 0 #14161a)
-    drop-shadow(14px 18px 28px rgba(0, 0, 0, 0.55));
+    drop-shadow(2px 0 0 #14161a) drop-shadow(-2px 0 0 #14161a)
+    drop-shadow(0 2px 0 #14161a) drop-shadow(0 -2px 0 #14161a)
+    drop-shadow(2px 2px 0 #14161a) drop-shadow(-2px -2px 0 #14161a)
+    drop-shadow(2px -2px 0 #14161a) drop-shadow(-2px 2px 0 #14161a)
+    drop-shadow(10px 12px 20px rgba(0, 0, 0, 0.55));
 }
 .menu-fighter::after {
   /* sombra de contacto ovalada debajo del pie */
   content: '';
   position: absolute;
-  bottom: -10px;
-  width: 70%;
-  height: 16px;
+  bottom: -8px;
+  width: 65%;
+  height: 12px;
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5), transparent 70%);
   border-radius: 50%;
 }
@@ -629,16 +630,32 @@
   /* glow de color por personaje (a lo "challenger" Smash) */
   content: '';
   position: absolute;
-  top: -10px;
+  top: -6px;
   left: 50%;
   transform: translateX(-50%);
-  width: 120%;
+  width: 110%;
   aspect-ratio: 1;
   background: radial-gradient(circle at center, var(--ch-glow, rgba(255,255,255,0.3)), transparent 70%);
-  filter: blur(8px);
+  filter: blur(6px);
   opacity: 0.5;
   pointer-events: none;
   z-index: -1;
+}
+
+/* pantallas pequeñas: personajes más chicos y menos separación */
+@media (max-width: 900px) {
+  .menu-fight-group {
+    top: 62%;
+    gap: clamp(8px, 2vw, 16px);
+  }
+  .menu-fighter img {
+    height: clamp(80px, 14vw, 150px);
+  }
+  .menu-fighter::after {
+    width: 55%;
+    height: 8px;
+    bottom: -6px;
+  }
 }
 
 /* ============================================================
