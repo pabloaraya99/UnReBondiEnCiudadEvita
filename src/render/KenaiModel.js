@@ -66,33 +66,33 @@ export function buildKenai() {
 
   // ======================== cargo baggy ========================
   for (const side of [-1, 1]) {
-    const x = side * 0.19;
-    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.46, 6, 12), cargoMat));
-    pierna.position.set(x, 0.47, 0);
-    const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.2, 0.15), mkMat(CARGO_BOL)));
-    bolsillo.position.set(side * 0.37, 0.52, 0.04);
+    const x = side * 0.22;
+    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.5, 6, 12), cargoMat));
+    pierna.position.set(x, 0.5, 0);
+    const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.25, 0.15), mkMat(CARGO_BOL)));
+    bolsillo.position.set(side * 0.4, 0.55, 0.06);
   }
-  const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.24, 0.36), cargoMat));
-  cadera.position.set(0, 0.86, 0);
+  const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.28, 0.4), cargoMat));
+  cadera.position.set(0, 0.88, 0);
 
   // ======================== hoodie oversize ========================
-  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.33, 0.42, 8, 16), hoodieMat));
-  torso.position.set(0, 1.18, 0);
+  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.5, 8, 16), hoodieMat));
+  torso.position.set(0, 1.22, 0);
   // bolsillo canguro
-  const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.1), hoodieOscMat));
-  bolsillo.position.set(0, 1.0, 0.3);
+  const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.12), hoodieOscMat));
+  bolsillo.position.set(0, 1.05, 0.35);
   // gráfico del frente (azul con detalle rojo)
-  const grafico = add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.26, 0.02), azulMat));
-  grafico.position.set(0, 1.32, 0.325);
-  const graficoR = add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.022), rojoMat));
-  graficoR.position.set(0, 1.34, 0.328);
+  const grafico = add(new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.03), azulMat));
+  grafico.position.set(0, 1.38, 0.375);
+  const graficoR = add(new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.025), rojoMat));
+  graficoR.position.set(0, 1.4, 0.38);
   // capucha atrás
   const capucha = add(new THREE.Mesh(
-    new THREE.SphereGeometry(0.17, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55),
+    new THREE.SphereGeometry(0.2, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.6),
     hoodieOscMat,
   ));
-  capucha.position.set(0, 1.44, -0.2);
-  capucha.rotation.x = -0.5;
+  capucha.position.set(0, 1.48, -0.25);
+  capucha.rotation.x = -0.6;
 
   // ======================== brazos (grupos para animar) ========================
   // izquierdo: guardia junto a la cara

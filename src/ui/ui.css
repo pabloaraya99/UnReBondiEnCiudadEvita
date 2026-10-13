@@ -556,4 +556,15 @@
   .menu-lineup-name { font-size: 0.42rem; }
   .menu-slot-burst, .menu-star { display: none; }
   .menu-play { bottom: 16%; }
+
+/* pequeño indicador de color debajo del nombre en el lineup */
+.menu-lineup-color-ind {
+  width: 12px;
+  height: 2px;
+  background: rgb(20, 22, 30);
+  margin-top: 2px;
+}
+
+/* estado hovered sobre un slot de la lineup */
+.menu-lineup-slot.hovered { outline: 2px solid var(--ch-glow, rgba(255,255,255,0.5)); }
 }

@@ -64,14 +64,14 @@ export function buildCoco() {
   // ======================== jogging azul con franja blanca ========================
   for (const side of [-1, 1]) {
     const x = side * 0.17;
-    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.5, 6, 12), azulMat));
+    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.5, 6, 12), azulMat));
     pierna.position.set(x, 0.5, 0);
     // franja blanca lateral del jogging
     const franja = add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.3), blancoMat));
     franja.position.set(side * 0.32, 0.5, 0);
   }
-  const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.32), azulMat));
-  cadera.position.set(0, 0.88, 0);
+  const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.2, 0.3), azulMat));
+  cadera.position.set(0, 0.86, 0);
 
   // ======================== campera de cuero manchada de grasa ========================
   const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 8, 16), cueroMat));

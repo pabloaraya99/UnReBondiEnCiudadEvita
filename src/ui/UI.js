@@ -75,7 +75,13 @@ export class UI {
       img.alt = ch.name;
       img.draggable = false;
       cutoutPng(entry.img).then((url) => { img.src = url; });
-      slot.append(el('div', 'menu-slot-burst'), el('div', 'menu-slot-glow'), img, el('div', 'menu-lineup-name', ch.name));
+      slot.append(el('div', 'menu-slot-burst'), el('div', 'menu-slot-glow'), img, el('div', 'menu-lineup-name', ch.name), el('div', 'menu-lineup-color-ind', ''));
+      // Añadimos un pequeño indicador de color debajo del nombre para consistencia visual
+      const colorInd = slot.querySelector('.menu-lineup-color-ind');
+      colorInd.style.background = `rgb(${r},${g},${b})`;
+      colorInd.style.width = '12px';
+      colorInd.style.height = '2px';
+      colorInd.style.marginTop = '2px';
       lineup.append(slot);
     }
     s.append(lineup);

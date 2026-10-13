@@ -66,38 +66,38 @@ export function buildFaxo() {
 
   // ======================== piernas flacas + short de fútbol ========================
   for (const side of [-1, 1]) {
-    const x = side * 0.15;
-    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.5, 6, 10), pielMat));
+    const x = side * 0.12; // piernas aún más juntas y delgadas
+    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.5, 6, 10), pielMat));
     pierna.position.set(x, 0.5, 0);
   }
-  const short = add(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.3, 0.3), shortMat));
-  short.position.set(0, 0.92, 0);
+  const short = add(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.28, 0.25), shortMat));
+  short.position.set(0, 0.88, 0);
   // franja del short
-  const franjaShort = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.31), futbolBMat));
-  franjaShort.position.set(-0.19, 0.92, 0);
+  const franjaShort = add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.28), futbolBMat));
+  franjaShort.position.set(-0.16, 0.88, 0);
 
   // ======================== camiseta de fútbol + bata abierta (flaco) ========================
   // camiseta (con 2 rayas blancas)
-  const camiseta = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.21, 0.38, 8, 14), futbolMat));
-  camiseta.position.set(0, 1.24, 0);
-  for (const dy of [1.12, 1.3]) {
-    const raya = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, 0.02), futbolBMat));
-    raya.position.set(0, dy, 0.26);
+  const camiseta = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.35, 8, 14), futbolMat));
+  camiseta.position.set(0, 1.2, 0);
+  for (const dy of [1.1, 1.25]) {
+    const raya = add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 0.02), futbolBMat));
+    raya.position.set(0, dy, 0.24);
   }
   // bata gris abierta (dos paneles que no se cierran al frente)
-  const bataL = add(new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.62, 0.08), bataMat));
-  bataL.position.set(-0.2, 1.26, 0.1);
-  bataL.rotation.y = 0.15;
-  const bataR = add(new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.62, 0.08), bataMat));
-  bataR.position.set(0.2, 1.26, 0.1);
-  bataR.rotation.y = -0.15;
-  const bataEspalda = add(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, 0.06), bataMat));
-  bataEspalda.position.set(0, 1.26, -0.16);
+  const bataL = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.05), bataMat));
+  bataL.position.set(-0.15, 1.22, 0.05);
+  bataL.rotation.y = 0.2;
+  const bataR = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.55, 0.05), bataMat));
+  bataR.position.set(0.15, 1.22, 0.05);
+  bataR.rotation.y = -0.2;
+  const bataEspalda = add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.55, 0.04), bataMat));
+  bataEspalda.position.set(0, 1.22, -0.12);
   // bolsillo de la bata con lapicera verde
-  const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.03), bataOscMat));
-  bolsillo.position.set(-0.22, 1.16, 0.18);
-  const lapicera = add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 6), mkMat(0x3fa34d)));
-  lapicera.position.set(-0.22, 1.24, 0.18);
+  const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.03), bataOscMat));
+  bolsillo.position.set(-0.18, 1.12, 0.15);
+  const lapicera = add(new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.1, 6), mkMat(0x3fa34d)));
+  lapicera.position.set(-0.18, 1.2, 0.15);
 
   // ======================== brazos flacos ========================
   const armL = new THREE.Group();

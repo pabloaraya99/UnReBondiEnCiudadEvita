@@ -56,23 +56,23 @@ export function buildDomono() {
 
   // ======================== zapatillas crema chunky ========================
   for (const side of [-1, 1]) {
-    const x = side * 0.22; // piernas más abiertas (es ancho)
-    const suela = add(new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.07, 0.62), blancoMat));
-    suela.position.set(x, 0.035, 0.04);
-    const zapa = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.14, 0.56), cremaMat));
-    zapa.position.set(x, 0.135, 0.03);
-    const detalle = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, 0.2), verdeMat));
-    detalle.position.set(x, 0.16, 0.2);
+    const x = side * 0.25; // piernas aún más abiertas para resaltar ancho
+    const suela = add(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.68), blancoMat));
+    suela.position.set(x, 0.04, 0.05);
+    const zapa = add(new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.16, 0.6), cremaMat));
+    zapa.position.set(x, 0.15, 0.04);
+    const detalle = add(new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.08, 0.25), verdeMat));
+    detalle.position.set(x, 0.18, 0.2);
   }
 
   // ======================== jogger gris ancho ========================
   for (const side of [-1, 1]) {
-    const x = side * 0.22;
-    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.48, 6, 12), grisMat));
-    pierna.position.set(x, 0.5, 0);
+    const x = side * 0.28; // piernas más abiertas (es ancho)
+    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.55, 6, 12), grisMat));
+    pierna.position.set(x, 0.55, 0);
   }
-  const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.26, 0.38), grisMat));
-  cadera.position.set(0, 0.9, 0);
+  const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.28, 0.4), grisMat));
+  cadera.position.set(0, 0.92, 0);
 
   // ======================== campera verde CAMUFLADA oversize ========================
   const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.44, 8, 16), camoMat));
