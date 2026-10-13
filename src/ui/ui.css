@@ -567,4 +567,105 @@
 
 /* estado hovered sobre un slot de la lineup */
 .menu-lineup-slot.hovered { outline: 2px solid var(--ch-glow, rgba(255,255,255,0.5)); }
+
+/* ============================================================
+   TITLE SCREEN: personajes en pose de pelea al estilo Smash
+   detrás del título, con movimiento sutil (bob + lean)
+   ============================================================ */
+.menu-fight-group {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(20px, 5vw, 70px);
+  pointer-events: none;
+  z-index: 1;
+  animation: fightGroupBob 3.2s ease-in-out infinite;
+}
+@keyframes fightGroupBob {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  50%      { transform: translate(-50%, -50%) translateY(-12px); }
+}
+.menu-fighter {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fighterIdle 2.6s ease-in-out infinite;
+}
+.menu-fighter:nth-child(2) { animation-delay: 0.15s; }
+.menu-fighter:nth-child(3) { animation-delay: 0.3s; }
+.menu-fighter:nth-child(4) { animation-delay: 0.45s; }
+@keyframes fighterIdle {
+  0%, 100% { transform: translateY(0) rotate(-0.5deg); }
+  50%      { transform: translateY(-6px) rotate(0.5deg); }
+}
+.menu-fighter img {
+  width: auto;
+  height: clamp(140px, 22vw, 320px);
+  object-fit: contain;
+  /* contorno de cómic grueso + sombra flotante */
+  filter:
+    drop-shadow(3px 0 0 #14161a) drop-shadow(-3px 0 0 #14161a)
+    drop-shadow(0 3px 0 #14161a) drop-shadow(0 -3px 0 #14161a)
+    drop-shadow(3px 3px 0 #14161a) drop-shadow(-3px -3px 0 #14161a)
+    drop-shadow(3px -3px 0 #14161a) drop-shadow(-3px 3px 0 #14161a)
+    drop-shadow(14px 18px 28px rgba(0, 0, 0, 0.55));
+}
+.menu-fighter::after {
+  /* sombra de contacto ovalada debajo del pie */
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  width: 70%;
+  height: 16px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5), transparent 70%);
+  border-radius: 50%;
+}
+.menu-fighter::before {
+  /* glow de color por personaje (a lo "challenger" Smash) */
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle at center, var(--ch-glow, rgba(255,255,255,0.3)), transparent 70%);
+  filter: blur(8px);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ============================================================
+   LOBBY: retratos recortados como en el title screen
+   ============================================================ */
+.lobby-slot .slot-char {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 80px;
+}
+.lobby-slot .slot-char img {
+  width: auto;
+  height: clamp(70px, 12vw, 110px);
+  object-fit: contain;
+  /* contorno de cómic grueso + sombra flotante */
+  filter:
+    drop-shadow(2px 0 0 #14161a) drop-shadow(-2px 0 0 #14161a)
+    drop-shadow(0 2px 0 #14161a) drop-shadow(0 -2px 0 #14161a)
+    drop-shadow(2px 2px 0 #14161a) drop-shadow(-2px -2px 0 #14161a)
+    drop-shadow(2px -2px 0 #14161a) drop-shadow(-2px 2px 0 #14161a)
+    drop-shadow(8px 10px 16px rgba(0, 0, 0, 0.5));
+  transition: transform 0.15s ease;
+}
+.lobby-slot .slot-char:hover img {
+  transform: scale(1.08) translateY(-4px);
+}
 }

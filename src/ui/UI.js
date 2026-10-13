@@ -58,33 +58,24 @@ export class UI {
     stack.append(tMain, cloud, tSub);
     s.append(stack);
 
-    // lineup tipo champion select: Kenai + Coco + Domono + Faxo (las personas, sin autos)
-    const lineup = el('div', 'menu-lineup');
+// lineup de personajes en pose de pelea al estilo Smash (detrás del título, con movimiento)
+    const fightGroup = el('div', 'menu-fight-group');
     for (const entry of CHAMPION_LINEUP) {
       const ch = GAME_CONFIG.characters[entry.id];
-      const slot = el('div', 'menu-lineup-slot');
+      const fighter = el('div', 'menu-fighter');
       const r = parseInt(ch.color.slice(1, 3), 16);
       const g = parseInt(ch.color.slice(3, 5), 16);
       const b = parseInt(ch.color.slice(5, 7), 16);
-      const shade = (k) => `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`;
-      slot.style.setProperty('--ch-glow', `rgba(${r},${g},${b},0.5)`);
-      slot.style.setProperty('--ch-burst', shade(1));
-      slot.style.setProperty('--ch-burst-dark', shade(0.45));
-      slot.style.setProperty('--ch-ribbon', shade(1));
+      fighter.style.setProperty('--ch-glow', `rgba(${r},${g},${b},0.5)`);
+      fighter.style.setProperty('--ch-color', `rgb(${r},${g},${b})`);
       const img = document.createElement('img');
       img.alt = ch.name;
       img.draggable = false;
       cutoutPng(entry.img).then((url) => { img.src = url; });
-      slot.append(el('div', 'menu-slot-burst'), el('div', 'menu-slot-glow'), img, el('div', 'menu-lineup-name', ch.name), el('div', 'menu-lineup-color-ind', ''));
-      // Añadimos un pequeño indicador de color debajo del nombre para consistencia visual
-      const colorInd = slot.querySelector('.menu-lineup-color-ind');
-      colorInd.style.background = `rgb(${r},${g},${b})`;
-      colorInd.style.width = '12px';
-      colorInd.style.height = '2px';
-      colorInd.style.marginTop = '2px';
-      lineup.append(slot);
+      fighter.append(img);
+      fightGroup.append(fighter);
     }
-    s.append(lineup);
+    s.append(fightGroup);
     // chispas de caricatura a los costados (arman con la nube de pelea)
     s.append(el('div', 'menu-star star-l'), el('div', 'menu-star star-r'));
 
@@ -132,7 +123,7 @@ export class UI {
         rerender();
       }));
 
-      // personaje (cicla por GAME_CONFIG.characters)
+      // personaje (cicla por GAME_CONFIG.characters) — muestra el retrato recortado como en el title screen
       const ch = GAME_CONFIG.characters[slot.character];
       const charBtn = smallBtn('', () => {
         const idx = CHARACTER_IDS.indexOf(slot.character);
@@ -140,9 +131,16 @@ export class UI {
         rerender();
       });
       charBtn.classList.add('slot-char');
-      const sw = el('div', 'slot-swatch');
-      sw.style.background = ch.color;
-      charBtn.append(sw, el('div', '', ch.name));
+      const charImg = document.createElement('img');
+      charImg.alt = ch.name;
+      charImg.draggable = false;
+      const charEntry = CHAMPION_LINEUP.find(e => e.id === slot.character);
+      if (charEntry) {
+        cutoutPng(charEntry.img).then((url) => { charImg.src = url; });
+      } else {
+        charImg.src = '/assets/concept/kenai/Kenai3Dreferencia.png';
+      }
+      charBtn.append(charImg, el('div', '', ch.name));
       card.append(charBtn);
 
       // dificultad (solo si es CPU)
