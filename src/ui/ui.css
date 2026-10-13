@@ -206,11 +206,10 @@
    logo flotante con rayos, Kenai con bob de boxeador, hojas.
    ============================================================ */
 .menu-screen {
-  /* deja ver el escenario 3D del juego (nubes, autos, templo, pájaros) */
-  background: linear-gradient(rgba(12, 16, 30, 0.06), rgba(12, 16, 30, 0.30) 85%);
-  /* viñeta sutil para que la lineup y el logo "floten" */
-  box-shadow: inset 0 0 120px 40px rgba(5, 8, 16, 0.5);
+  background: url('/assets/ui/title-background.png') center/cover no-repeat;
+  position: relative;
   overflow: hidden;
+  box-shadow: inset 0 0 120px 40px rgba(5, 8, 16, 0.5);
 }
 
 /* rayos de luz girando detrás del logo (anime/smash) */
@@ -252,6 +251,40 @@
 /* logo: stack con texto 3D + nube animada */
 .menu-logo-stack {
   position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  z-index: 3;
+  animation: logoFloat 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-10px); }
+}
+
+.t-main {
+  font-family: 'Bungee', sans-serif;
+  font-size: clamp(3rem, 8vw, 6rem);
+  letter-spacing: 0.05em;
+  color: #FFD700;
+  -webkit-text-stroke: 2px #14161a;
+  text-shadow: 0 0 10px #FFD700, 0 0 20px #FFD700, 0 0 30px #FFD700;
+  white-space: nowrap;
+}
+
+.t-sub {
+  font-family: 'Rubik Spray Paint', cursive;
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  color: #FF6B6B;
+  -webkit-text-stroke: 1px #14161a;
+  text-shadow: 0 0 5px #FF6B6B;
+  margin-top: -10px;
+  position: absolute;
   top: 2%;
   left: 50%;
   transform: translateX(-50%);
@@ -269,6 +302,8 @@
 
 /* título principal: fuente graffiti con extrusión 3D + sombra magenta gangster */
 .t-main {
+  color: #FFD700; /* Cambiado a dorado para verificar actualización */
+
   font-family: 'Bungee', 'Arial Black', sans-serif;
   font-size: clamp(2.6rem, 7.5vw, 5.8rem);
   letter-spacing: 0.04em;
@@ -521,14 +556,27 @@
 /* botón pulsante PRESS START */
 .menu-play {
   position: absolute;
-  bottom: 13%;
   left: 50%;
+  bottom: 20%;
   transform: translateX(-50%);
-  font-size: 1.55rem;
-  letter-spacing: 0.06em;
-  padding: 18px 66px;
-  border-radius: 14px;
-  animation: kenaiIn 0.55s 0.2s ease-out backwards, playPulse 1.5s 0.8s ease-in-out infinite;
+  font-family: 'Bungee', sans-serif;
+  font-size: 1.8rem;
+  padding: 15px 40px;
+  background: #FFD700;
+  color: #14161a;
+  border: 3px solid #14161a;
+  border-radius: 8px;
+  cursor: pointer;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.05); }
+}
+
+.menu-play:hover {
+  background: #FFE57F;
 }
 @keyframes playPulse {
   0%, 100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 rgba(233, 196, 106, 0); }
@@ -566,6 +614,28 @@
   margin-top: 2px;
 }
 
+/* Estilos para pantallas pequeñas en el title screen */
+  .fight-group {
+    position: absolute;
+    left: 50%;
+    top: 62%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    gap: clamp(8px, 2vw, 16px);
+    pointer-events: none;
+    z-index: 1;
+  }
+  
+  .menu-fighter img {
+    height: clamp(80px, 14vw, 150px);
+  }
+  
+  .menu-fighter::after {
+    width: 55%;
+    height: 8px;
+    bottom: -6px;
+  }
+
 /* estado hovered sobre un slot de la lineup */
 .menu-lineup-slot.hovered { outline: 2px solid var(--ch-glow, rgba(255,255,255,0.5)); }
 
@@ -576,12 +646,12 @@
 .menu-fight-group {
   position: absolute;
   left: 50%;
-  top: 58%;
+  top: 50%;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  gap: clamp(12px, 3vw, 32px);
+  gap: clamp(18px, 4.5vw, 50px);
   pointer-events: none;
   z-index: 1;
   animation: fightGroupBob 3.2s ease-in-out infinite;
@@ -606,15 +676,20 @@
 }
 .menu-fighter img {
   width: auto;
-  height: clamp(120px, 18vw, 240px);
+  height: clamp(150px, 20vw, 250px);
   object-fit: contain;
   /* contorno de cómic grueso + sombra flotante */
   filter:
-    drop-shadow(2px 0 0 #14161a) drop-shadow(-2px 0 0 #14161a)
-    drop-shadow(0 2px 0 #14161a) drop-shadow(0 -2px 0 #14161a)
-    drop-shadow(2px 2px 0 #14161a) drop-shadow(-2px -2px 0 #14161a)
-    drop-shadow(2px -2px 0 #14161a) drop-shadow(-2px 2px 0 #14161a)
-    drop-shadow(10px 12px 20px rgba(0, 0, 0, 0.55));
+    drop-shadow(3px 0 0 #14161a) drop-shadow(-3px 0 0 #14161a)
+    drop-shadow(0 3px 0 #14161a) drop-shadow(0 -3px 0 #14161a)
+    drop-shadow(3px 3px 0 #14161a) drop-shadow(-3px -3px 0 #14161a)
+    drop-shadow(3px -3px 0 #14161a) drop-shadow(-3px 3px 0 #14161a)
+    drop-shadow(12px 15px 24px rgba(0, 0, 0, 0.6));
+  transition: transform 0.3s ease;
+}
+
+.menu-fighter:hover img {
+  transform: scale(1.05);
 }
 .menu-fighter::after {
   /* sombra de contacto ovalada debajo del pie */
@@ -643,10 +718,46 @@
 }
 
 /* pantallas pequeñas: personajes más chicos y menos separación */
-@media (max-width: 900px) {
-  .menu-fight-group {
-    top: 62%;
-    gap: clamp(8px, 2vw, 16px);
+
+
+.fight-group-left, .fight-group-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fight-group-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+  }
+  
+  @media (max-width: 900px) {
+    .fight-group {
+      position: absolute;
+      left: 50%;
+      top: 62%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      gap: clamp(8px, 2vw, 16px);
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .menu-fighter img {
+      height: clamp(80px, 14vw, 150px);
+    }
+    
+    .menu-fighter::after {
+      width: 55%;
+      height: 8px;
+      bottom: -6px;
+    }
   }
   .menu-fighter img {
     height: clamp(80px, 14vw, 150px);
@@ -656,7 +767,6 @@
     height: 8px;
     bottom: -6px;
   }
-}
 
 /* ============================================================
    LOBBY: retratos recortados como en el title screen
@@ -684,5 +794,4 @@
 }
 .lobby-slot .slot-char:hover img {
   transform: scale(1.08) translateY(-4px);
-}
 }

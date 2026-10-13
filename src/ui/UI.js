@@ -44,59 +44,48 @@ export class UI {
     this.clear();
     const s = el('div', 'ui-screen menu-screen');
 
-    // rayos de luz girando detrás del logo (estilo anime/smash)
-    s.append(el('div', 'menu-rays'));
-    // glow cálido detrás del logo
-    s.append(el('div', 'menu-glow'));
+    // Layout Estilo Street Fighter / VS Mode
+    const fightGroup = el('div', 'fight-group');
+    
+    const leftGroup = el('div', 'fight-group-left');
+    const rightGroup = el('div', 'fight-group-right');
 
-    // título 3D (fuente graffiti Bungee/Spray + extrusión) + nube de pelea animada
-    const stack = el('div', 'menu-logo-stack');
-    const tMain = el('div', 't-main', 'UN RE BONDI');
-    const cloud = el('div', 'menu-cloud');
-    cloud.innerHTML = FIGHT_CLOUD_SVG;
-    const tSub = el('div', 't-sub', 'EN CIUDAD EVITA');
-    stack.append(tMain, cloud, tSub);
-    s.append(stack);
+    const [p1, p2, p3, p4] = CHAMPION_LINEUP;
 
-// lineup de personajes en pose de pelea al estilo Smash (detrás del título, con movimiento)
-    const fightGroup = el('div', 'menu-fight-group');
-    for (const entry of CHAMPION_LINEUP) {
-      const ch = GAME_CONFIG.characters[entry.id];
+    // P1 y P3 a la izquierda
+    for (const entry of [p1, p3]) {
       const fighter = el('div', 'menu-fighter');
-      const r = parseInt(ch.color.slice(1, 3), 16);
-      const g = parseInt(ch.color.slice(3, 5), 16);
-      const b = parseInt(ch.color.slice(5, 7), 16);
-      fighter.style.setProperty('--ch-glow', `rgba(${r},${g},${b},0.5)`);
-      fighter.style.setProperty('--ch-color', `rgb(${r},${g},${b})`);
       const img = document.createElement('img');
-      img.alt = ch.name;
-      img.draggable = false;
+      img.alt = entry.id;
       cutoutPng(entry.img).then((url) => { img.src = url; });
       fighter.append(img);
-      fightGroup.append(fighter);
+      leftGroup.append(fighter);
     }
+
+    // P2 y P4 a la derecha
+    for (const entry of [p2, p4]) {
+      const fighter = el('div', 'menu-fighter');
+      const img = document.createElement('img');
+      img.alt = entry.id;
+      cutoutPng(entry.img).then((url) => { img.src = url; });
+      fighter.append(img);
+      rightGroup.append(fighter);
+    }
+
+    fightGroup.append(leftGroup, rightGroup);
     s.append(fightGroup);
-    // chispas de caricatura a los costados (arman con la nube de pelea)
-    s.append(el('div', 'menu-star star-l'), el('div', 'menu-star star-r'));
 
-    // hojas verdes flotando por la pantalla
-    const leaves = el('div', 'menu-leaves');
-    for (let i = 0; i < 9; i++) {
-      const leaf = el('span', 'menu-leaf');
-      leaf.style.left = `${5 + i * 11}%`;
-      leaf.style.animationDelay = `${(i * 1.3) % 7}s`;
-      leaf.style.animationDuration = `${6 + (i % 4) * 2}s`;
-      leaves.append(leaf);
-    }
-    s.append(leaves);
+    // Logo central tipo Arcade
+    const stack = el('div', 'menu-logo-stack');
+    const tMain = el('div', 't-main', 'UN RE BONDI');
+    const tSub = el('div', 't-sub', 'CIUDAD EVITA');
+    stack.append(tMain, tSub);
+    s.append(stack);
 
-    // botón pulsante estilo "PRESS START"
-    const play = btn('¡A PELEAR!', () => this.actions.onPlay());
+    // Botón Start
+    const play = btn('PRESS START', () => this.actions.onPlay());
     play.classList.add('menu-play');
     s.append(play);
-    const help = el('div', 'controls-help menu-help',
-      'P1: A/D mover · F saltar · G atacar · H especial');
-    s.append(help);
 
     this.root.append(s);
   }
