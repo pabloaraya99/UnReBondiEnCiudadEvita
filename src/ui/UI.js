@@ -150,7 +150,18 @@ export class UI {
 
     const active = slots.filter((x) => x.type !== 'off').length;
     const bottom = el('div', 'lobby-bottom');
-    const fight = btn(`¡A PELEAR! (${active} jugadores)`, () => this.actions.onFight(slots));
+
+    // selector de mapa: cicla por GAME_CONFIG.stages
+    const stageIds = Object.keys(GAME_CONFIG.stages);
+    const stageBtn = smallBtn(`MAPA: ${GAME_CONFIG.stages[this._stageId ?? GAME_CONFIG.defaultStage].name}`, () => {
+      const cur = stageIds.indexOf(this._stageId ?? GAME_CONFIG.defaultStage);
+      this._stageId = stageIds[(cur + 1) % stageIds.length];
+      rerender();
+    });
+    stageBtn.classList.add('lobby-stage-btn');
+    bottom.append(stageBtn);
+
+    const fight = btn(`¡A PELEAR! (${active} jugadores)`, () => this.actions.onFight(slots, this._stageId ?? GAME_CONFIG.defaultStage));
     fight.disabled = active < 2;
     const back = btn('VOLVER', () => this.actions.onMenu());
     back.classList.add('secondary');

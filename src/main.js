@@ -60,8 +60,8 @@ const emptyMatch = new Match({ players: [] });
 // ---- interfaz ----
 const ui = new UI(document.body, {
   onPlay: () => setState('lobby'),
-  onFight: (slots) => startMatch(slots),
-  onRematch: () => startMatch(app.slots),
+  onFight: (slots, stageId) => startMatch(slots, stageId),
+  onRematch: () => startMatch(app.slots, app.stageId),
   onLobby: () => setState('lobby'),
   onMenu: () => setState('menu'),
 });
@@ -74,14 +74,18 @@ function setState(s) {
 
 /** Crea una partida con los slots activos del lobby.
  *  Humanos primero: así quien juega con teclado siempre cae en P1 (WASD+F/G/H). */
-function startMatch(slots) {
+function startMatch(slots, stageId = GAME_CONFIG.defaultStage) {
   const active = slots
     .filter((s) => s.type !== 'off')
     .sort((a, b) => (b.type === 'human') - (a.type === 'human'));
   if (active.length < 2) return;
   app.slots = slots;
+  app.stageId = stageId;
   renderer.clearLineup();
+  // el escenario cambia según el mapa elegido en el lobby
+  renderer.setStage(GAME_CONFIG.stages[stageId]);
   app.match = new Match({
+    stageId,
     players: active.map((s) => ({
       character: s.character,
       ai: s.type === 'cpu' ? s.difficulty : null,

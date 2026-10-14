@@ -267,6 +267,25 @@ export const GAME_CONFIG = {
         hazardCd: 45,               // frames de inmunidad tras un choque
       },
     },
+    escritorio: {
+      name: 'El Escritorio',
+      // EL PISO ES LA MESA GIGANTE (como el mapa desk de vita-machines): ancha y
+      // segura de borde a borde; los bordes del blast quedan para KOs volando.
+      // Abajo, muy abajo, está el piso de la habitación (visual de la caída).
+      solids: [{ l: -26, r: 26, top: -6.5, bottom: -10 }],
+      oneWays: [
+        { l: -10, r: 10, top: 0 },       // pila de libros central (acá spawnean)
+        { l: -19, r: -13, top: 2.6 },    // lomo del libro izquierdo
+        { l: 13, r: 19, top: 2.6 },      // lomo del libro derecho
+        { l: -3.5, r: 3.5, top: 5.2 },   // la taza gigante (plataforma alta)
+      ],
+      spawns: [{ x: -6, y: 0 }, { x: 6, y: 0 }, { x: -2.5, y: 0 }, { x: 2.5, y: 0 }],
+      respawn: { x: 0, y: 11 },
+      blast: { left: -30, right: 30, bottom: -19, top: 24 },
+      camera: { minWidth: 22, padding: 7 },
+      // Sin tráfico en este mapa (es interior). El Renderer dibuja el escritorio.
+      traffic: null,
+    },
   },
   defaultStage: 'mormones',
 

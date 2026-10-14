@@ -226,6 +226,11 @@ export class Renderer {
       });
     }
     this.stage = stage;
+    // Escenario "El Escritorio" (inspirado en el mapa desk de vita-machines)
+    if (stage.name === 'El Escritorio') {
+      this.buildDeskStage(stage);
+      return;
+    }
     const g = new THREE.Group();
 
     // ---- cielo con degradado (celeste arriba, casi blanco en el horizonte) ----
@@ -383,6 +388,272 @@ export class Renderer {
       g.add(bird.group);
       this.birds.push({ ...bird, speed: 5 + crnd() * 3, phase: crnd() * 6 });
     }
+
+    // zona de KO (solo en modo debug)
+    const b = stage.blast;
+    const blast = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(b.right - b.left, b.top - b.bottom, 0.1)),
+      new THREE.LineBasicMaterial({ color: 0xff3b3b }),
+    );
+    blast.position.set((b.left + b.right) / 2, (b.top + b.bottom) / 2, 0);
+    blast.visible = this.debug;
+    blast.name = 'blast';
+    g.add(blast);
+
+    this.stageGroup = g;
+    this.scene.add(g);
+  }
+
+  /**
+   * Escenario "El Escritorio" (inspirado en el mapa desk de vita-machines):
+   * los personajes pelean SOBRE un escritorio gigante de madera barnizada; muy abajo
+   * está el piso de la habitación (visual de la caída). Props: taza gigante, pilas de
+   * libros (plataformas), lápices, goma, bloques de juguete, pelota y una planta.
+   */
+  buildDeskStage(stage) {
+    const g = new THREE.Group();
+    const box = this.makeGrouper(g);
+
+    // ---- atmósfera de interior cálido (lámpara) con ventana fría de fondo ----
+    this.scene.background = new THREE.Color(0x2a2118);
+    this.scene.fog = new THREE.Fog(0x2a2118, 90, 260);
+    // pared de fondo cálida (el cuarto)
+    box(140, 70, 2, 0x6b5444, 0, 16, -26, { shadow: false });
+    // ventana con luz azul de noche (como el ventanal del living de vita-machines)
+    const ventana = new THREE.Mesh(
+      new THREE.PlaneGeometry(26, 20),
+      new THREE.MeshStandardMaterial({ color: 0x35507a, emissive: 0x2a4a80, emissiveIntensity: 0.7, roughness: 0.3 }),
+    );
+    ventana.position.set(-30, 14, -24.9);
+    g.add(ventana);
+    // marco de la ventana
+    box(27.5, 1.4, 0.6, 0xeceae4, -30, 24.6, -24.8, { shadow: false });
+    box(27.5, 1.4, 0.6, 0xeceae4, -30, 3.4, -24.8, { shadow: false });
+    box(1.4, 22, 0.6, 0xeceae4, -43.6, 14, -24.8, { shadow: false });
+    box(1.4, 22, 0.6, 0xeceae4, -16.4, 14, -24.8, { shadow: false });
+    box(1.2, 20, 0.5, 0xeceae4, -30, 14, -24.8, { shadow: false });
+    // repisa con plantita
+    box(28, 0.8, 2.4, 0xa8764a, -30, 2.8, -23.6, { shadow: false });
+
+    // ---- LA MESA (plataforma principal de pelea): madera barnizada gigante ----
+    const madera = new THREE.MeshStandardMaterial({ color: 0x9c6b43, roughness: 0.42, metalness: 0.08 });
+    const maderaOsc = new THREE.MeshStandardMaterial({ color: 0x7a5233, roughness: 0.5, metalness: 0.05 });
+    const mesa = new THREE.Mesh(new THREE.BoxGeometry(52.5, 3.5, 12), madera);
+    mesa.position.set(0, -8.25, 0);
+    mesa.castShadow = true;
+    mesa.receiveShadow = true;
+    g.add(mesa);
+    // vetas de la madera (líneas claras longitudinales)
+    for (const [z, tone] of [[-4.4, 0xb08258], [-2.2, 0x8a5f3c], [0, 0xb08258], [2.2, 0x8a5f3c], [4.4, 0xb08258]]) {
+      box(52.5, 0.06, 0.5, tone, 0, -6.47, z, { shadow: false });
+    }
+    // borde biselado de la mesa (frente)
+    box(52.5, 0.7, 0.5, 0x8a5f3c, 0, -6.85, 6.1, { shadow: false });
+    box(52.5, 0.7, 0.5, 0x8a5f3c, 0, -6.85, -6.1, { shadow: false });
+
+    // ---- EL PISO DE LA HABITACIÓN (muy abajo: visual de la caída) ----
+    const piso = new THREE.Mesh(
+      new THREE.PlaneGeometry(160, 90),
+      new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.9 }),
+    );
+    piso.rotation.x = -Math.PI / 2;
+    piso.position.set(0, -19.5, 10);
+    piso.receiveShadow = true;
+    g.add(piso);
+    // parquet: tablones alternados (como la referencia)
+    for (let i = -10; i <= 10; i++) {
+      box(160, 0.02, 1.6, i % 2 ? 0x9c7a50 : 0x7c5c3a, 0, -19.48, 10 + i * 3.2, { shadow: false });
+    }
+    // alfombra circular bajo la mesa (como la rug del escritorio de vita-machines)
+    const rug = new THREE.Mesh(
+      new THREE.CircleGeometry(14, 40),
+      new THREE.MeshStandardMaterial({ color: 0x9c3d3d, roughness: 1 }),
+    );
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.set(6, -19.44, 4);
+    g.add(rug);
+    // patrón de la alfombra: anillos concéntricos
+    for (const [r, c] of [[11, 0xd8b86a], [8, 0x9c3d3d], [5, 0xd8b86a]]) {
+      const anillo = new THREE.Mesh(
+        new THREE.RingGeometry(r - 0.8, r, 40),
+        new THREE.MeshStandardMaterial({ color: c, roughness: 1 }),
+      );
+      anillo.rotation.x = -Math.PI / 2;
+      anillo.position.set(6, -19.42, 4);
+      g.add(anillo);
+    }
+    // patas de la mesa (bajan al piso, visibles desde los bordes)
+    for (const x of [-23, 23]) {
+      box(2.6, 9.5, 2.6, 0x7a5233, x, -14.2, 0);
+    }
+
+    // ======================= PROPS DE LA MESA (escala gigante, estilo vita-machines) =======================
+    // ---- PILA DE LIBROS CENTRAL (la plataforma de spawn, top = 0) ----
+    const libros = [
+      { w: 21, h: 1.7, d: 8.6, color: 0x8a3d3d, x: 0, y: -1.7, z: 0 },    // rojo (abajo)
+      { w: 19, h: 1.6, d: 8, color: 0x3d5a8a, x: 0.3, y: -3.35, z: 0.2 }, // azul (medio)
+      { w: 17, h: 1.5, d: 7.4, color: 0x4a7a4a, x: -0.3, y: -4.9, z: -0.15 }, // verde (arriba, top≈0)
+    ];
+    // (apilados de arriba hacia abajo: el de arriba tiene top en y=0 = plataforma)
+    for (const l of libros) {
+      box(l.w, l.h, l.d, l.color, l.x, l.y + l.h / 2, l.z);
+      // páginas claras del costado
+      box(l.w * 0.96, l.h * 0.6, 0.25, 0xe8e0cf, l.x, l.y + l.h / 2, l.z + l.d / 2 + 0.01, { shadow: false });
+      // lomo con título (franja dorada)
+      box(l.w * 0.4, 0.18, 0.1, 0xf2c94c, l.x, l.y + l.h / 2 + l.h * 0.2, l.z - l.d / 2 - 0.01, { shadow: false });
+    }
+
+    // ---- LIBROS INDIVIDUALES (plataformas laterales, top = 2.6) ----
+    for (const [cx, color, ry] of [[-16, 0x6a4a8a, 0.06], [16, 0xb0823d, -0.06]]) {
+      const libro = new THREE.Group();
+      const tapa = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.5, 9), new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+      tapa.position.y = 0.25;
+      const paginas = new THREE.Mesh(new THREE.BoxGeometry(5.9, 1.6, 8.6), new THREE.MeshStandardMaterial({ color: 0xe8e0cf, roughness: 0.9 }));
+      paginas.position.y = 1.3;
+      const tapaSup = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.5, 9), new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+      tapaSup.position.y = 2.35;
+      libro.add(tapa, paginas, tapaSup);
+      libro.position.set(cx, 0, 0);
+      libro.rotation.y = ry;
+      libro.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+      g.add(libro);
+    }
+
+    // ---- LA TAZA GIGANTE (plataforma alta central, top = 5.2) ----
+    const taza = new THREE.Group();
+    const cuerpo = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.6, 2.2, 3.4, 24),
+      new THREE.MeshStandardMaterial({ color: 0xe8e0cf, roughness: 0.5 }),
+    );
+    cuerpo.position.y = 3.4;
+    // franja terracota (como la mug de vita-machines)
+    const banda = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.63, 2.63, 0.7, 24),
+      new THREE.MeshStandardMaterial({ color: 0xc46a4a, roughness: 0.6 }),
+    );
+    banda.position.y = 4.3;
+    // café adentro (superficie oscura arriba)
+    const cafe = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.3, 2.3, 0.15, 24),
+      new THREE.MeshStandardMaterial({ color: 0x4a2c1a, roughness: 0.3 }),
+    );
+    cafe.position.y = 5.05;
+    // asa
+    const asa = new THREE.Mesh(
+      new THREE.TorusGeometry(1.1, 0.28, 10, 20, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0xe8e0cf, roughness: 0.5 }),
+    );
+    asa.position.set(2.9, 3.7, 0);
+    asa.rotation.z = -Math.PI / 2;
+    taza.add(cuerpo, banda, cafe, asa);
+    taza.position.set(0, 0.05, -1.2);
+    taza.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    g.add(taza);
+    // vaporcito del café (3 esferas transparentes subiendo)
+    const vaporMat = new THREE.MeshStandardMaterial({ color: 0xd8d5ce, transparent: true, opacity: 0.35, roughness: 1 });
+    for (let i = 0; i < 3; i++) {
+      const vapor = new THREE.Mesh(new THREE.SphereGeometry(0.3 + i * 0.12, 8, 6), vaporMat);
+      vapor.position.set((i % 2 ? 0.3 : -0.3), 5.6 + i * 0.55, -1.2);
+      vapor.castShadow = false;
+      g.add(vapor);
+    }
+
+    // ---- LÁPIZ gigante (decorativo, a la izquierda) ----
+    const lapiz = new THREE.Group();
+    const cuerpoLap = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 14, 8), new THREE.MeshStandardMaterial({ color: 0xf2c94c, roughness: 0.6 }));
+    cuerpoLap.rotation.z = Math.PI / 2;
+    const mina = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.8, 8), new THREE.MeshStandardMaterial({ color: 0xd8b08a, roughness: 0.7 }));
+    mina.rotation.z = -Math.PI / 2;
+    mina.position.x = 7.9;
+    const puntaMina = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.5 }));
+    puntaMina.rotation.z = -Math.PI / 2;
+    puntaMina.position.x = 8.6;
+    const goma = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.9, 8), new THREE.MeshStandardMaterial({ color: 0xd88a9c, roughness: 0.7 }));
+    goma.rotation.z = Math.PI / 2;
+    goma.position.x = -7.4;
+    const ferreula = new THREE.Mesh(new THREE.CylinderGeometry(0.54, 0.54, 0.6, 8), new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.8, roughness: 0.3 }));
+    ferreula.rotation.z = Math.PI / 2;
+    ferreula.position.x = -6.6;
+    lapiz.add(cuerpoLap, mina, puntaMina, goma, ferreula);
+    lapiz.position.set(-20, -5.4, 2.5);
+    lapiz.rotation.y = 0.35;
+    lapiz.rotation.z = 0.08;
+    lapiz.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+    g.add(lapiz);
+
+    // ---- BLOQUES DE JUGUETE (decorativos, derecha) ----
+    for (const [bx, bz, color, letra] of [[22, -3, 0xd8352a, 0.2], [21, 3.5, 0x3b6fd4, -0.25], [24, 0.5, 0xf2c94c, 0.5]]) {
+      const bloque = new THREE.Group();
+      const cubo = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.2, 2.2), new THREE.MeshStandardMaterial({ color, roughness: 0.5 }));
+      cubo.position.y = 1.1;
+      // letra del bloque (cara frontal clara)
+      const cara = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 0.06), new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.6 }));
+      cara.position.set(0, 1.1, 1.12);
+      bloque.add(cubo, cara);
+      bloque.position.set(bx, -6.5, bz);
+      bloque.rotation.y = letra;
+      bloque.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+      g.add(bloque);
+    }
+
+    // ---- PLANTA en maceta (fondo izquierdo, como la de vita-machines) ----
+    const maceta = new THREE.Group();
+    const tiesto = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.2, 2.2, 14), new THREE.MeshStandardMaterial({ color: 0xb0684a, roughness: 0.8 }));
+    tiesto.position.y = 1.1;
+    const tierra = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.3, 14), new THREE.MeshStandardMaterial({ color: 0x3d2c1a, roughness: 1 }));
+    tierra.position.y = 2.2;
+    maceta.add(tiesto, tierra);
+    // hojas (conos verdes apuntando a lados)
+    const hojaMat = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.8 });
+    for (let i = 0; i < 7; i++) {
+      const hoja = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3 + (i % 3), 5), hojaMat);
+      const a = (i / 7) * Math.PI * 2;
+      hoja.position.set(Math.cos(a) * 0.7, 2.4 + (i % 2) * 0.4, Math.sin(a) * 0.7);
+      hoja.rotation.set(Math.sin(a) * 1.2, 0, -Math.cos(a) * 1.2);
+      maceta.add(hoja);
+    }
+    maceta.position.set(-23, -6.5, -3);
+    maceta.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+    g.add(maceta);
+
+    // ---- HOJAS DE PAPEL (detalle, fondo derecho) ----
+    for (const [px, ry] of [[20, 0.3], [21.5, -0.2]]) {
+      const hojaP = new THREE.Mesh(new THREE.PlaneGeometry(3, 4), new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.9, side: THREE.DoubleSide }));
+      hojaP.rotation.x = -Math.PI / 2;
+      hojaP.rotation.z = ry;
+      hojaP.position.set(px, -6.44, -4);
+      g.add(hojaP);
+      // renglones escritos
+      for (let l = 0; l < 4; l++) {
+        box(2.2 - l * 0.2, 0.02, 0.06, 0x8a8f96, px, -6.42, -5 + l * 0.7, { shadow: false });
+      }
+    }
+
+    // ---- LÁMPARA colgante (luz cálida de interior, como el living de vita-machines) ----
+    const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 8, 6), new THREE.MeshStandardMaterial({ color: 0x1b1d22 }));
+    cable.position.set(8, 26, -6);
+    g.add(cable);
+    const campana = new THREE.Mesh(
+      new THREE.ConeGeometry(2.6, 2.2, 18, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0x2b6e5c, roughness: 0.5, side: THREE.DoubleSide }),
+    );
+    campana.position.set(8, 21.5, -6);
+    g.add(campana);
+    // bombilla cálida brillante (brilla con el bloom)
+    const bombilla = new THREE.Mesh(
+      new THREE.SphereGeometry(0.7, 12, 10),
+      new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffd98a, emissiveIntensity: 2.2, roughness: 0.3 }),
+    );
+    bombilla.position.set(8, 20.8, -6);
+    g.add(bombilla);
+    // halo de luz cálida bajo la lámpara (disco suave sobre la mesa)
+    const halo = new THREE.Mesh(
+      new THREE.CircleGeometry(9, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.1 }),
+    );
+    halo.rotation.x = -Math.PI / 2;
+    halo.position.set(8, -6.42, -4);
+    g.add(halo);
 
     // zona de KO (solo en modo debug)
     const b = stage.blast;
