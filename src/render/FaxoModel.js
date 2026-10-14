@@ -23,30 +23,30 @@ export function buildFaxo() {
     return m;
   };
 
-  // paleta (calibrada al splash art)
-  const PIEL = 0xb98d76;       // piel clara rosada
-  const REMERA = 0x1a1c22;     // remera negra
-  const REMERA_OSC = 0x111318;
-  const JEAN = 0x2b3038;       // pantalón oscuro
-  const PELO = 0x7a5c3d;       // rulos rubios/castaño claro
-  const PELO_OSC = 0x5d452c;
-  const ZAPA = 0x20242a;
-  const SUELA = 0xd8d5ce;
-  const CAM = 0x14161a;        // cámara negra
-  const CAM_OSC = 0x23262b;
-  const LENTE = 0x0c0e12;
-  const CORREA = 0x2b2f38;     // correa de la cámara
-  const CABLE = 0x1b1d22;      // cable auriculares
+  // paleta BEIGE (a pedido del usuario: tonos crema/arena/marrón claro)
+  const PIEL = 0xc29a7c;       // piel clara cálida
+  const BEIGE = 0xd9c8a9;      // remera beige claro
+  const BEIGE_OSC = 0xbfa88a;  // beige sombra / costuras
+  const MARRON = 0x8a6f52;     // pantalón marrón claro
+  const MARRON_OSC = 0x6f5942;
+  const PELO = 0x8a6a42;       // rulos rubios/castaño claro
+  const PELO_OSC = 0x6b5133;
+  const CREMA = 0xe8e0cf;      // suelas y detalles
+  const CAM = 0x3a3730;        // cámara negra cálida
+  const CAM_OSC = 0x4a463e;
+  const LENTE = 0x1c1a16;
+  const CORREA = 0x5d5344;     // correa marrón
+  const CABLE = 0x3a3730;      // cable oscuro cálido
   const METAL = 0x9aa0a6;
 
   const pielMat = mkMat(PIEL);
-  const remeraMat = mkMat(REMERA, { roughness: 0.85 });
-  const remeraOscMat = mkMat(REMERA_OSC, { roughness: 0.9 });
-  const jeanMat = mkMat(JEAN, { roughness: 0.8 });
+  const remeraMat = mkMat(BEIGE, { roughness: 0.85 });
+  const remeraOscMat = mkMat(BEIGE_OSC, { roughness: 0.9 });
+  const jeanMat = mkMat(MARRON, { roughness: 0.8 });
   const peloMat = mkMat(PELO, { roughness: 0.9 });
   const peloOscMat = mkMat(PELO_OSC, { roughness: 0.9 });
-  const zapaMat = mkMat(ZAPA, { roughness: 0.5 });
-  const suelaMat = mkMat(SUELA, { roughness: 0.4 });
+  const zapaMat = mkMat(MARRON_OSC, { roughness: 0.5 });
+  const suelaMat = mkMat(CREMA, { roughness: 0.4 });
   const camMat = mkMat(CAM, { roughness: 0.35, metalness: 0.3 });
   const camOscMat = mkMat(CAM_OSC, { roughness: 0.45, metalness: 0.3 });
   const lenteMat = mkMat(LENTE, { roughness: 0.15, metalness: 0.5 });

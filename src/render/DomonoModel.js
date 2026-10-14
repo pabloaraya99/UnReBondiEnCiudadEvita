@@ -115,67 +115,95 @@ export function buildDomono() {
   const punoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), pielMat), armL);
   punoL.position.set(0.09, 0.12, 0.36);
 
-  // ======================== CONSOLA DJ PIONEER GRANDE (la lleva adelante, como el splash art) ========================
+  // ======================== CONSOLA DJ PIONEER GIGANTE (la lleva adelante, protagonista del modelo) ========================
   // correa que la sostiene del cuello
-  const correaConsola = add(new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.012, 8, 24, Math.PI * 1.1), negroMat));
+  const correaConsola = add(new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.015, 8, 24, Math.PI * 1.1), negroMat));
   correaConsola.position.set(0, 1.52, 0.12);
   correaConsola.rotation.set(1.35, 0, 0);
-  // mesa de mezclas completa: grande, negra, con 2 platos, perillas y botones brillantes
+  // mesa de mezclas completa: GIGANTE, casi tapa todo el torso — es su sello
   const consola = new THREE.Group();
-  consola.position.set(0, 1.02, 0.5);
-  consola.rotation.x = 0.35; // inclinada hacia él, como si la estuviera usando
+  consola.position.set(0, 1.06, 0.55);
+  consola.rotation.x = 0.4; // inclinada hacia él, como si la estuviera usando
   root.add(consola);
-  // carcasa principal (ancha, como una DDJ)
-  const carcasa = add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 0.34), negroMat), consola);
+  // carcasa principal (MUY ancha, como una DDJ-800)
+  const carcasa = add(new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.07, 0.46), negroMat), consola);
   // borde plateado inferior
-  const borde = add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.02, 0.34), mkMat(0x4a4e55, { metalness: 0.7, roughness: 0.35 })), consola);
-  borde.position.y = -0.04;
-  // platos / jog wheels (lo más icónico): 2 círculos grandes con centro plateado
+  const borde = add(new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.025, 0.46), mkMat(0x4a4e55, { metalness: 0.7, roughness: 0.35 })), consola);
+  borde.position.y = -0.045;
+  // platos / jog wheels (lo más icónico y GRANDE): 2 círculos enormes con centro plateado y aro brillante
   for (const side of [-1, 1]) {
-    const plato = add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.018, 24), mkMat(0x0c0e12, { roughness: 0.25, metalness: 0.4 })), consola);
-    plato.position.set(side * 0.17, 0.04, 0.05);
-    const centro = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.022, 16), mkMat(0x9aa0a6, { metalness: 0.85, roughness: 0.25 })), consola);
-    centro.position.set(side * 0.17, 0.045, 0.05);
-    // punto de marca del jog (rojo)
-    const marca = add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.024, 0.03), mkMat(0xd8352a, { emissive: 0xd8352a, emissiveIntensity: 0.8 })), consola);
-    marca.position.set(side * 0.17, 0.045, 0.14);
+    const plato = add(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.02, 28), mkMat(0x0c0e12, { roughness: 0.2, metalness: 0.45 })), consola);
+    plato.position.set(side * 0.24, 0.045, 0.06);
+    // aro metálico brillante alrededor del jog
+    const aro = add(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.008, 8, 28), mkMat(0x9aa0a6, { metalness: 0.9, roughness: 0.2 })), consola);
+    aro.position.set(side * 0.24, 0.05, 0.06);
+    aro.rotation.x = Math.PI / 2;
+    const centro = add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.026, 18), mkMat(0xd7dce2, { metalness: 0.9, roughness: 0.2 })), consola);
+    centro.position.set(side * 0.24, 0.055, 0.06);
+    // punto de marca del jog (rojo brillante)
+    const marca = add(new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.028, 0.04), mkMat(0xd8352a, { emissive: 0xd8352a, emissiveIntensity: 1.2 })), consola);
+    marca.position.set(side * 0.24, 0.055, 0.19);
+    // texto del jog (líneas radiales del plato)
+    for (let a = 0; a < 8; a++) {
+      const linea = add(new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.022, 0.06), mkMat(0x3a3f47)), consola);
+      const ang = (a / 8) * Math.PI * 2;
+      linea.position.set(side * 0.24 + Math.sin(ang) * 0.1, 0.052, 0.06 + Math.cos(ang) * 0.1);
+      linea.rotation.y = ang;
+    }
   }
-  // perillas (fila central doradas)
-  for (let i = -2; i <= 2; i++) {
-    const perilla = add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.024, 10), oroMat), consola);
-    perilla.position.set(i * 0.045, 0.045, -0.04);
+  // perillas (2 filas centrales, doradas y brillantes)
+  for (let fila = 0; fila < 2; fila++) {
+    for (let i = -3; i <= 3; i++) {
+      const perilla = add(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.019, 0.028, 10), oroMat), consola);
+      perilla.position.set(i * 0.042, 0.05, -0.06 - fila * 0.055);
+    }
   }
-  // faders verticales (2, negros con marca blanca)
-  for (const fx of [-0.05, 0.05]) {
-    const canal = add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.01, 0.12), mkMat(0x2b2f38)), consola);
-    canal.position.set(fx, 0.035, -0.1);
-    const fader = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.02), blancoMat), consola);
-    fader.position.set(fx, 0.045, -0.08);
+  // faders verticales (2 canales + master)
+  for (const fx of [-0.07, 0.07, 0]) {
+    const canal = add(new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.012, 0.15), mkMat(0x2b2f38)), consola);
+    canal.position.set(fx, 0.04, -0.13);
+    const fader = add(new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.024, 0.024), blancoMat), consola);
+    fader.position.set(fx, 0.05, -0.1);
   }
-  // crossfader horizontal
-  const cross = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.015), blancoMat), consola);
-  cross.position.set(0, 0.04, -0.14);
-  // botones amarillos brillantes (pads, como el splash art)
-  for (const [bx, bz] of [[-0.24, -0.1], [-0.19, -0.1], [-0.24, -0.05], [-0.19, -0.05], [0.19, -0.1], [0.24, -0.1], [0.19, -0.05], [0.24, -0.05]]) {
+  // crossfader horizontal grande
+  const crossCanal = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.012, 0.02), mkMat(0x2b2f38)), consola);
+  crossCanal.position.set(0, 0.04, -0.19);
+  const cross = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.024, 0.028), blancoMat), consola);
+  cross.position.set(0, 0.05, -0.19);
+  // botones amarillos brillantes (2 bancos de pads, más grandes)
+  for (const [bx, bz] of [[-0.36, -0.14], [-0.3, -0.14], [-0.36, -0.08], [-0.3, -0.08], [-0.36, -0.02], [-0.3, -0.02], [0.3, -0.14], [0.36, -0.14], [0.3, -0.08], [0.36, -0.08], [0.3, -0.02], [0.36, -0.02]]) {
     const pad = add(new THREE.Mesh(
-      new THREE.BoxGeometry(0.035, 0.012, 0.035),
-      mkMat(0xf2c94c, { emissive: 0xf2c94c, emissiveIntensity: 0.6, roughness: 0.3 }),
+      new THREE.BoxGeometry(0.045, 0.014, 0.045),
+      mkMat(0xf2c94c, { emissive: 0xf2c94c, emissiveIntensity: 0.9, roughness: 0.3 }),
     ), consola);
-    pad.position.set(bx, 0.04, bz);
+    pad.position.set(bx, 0.045, bz);
   }
-  // pantalla LCD central brillante
+  // botón PLAY verde brillante y CUE rojo (grandes, llamativos)
+  const playBtn = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.016, 14), mkMat(0x3fa34d, { emissive: 0x3fa34d, emissiveIntensity: 1.1 })), consola);
+  playBtn.position.set(-0.36, 0.048, 0.19);
+  const cueBtn = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.016, 14), mkMat(0xd8352a, { emissive: 0xd8352a, emissiveIntensity: 1.1 })), consola);
+  cueBtn.position.set(0.36, 0.048, 0.19);
+  // pantalla LCD central GRANDE y brillante
   const lcd = add(new THREE.Mesh(
-    new THREE.BoxGeometry(0.12, 0.012, 0.06),
-    mkMat(0x7fd0ff, { emissive: 0x5fc0ff, emissiveIntensity: 0.7, roughness: 0.2 }),
+    new THREE.BoxGeometry(0.2, 0.014, 0.09),
+    mkMat(0x7fd0ff, { emissive: 0x5fc0ff, emissiveIntensity: 1.0, roughness: 0.2 }),
   ), consola);
-  lcd.position.set(0, 0.04, 0.1);
-  // logo de marca (placa blanca al frente)
-  const logo = add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.012, 0.03), blancoMat), consola);
-  logo.position.set(0, 0.035, 0.16);
-  // cables colgando de la consola
-  const cable = add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 6), negroMat), consola);
-  cable.position.set(0.26, -0.06, -0.08);
-  cable.rotation.z = 0.5;
+  lcd.position.set(0, 0.045, 0.13);
+  // ondas de audio en la pantalla (detalle)
+  for (let i = -4; i <= 4; i++) {
+    const onda = add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.016, 0.02 + Math.abs(Math.sin(i * 1.3)) * 0.04), mkMat(0x1a5c8f, { emissive: 0x2f9fd4, emissiveIntensity: 0.5 })), consola);
+    onda.position.set(i * 0.02, 0.05, 0.13);
+  }
+  // logo de marca (placa blanca grande al frente, como "PIONEER DJ")
+  const logo = add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.014, 0.04), blancoMat), consola);
+  logo.position.set(0, 0.04, 0.22);
+  // cables colgando de la consola (2, más visibles)
+  const cable1 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.24, 6), negroMat), consola);
+  cable1.position.set(0.38, -0.08, -0.1);
+  cable1.rotation.z = 0.5;
+  const cable2 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.18, 6), negroMat), consola);
+  cable2.position.set(0.4, -0.06, 0.02);
+  cable2.rotation.z = 0.7;
 
   // parche rojo/blanco del hombro (como el splash art)
   const parcheHombro = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.09, 0.03), mkMat(0xd8352a)), armL);

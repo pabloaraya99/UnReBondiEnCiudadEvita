@@ -116,27 +116,96 @@ export function buildCoco() {
     mancha.rotation.z = r;
   }
 
-  // tatuaje del pecho: figura central (tigre/texto del splash art) + letras chicas abajo
-  const tatPecho = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.015), tintaMat));
-  tatPecho.position.set(-0.02, 1.42, 0.2);
-  tatPecho.rotation.z = 0.2;
-  const tatPecho2 = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.015), tintaMat));
-  tatPecho2.position.set(0.04, 1.34, 0.21);
-  tatPecho2.rotation.z = -0.1;
+  // ======================== TATUAJES por TODO el torso (mucho más vistosos) ========================
+  // TIGRE del pecho (del splash art): cabeza de tigre grande a la izquierda del esternón
+  const tigreCabeza = add(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.015), tintaMat));
+  tigreCabeza.position.set(-0.07, 1.42, 0.2);
+  tigreCabeza.rotation.z = 0.15;
+  // orejas del tigre
+  for (const dx of [-0.04, 0.04]) {
+    const oreja = add(new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.04, 4), tintaMat));
+    oreja.position.set(-0.07 + dx, 1.49, 0.2);
+    oreja.rotation.z = dx * 5;
+  }
+  // ojos del tigre (puntos)
+  for (const dx of [-0.025, 0.025]) {
+    const ojoT = add(new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 5), tintaMat));
+    ojoT.position.set(-0.07 + dx, 1.43, 0.205);
+  }
+  // hocico del tigre
+  const hocico = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.015), tintaMat));
+  hocico.position.set(-0.07, 1.375, 0.2);
+  // rayas del tigre
+  for (let i = 0; i < 3; i++) {
+    const raya = add(new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.05, 0.015), tintaMat));
+    raya.position.set(-0.1 - i * 0.012, 1.44 - i * 0.02, 0.2);
+    raya.rotation.z = 0.3;
+  }
+  // TEXTO bajo el tigre ("NEVER" o similar, como el splash art)
+  const texto1 = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.015), tintaMat));
+  texto1.position.set(0.02, 1.36, 0.21);
+  texto1.rotation.z = -0.08;
+  const texto2 = add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.015), tintaMat));
+  texto2.position.set(0.03, 1.32, 0.21);
+  texto2.rotation.z = -0.08;
+  // ROSA del otro lado del pecho (como la manga del splash art)
+  const rosaCentro = add(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.015, 8), tintaMat));
+  rosaCentro.rotation.x = Math.PI / 2;
+  rosaCentro.position.set(0.09, 1.44, 0.19);
+  for (let p = 0; p < 5; p++) {
+    const petalo = add(new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 5), tintaMat));
+    const ang = (p / 5) * Math.PI * 2;
+    petalo.position.set(0.09 + Math.cos(ang) * 0.03, 1.44 + Math.sin(ang) * 0.03, 0.19);
+    petalo.scale.set(1, 1, 0.4);
+  }
+  // hoja de la rosa
+  const hoja = add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.015, 0.012), tintaMat));
+  hoja.position.set(0.13, 1.41, 0.19);
+  hoja.rotation.z = 0.5;
+  // cadena/espinas cruzando el pecho (detalle extra vistoso)
+  for (let i = 0; i < 5; i++) {
+    const eslabon = add(new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.008, 0.012), tintaMat));
+    eslabon.position.set(-0.12 + i * 0.05, 1.52 - Math.abs(i - 2) * 0.015, 0.19);
+    eslabon.rotation.z = (i - 2) * 0.15;
+  }
+  // estrella en el hombro derecho
+  const estrella = add(new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.03, 5), tintaMat));
+  estrella.position.set(0.17, 1.5, 0.1);
+  estrella.rotation.x = -0.3;
 
   // ======================== brazos largos y flacos con tatuajes ========================
   const tatuajeBrazo = (brazo, lado) => {
-    // bandas tribales alrededor del brazo (como el splash art)
-    for (const [dy, s] of [[-0.02, 0.1], [0.08, 0.09]]) {
-      const banda = new THREE.Mesh(new THREE.CylinderGeometry(s, s, 0.04, 12), tintaMat);
+    // MANGA COMPLETA: bandas tribales apiladas (3 bandas, como el splash art)
+    for (const [dy, s] of [[-0.06, 0.1], [0.01, 0.095], [0.08, 0.09]]) {
+      const banda = new THREE.Mesh(new THREE.CylinderGeometry(s, s, 0.045, 12), tintaMat);
       banda.position.y = dy;
       brazo.add(banda);
+      // dientes tribales sobre la banda (zigzag)
+      for (let d = 0; d < 6; d++) {
+        const diente = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.025, 4), tintaMat);
+        const ang = (d / 6) * Math.PI * 2;
+        diente.position.set(Math.cos(ang) * s, dy + 0.045, Math.sin(ang) * s);
+        diente.rotation.z = -Math.cos(ang) * 1.2;
+        diente.rotation.x = Math.sin(ang) * 1.2;
+        brazo.add(diente);
+      }
     }
-    // figura alargada (flecha/tribal)
-    const fig = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 0.012), tintaMat);
-    fig.position.set(0, 0.03, 0.1 * lado);
+    // figura grande alargada (flecha/tribal, como la manga del splash art)
+    const fig = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.14, 0.014), tintaMat);
+    fig.position.set(0, 0.02, 0.1 * lado);
     fig.rotation.z = 0.4 * lado;
     brazo.add(fig);
+    // punta de la flecha
+    const punta = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.05, 4), tintaMat);
+    punta.position.set(0, 0.11, 0.1 * lado);
+    punta.rotation.z = 0.4 * lado;
+    brazo.add(punta);
+    // puntos decorativos junto a la flecha
+    for (let d = 0; d < 3; d++) {
+      const punto = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 5), tintaMat);
+      punto.position.set(0.025 * lado, -0.03 - d * 0.025, 0.095 * lado);
+      brazo.add(punto);
+    }
   };
 
   // brazo izquierdo (pose de guardia)
