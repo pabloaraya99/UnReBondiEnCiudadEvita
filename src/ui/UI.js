@@ -379,9 +379,10 @@ async function cutoutPng(src, tolerance = 120) {
     const lum = (r + g + b) / 3;
     const d = Math.abs(r - bg[0]) + Math.abs(g - bg[1]) + Math.abs(b - bg[2]);
     if (darkBg) {
-      // fondo oscuro: solo lo MUY oscuro y cercano al color de esquina (protege el cargo negro)
-      if (lum > 62) return false;
-      return d < tolerance * 0.75;
+      // fondo oscuro: SOLO lo casi idéntico al color de esquina (el cargo negro es
+      // casi tan oscuro como el fondo: con tolerancia amplia el flood fill se lo comía)
+      if (lum > 48) return false;
+      return d < tolerance * 0.3;
     }
     if (lum < 168) return false; // el fondo de estudio es claro; protege el hoodie gris
     return d < tolerance;
