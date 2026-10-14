@@ -18,10 +18,10 @@ export function buildKenai() {
     return m;
   };
 
-  // paleta (de las referencias; piel y campera calibradas al retrato del title)
+  // paleta (de la referencia Kenai3d 1.png: hoodie GRIS claro, no azul-grisáceo)
   const PIEL = 0xab7a6a;
-  const HOODIE = 0x3d444f;     // campera azul-grisácea (retrato: slate #31353D)
-  const HOODIE_OSC = 0x262c36;
+  const HOODIE = 0x9aa0a6;     // hoodie GRIS claro (como el splash art)
+  const HOODIE_OSC = 0x767c84; // gris sombra
   const CARGO = 0x20232a;
   const CARGO_BOL = 0x2b2f38;
   const ZAPA = 0x16181d;

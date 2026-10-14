@@ -19,21 +19,24 @@ export function buildDomono() {
   };
 
   // paleta
-  const PIEL = 0xa78063;       // piel (del retrato)
+  const PIEL = 0xd4ac84;       // piel más blanca/clara (a pedido del usuario)
+  const PIEL_OSC = 0xba9068;
   const CREMA = 0xf3f0e8;      // su color: crema/blanco hueso
   const CREMA_OSC = 0xd8d2c2;
   const GRIS = 0x6b6f76;       // jogger gris
-  const PELO = 0x241a12;       // rastas/pelo oscuro
+  const PELO = 0x2a1e14;       // pelo oscuro
   const ORO = 0xf2c94c;
   const NEGRO = 0x14161a;
   const VERDE = 0x3fa34d;      // acento verde (lore)
-  // camuflado: base oliva + parches claro/oscuro + caqui (sin texturas: paneles)
-  const CAMO = 0x3f5a33;
-  const CAMO_OSC = 0x2c4025;
-  const CAMO_CLARO = 0x587a44;
-  const CAMO_KHAKI = 0x75693f;
+  // camuflado con DISTINTOS TONOS DE VERDE (a pedido): bosque, oliva, selva, lima oscura, caqui
+  const CAMO = 0x3f5a33;       // base oliva
+  const CAMO_OSC = 0x26421d;   // verde bosque profundo
+  const CAMO_CLARO = 0x5d8a48; // verde selva claro
+  const CAMO_KHAKI = 0x7a7440; // caqui verdoso
+  const CAMO_LIMA = 0x6fa03c;  // verde lima oscuro (quinto tono)
 
   const pielMat = mkMat(PIEL);
+  const pielOscMat = mkMat(PIEL_OSC);
   const cremaMat = mkMat(CREMA);
   const cremaOscMat = mkMat(CREMA_OSC);
   const grisMat = mkMat(GRIS, { roughness: 0.8 });
@@ -46,6 +49,7 @@ export function buildDomono() {
   const camoOscMat = mkMat(CAMO_OSC, { roughness: 0.9 });
   const camoClaroMat = mkMat(CAMO_CLARO, { roughness: 0.85 });
   const camoKhakiMat = mkMat(CAMO_KHAKI, { roughness: 0.85 });
+  const camoLimaMat = mkMat(CAMO_LIMA, { roughness: 0.85 });
 
   const root = new THREE.Group();
   const add = (mesh, parent = root) => {
@@ -77,14 +81,15 @@ export function buildDomono() {
   // ======================== campera verde CAMUFLADA oversize ========================
   const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.38, 0.44, 8, 16), camoMat));
   torso.position.set(0, 1.24, 0);
-  // parches de camuflado (paneles sin texturas: claro/oscuro/caqui)
-  for (const [x, y, z, s, r] of [
-    [-0.2, 1.32, 0.36, 0.2, 0.4], [0.18, 1.22, 0.36, 0.16, -0.3],
-    [0.22, 1.4, 0.25, 0.14, 0.5], [-0.18, 1.1, 0.3, 0.13, -0.6],
-    [0, 1.18, 0.35, 0.1, 0.2],
+  // parches de camuflado con 5 TONOS DE VERDE distintos (bosque, oliva, selva, lima, caqui)
+  const patchMats = [camoOscMat, camoClaroMat, camoKhakiMat, camoLimaMat, camoMat];
+  for (const [x, y, z, s, r, mi] of [
+    [-0.2, 1.32, 0.36, 0.2, 0.4, 0], [0.18, 1.22, 0.36, 0.16, -0.3, 1],
+    [0.22, 1.4, 0.25, 0.14, 0.5, 3], [-0.18, 1.1, 0.3, 0.13, -0.6, 2],
+    [0, 1.18, 0.35, 0.1, 0.2, 4], [-0.1, 1.42, 0.3, 0.11, 0.7, 1],
+    [0.1, 1.05, 0.32, 0.12, -0.5, 3], [-0.26, 1.22, 0.28, 0.1, 0.9, 2],
   ]) {
-    const patchMat = (r % 3 < 1) ? camoOscMat : (r % 3 < 2) ? camoClaroMat : camoKhakiMat;
-    const patch = add(new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.62, 0.03), patchMat));
+    const patch = add(new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.62, 0.03), patchMats[mi % patchMats.length]));
     patch.position.set(x, y, z);
     patch.rotation.z = r;
   }
@@ -253,21 +258,27 @@ export function buildDomono() {
     const oreja = add(new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), pielMat), head);
     oreja.position.set(side * 0.215, 0.16, 0);
   }
-  // rastas cortas: mechones cilíndricos
-  const rastas = [
-    [-0.1, 0.3, 0.1], [0, 0.32, 0.12], [0.1, 0.3, 0.1],
-    [-0.14, 0.26, 0], [0.14, 0.26, 0], [0, 0.34, -0.05],
-  ];
-  for (const [rx, ry, rz] of rastas) {
-    const mechon = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.16, 6), peloMat), head);
-    mechon.position.set(rx, ry, rz);
-    mechon.rotation.set((rx * 1.5), 0, (rx * 2));
-  }
+  // pelo ENCRESPADO: textura afro con muchos mechones cortos irregulares en todas direcciones
   const tapaPelo = add(new THREE.Mesh(
-    new THREE.SphereGeometry(0.225, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.45),
+    new THREE.SphereGeometry(0.215, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5),
     peloMat,
   ), head);
-  tapaPelo.position.y = 0.2;
+  tapaPelo.position.y = 0.19;
+  // mechones encrespados: conitos irregulares, distintos tamaños y ángulos (textura frizzy)
+  const encreSpados = [
+    [0, 0.36, 0.02, 0.045, 0.11, 0.2, -0.3], [-0.07, 0.34, 0.07, 0.04, 0.1, 0.5, 0.4], [0.07, 0.34, 0.07, 0.045, 0.09, -0.4, 0.5],
+    [-0.06, 0.35, -0.06, 0.04, 0.1, -0.3, -0.5], [0.06, 0.35, -0.06, 0.045, 0.11, 0.4, 0.3],
+    [0, 0.32, 0.13, 0.04, 0.09, 0.7, 0.1], [-0.13, 0.3, 0.03, 0.04, 0.1, 0.3, 0.9], [0.13, 0.3, 0.03, 0.04, 0.1, 0.3, -0.9],
+    [-0.12, 0.31, -0.06, 0.038, 0.09, -0.5, 0.7], [0.12, 0.31, -0.06, 0.038, 0.09, -0.5, -0.7],
+    [0, 0.34, -0.11, 0.045, 0.11, -0.7, 0], [-0.1, 0.33, 0.11, 0.035, 0.08, 0.8, 0.5], [0.1, 0.33, 0.11, 0.035, 0.08, 0.8, -0.5],
+    [-0.16, 0.26, -0.02, 0.035, 0.08, 0.1, 1.1], [0.16, 0.26, -0.02, 0.035, 0.08, 0.1, -1.1],
+    [0.03, 0.37, 0.06, 0.04, 0.1, 0.3, 0.2], [-0.03, 0.37, -0.03, 0.04, 0.1, -0.2, -0.3],
+  ];
+  for (const [rx, ry, rz, rr, len, tiltX, tiltZ] of encreSpados) {
+    const mech = add(new THREE.Mesh(new THREE.ConeGeometry(rr, len, 5), peloMat), head);
+    mech.position.set(rx, ry, rz);
+    mech.rotation.set(tiltX, 0, tiltZ);
+  }
 
   // AURICULARES DJ al cuello (el accesorio icónico)
   const banda = add(new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.028, 8, 20, Math.PI), negroMat), head);

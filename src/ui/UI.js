@@ -6,7 +6,7 @@ const CHAMPION_LINEUP = [
   { id: 'coco', img: '/assets/ui/pilots/coco.webp' },
   { id: 'domono', img: '/assets/ui/pilots/domono.webp' },
   { id: 'faxo', img: '/assets/ui/pilots/faxo.webp' },
-  { id: 'pablo', img: '/assets/concept/kenai/Kenai3Dreferencia.png' },
+  { id: 'pablo', img: '/assets/ui/pilots/Kenai3d 1.png' },
 ];
 const DIFFICULTIES = ['easy', 'normal', 'hard'];
 const DIFFICULTY_LABEL = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };
@@ -127,7 +127,7 @@ export class UI {
       if (charEntry) {
         cutoutPng(charEntry.img).then((url) => { charImg.src = url; });
       } else {
-        charImg.src = '/assets/concept/kenai/Kenai3Dreferencia.png';
+        charImg.src = '/assets/ui/pilots/Kenai3d 1.png';
       }
       charBtn.append(charImg, el('div', '', ch.name));
       card.append(charBtn);
@@ -370,13 +370,20 @@ async function cutoutPng(src, tolerance = 120) {
   const at = (x, y) => (y * W + x) * 4;
   const corners = [at(2, 2), at(W - 3, 2), at(2, H - 3), at(W - 3, H - 3)];
   const bg = [0, 1, 2].map((ch) => corners.reduce((s, i) => s + px[i + ch], 0) / corners.length);
+  const bgLum = (bg[0] + bg[1] + bg[2]) / 3;
+  const darkBg = bgLum < 128; // fondo de estudio negro (Kenai3d 1.png) vs claro (pilots webp)
 
-  // ¿este píxel es fondo? claro (blanco/gris de estudio) y cercano al color de esquina
+  // ¿este píxel es fondo? cercano al color de esquina; claro u oscuro según el fondo detectado
   const isBg = (i) => {
     const r = px[i], g = px[i + 1], b = px[i + 2];
     const lum = (r + g + b) / 3;
-    if (lum < 168) return false; // el fondo de estudio es claro; protege el hoodie gris
     const d = Math.abs(r - bg[0]) + Math.abs(g - bg[1]) + Math.abs(b - bg[2]);
+    if (darkBg) {
+      // fondo oscuro: solo lo MUY oscuro y cercano al color de esquina (protege el cargo negro)
+      if (lum > 62) return false;
+      return d < tolerance * 0.75;
+    }
+    if (lum < 168) return false; // el fondo de estudio es claro; protege el hoodie gris
     return d < tolerance;
   };
 
