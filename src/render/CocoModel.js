@@ -2,10 +2,15 @@ import * as THREE from 'three';
 
 /**
  * El Coco — modelado con primitivas (sin assets externos).
- * De Vita Machines: el más veloz (Corolla azul medianoche). Pibito mecánico del barrio:
- * cuerito gris-negro manchado de grasa, tatuajes en los antebrazos, jogging azul con
- * franja blanca, headband, rizos oscuros, zapatillas deportivas, reloj dorado y
- * LLAVE INGLESA en la mano (tuercas del taller). Origen en los pies (y=0), altura ≈ 1.8.
+ * Basado en el splash art oficial (pilots/coco.webp):
+ * - Torso DESNUDO flaco, manchado de grasa negra del taller
+ * - Tatuajes en pecho y brazos (tigre en el pecho, bandas tribales)
+ * - LLAVE INGLESA GRANDE en la mano derecha (su herramienta de siempre)
+ * - Mirada de loco: ojos saltones grandes, sonrisa dentada ancha
+ * - Cigarrillo colgando de la boca
+ * - Pelo morocho corto y despeinado (mechones parados)
+ * - Pantalón cargo negro manchado + botas de trabajo
+ * Origen en los pies (y=0), altura ≈ 1.85. Contextura: flaco y alto.
  *
  * Devuelve { group, mats, hoodieMat, parts } — misma interfaz que KenaiModel.
  */
@@ -18,29 +23,35 @@ export function buildCoco() {
     return m;
   };
 
-  // paleta
-  const PIEL = 0xa17862;       // piel trigueña (del retrato)
-  const AZUL = 0x4d8bff;       // jogging azul (su color)
-  const AZUL_OSC = 0x3568c9;
-  const BLANCO = 0xf4f1e8;
-  const PELO = 0x1b1512;       // rizos bien oscuros
-  const ORO = 0xf2c94c;
-  const ZAPA = 0xe8e8e8;
+  // paleta (calibrada al splash art)
+  const PIEL = 0xa97c63;       // piel trigueña
+  const PIEL_OSC = 0x8f6350;
+  const GRASA = 0x1c1a16;      // manchas de grasa del taller
+  const TINTA = 0x171a20;      // tatuajes
+  const CARGO = 0x23262b;      // pantalón cargo negro
+  const CARGO_OSC = 0x17191d;
+  const BOTA = 0x1b1d22;       // botas de trabajo
+  const PELO = 0x241a12;       // morocho oscuro
+  const METAL = 0xb9bec5;      // llave inglesa
+  const DIENTES = 0xf4f1e8;
+  const CIG = 0xd8cfc0;        // cigarrillo
+  const BRASA = 0xff7a2a;
 
   const pielMat = mkMat(PIEL);
-  const azulMat = mkMat(AZUL);
-  const azulOscMat = mkMat(AZUL_OSC);
-  const blancoMat = mkMat(BLANCO, { roughness: 0.4 });
+  const pielOscMat = mkMat(PIEL_OSC);
+  const grasaMat = mkMat(GRASA, { roughness: 0.95 });
+  const tintaMat = mkMat(TINTA, { roughness: 0.9 });
+  const cargoMat = mkMat(CARGO, { roughness: 0.85 });
+  const cargoOscMat = mkMat(CARGO_OSC, { roughness: 0.9 });
+  const botaMat = mkMat(BOTA, { roughness: 0.6 });
   const peloMat = mkMat(PELO, { roughness: 0.9 });
-  const oroMat = mkMat(ORO, { metalness: 0.85, roughness: 0.25 });
-  const zapaMat = mkMat(ZAPA, { roughness: 0.45 });
+  const metalMat = mkMat(METAL, { metalness: 0.85, roughness: 0.3 });
+  const metalOscMat = mkMat(0x4a4e55, { metalness: 0.8, roughness: 0.4 });
+  const dientesMat = mkMat(DIENTES, { roughness: 0.4 });
   const negroMat = mkMat(0x14161a, { roughness: 0.5 });
-  // cuero del mecánico (gris-negro con brillo, como el retrato) + accesorios
-  const cueroMat = mkMat(0x32353c, { roughness: 0.3, metalness: 0.3 });
-  const cueroOscMat = mkMat(0x1d2026, { roughness: 0.4, metalness: 0.2 });
-  const grasaMat = mkMat(0x26231a, { roughness: 0.95, metalness: 0 });
-  const tatuMat = mkMat(0x171a20, { roughness: 0.9 });
-  const metalMat = mkMat(0xb9bec5, { metalness: 0.85, roughness: 0.25 });
+  const blancoMat = mkMat(0xffffff, { roughness: 0.3 });
+  const cigMat = mkMat(CIG, { roughness: 0.7 });
+  const brasaMat = mkMat(BRASA, { emissive: 0xff7a2a, emissiveIntensity: 2.0 });
 
   const root = new THREE.Group();
   const add = (mesh, parent = root) => {
@@ -49,155 +60,207 @@ export function buildCoco() {
     return mesh;
   };
 
-  // ======================== zapatillas deportivas ========================
+  // ======================== botas de trabajo ========================
   for (const side of [-1, 1]) {
-    const x = side * 0.17;
-    const suela = add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.58), blancoMat));
-    suela.position.set(x, 0.03, 0.04);
-    const zapa = add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.13, 0.52), zapaMat));
-    zapa.position.set(x, 0.125, 0.03);
-    // franja azul en la zapatilla
-    const franja = add(new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.05, 0.3), azulMat));
-    franja.position.set(x, 0.15, 0.1);
+    const x = side * 0.15;
+    const suela = add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.5), botaMat));
+    suela.position.set(x, 0.03, 0.02);
+    const bota = add(new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.16, 0.46), botaMat));
+    bota.position.set(x, 0.13, 0.0);
+    const punta = add(new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.1, 0.12), botaMat));
+    punta.position.set(x, 0.1, 0.24);
   }
 
-  // ======================== jogging azul con franja blanca ========================
+  // ======================== pantalón cargo negro manchado ========================
   for (const side of [-1, 1]) {
-    const x = side * 0.17;
-    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.5, 6, 12), azulMat));
+    const x = side * 0.15;
+    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.55, 6, 12), cargoMat));
     pierna.position.set(x, 0.5, 0);
-    // franja blanca lateral del jogging
-    const franja = add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.55, 0.3), blancoMat));
-    franja.position.set(side * 0.32, 0.5, 0);
+    // bolsillo cargo grande
+    const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.2, 0.08), cargoOscMat));
+    bolsillo.position.set(side * 0.28, 0.55, 0.05);
+    // manchas de grasa en las piernas
+    const mancha = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 0.02), grasaMat));
+    mancha.position.set(side * 0.1, 0.62 + side * 0.08, 0.14);
+    mancha.rotation.z = side * 0.4;
   }
-  const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.2, 0.3), azulMat));
-  cadera.position.set(0, 0.86, 0);
+  const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.22, 0.3), cargoMat));
+  cadera.position.set(0, 0.9, 0);
+  // cinturón con hebilla
+  const cinturon = add(new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.06, 0.32), cargoOscMat));
+  cinturon.position.set(0, 1.0, 0);
+  const hebilla = add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.02), metalMat));
+  hebilla.position.set(0, 1.0, 0.17);
 
-  // ======================== campera de cuero manchada de grasa ========================
-  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.42, 8, 16), cueroMat));
-  torso.position.set(0, 1.2, 0);
-  // cierre central + solapas
-  const cierre = add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.02), cueroOscMat));
-  cierre.position.set(0, 1.2, 0.315);
+  // ======================== torso DESNUDO flaco con grasa y tatuajes ========================
+  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.42, 8, 16), pielMat));
+  torso.position.set(0, 1.28, 0);
+  // costillas marcadas (es flaco): dos curvas suaves a los costados
   for (const side of [-1, 1]) {
-    const solapa = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.03), cueroOscMat));
-    solapa.position.set(side * 0.13, 1.16, 0.3);
-    solapa.rotation.y = side * -0.18;
+    const costilla = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 0.02), pielOscMat));
+    costilla.position.set(side * 0.17, 1.24, 0.2);
+    costilla.rotation.z = side * 0.25;
   }
-  // manchas de grasa (tuerca que no afloja): parches oscuros apenas fuera del cuero
+  // ombligo
+  const ombligo = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.02), pielOscMat));
+  ombligo.position.set(0, 1.14, 0.215);
+
+  // manchas de grasa por todo el torso (del splash art)
   for (const [x, y, z, s, r] of [
-    [-0.05, 1.26, 0.32, 0.11, 0.15], [0.09, 1.32, 0.32, 0.06, -0.3],
-    [0.03, 1.1, 0.315, 0.08, 0.4], [-0.15, 1.34, 0.29, 0.07, 0.1],
+    [-0.08, 1.38, 0.2, 0.09, 0.3], [0.06, 1.32, 0.21, 0.07, -0.4],
+    [0.0, 1.44, 0.19, 0.06, 0.15], [-0.14, 1.24, 0.2, 0.07, 0.5],
+    [0.12, 1.18, 0.2, 0.08, -0.2], [-0.03, 1.1, 0.21, 0.06, 0.6],
   ]) {
-    const grasa = add(new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.7, 0.02), grasaMat));
-    grasa.position.set(x, y, z);
-    grasa.rotation.z = r;
+    const mancha = add(new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.8, 0.02), grasaMat));
+    mancha.position.set(x, y, z);
+    mancha.rotation.z = r;
   }
 
-  // ======================== brazos con mangas de cuero + tatuajes ========================
-  // tatuajes: bandas de tinta alrededor del antebrazo (va adentro del mismo antebrazo)
-  const tattoo = (brazo) => {
-    for (const dy of [-0.04, 0.05]) {
-      const banda = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.045, 12), tatuMat);
+  // tatuaje del pecho: figura central (tigre/texto del splash art) + letras chicas abajo
+  const tatPecho = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.015), tintaMat));
+  tatPecho.position.set(-0.02, 1.42, 0.2);
+  tatPecho.rotation.z = 0.2;
+  const tatPecho2 = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.015), tintaMat));
+  tatPecho2.position.set(0.04, 1.34, 0.21);
+  tatPecho2.rotation.z = -0.1;
+
+  // ======================== brazos largos y flacos con tatuajes ========================
+  const tatuajeBrazo = (brazo, lado) => {
+    // bandas tribales alrededor del brazo (como el splash art)
+    for (const [dy, s] of [[-0.02, 0.1], [0.08, 0.09]]) {
+      const banda = new THREE.Mesh(new THREE.CylinderGeometry(s, s, 0.04, 12), tintaMat);
       banda.position.y = dy;
       brazo.add(banda);
     }
-    const cruz = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.012), tatuMat);
-    cruz.position.set(0, 0, 0.1);
-    cruz.rotation.z = 0.7;
-    brazo.add(cruz);
+    // figura alargada (flecha/tribal)
+    const fig = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 0.012), tintaMat);
+    fig.position.set(0, 0.03, 0.1 * lado);
+    fig.rotation.z = 0.4 * lado;
+    brazo.add(fig);
   };
 
+  // brazo izquierdo (pose de guardia)
   const armL = new THREE.Group();
-  armL.position.set(-0.37, 1.46, 0);
+  armL.position.set(-0.3, 1.5, 0);
   root.add(armL);
-  const mangaL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.22, 6, 10), cueroMat), armL);
-  mangaL.position.set(0, -0.12, 0.05);
-  mangaL.rotation.x = 0.5;
-  const anteL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.2, 6, 10), pielMat), armL);
-  anteL.position.set(0.05, -0.08, 0.22);
+  const braL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.24, 6, 10), pielMat), armL);
+  braL.position.set(0, -0.12, 0.05);
+  braL.rotation.x = 0.5;
+  const anteL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.24, 6, 10), pielMat), armL);
+  anteL.position.set(0.05, -0.08, 0.24);
   anteL.rotation.set(-1.1, 0, -0.4);
-  tattoo(anteL);
-  const punoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), pielMat), armL);
-  punoL.position.set(0.08, 0.1, 0.32);
+  tatuajeBrazo(anteL, 1);
+  const manoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), pielMat), armL);
+  manoL.position.set(0.08, 0.1, 0.36);
+  manoL.scale.set(0.8, 1.15, 0.8);
 
+  // brazo derecho (sostiene la LLAVE en alto)
   const armR = new THREE.Group();
-  armR.position.set(0.37, 1.46, 0);
+  armR.position.set(0.3, 1.5, 0);
   root.add(armR);
-  const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.22, 6, 10), cueroMat), armR);
-  mangaR.position.set(0, -0.12, 0.08);
-  mangaR.rotation.x = 0.7;
-  const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.2, 6, 10), pielMat), armR);
-  anteR.position.set(-0.02, -0.16, 0.24);
+  const braR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.24, 6, 10), pielMat), armR);
+  braR.position.set(0, -0.12, 0.08);
+  braR.rotation.x = 0.7;
+  const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.24, 6, 10), pielMat), armR);
+  anteR.position.set(-0.02, -0.16, 0.26);
   anteR.rotation.x = 1.2;
-  tattoo(anteR);
-  const punoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), pielMat), armR);
-  punoR.position.set(-0.03, -0.2, 0.4);
-  // reloj dorado en la muñeca derecha (detalle de facha)
-  const reloj = add(new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.018, 8, 16), oroMat), armR);
-  reloj.position.set(-0.03, -0.2, 0.3);
-  reloj.rotation.x = Math.PI / 2.2;
+  tatuajeBrazo(anteR, -1);
+  const manoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), pielMat), armR);
+  manoR.position.set(-0.03, -0.2, 0.42);
+  manoR.scale.set(0.8, 1.15, 0.8);
 
-  // ======================== llave inglesa (mecánico, "justo a mano") ========================
+  // ======================== LLAVE INGLESA GRANDE (herramienta icónica) ========================
   const llave = new THREE.Group();
-  llave.position.set(-0.03, -0.2, 0.58);
+  llave.position.set(-0.03, -0.2, 0.6);
+  llave.rotation.z = 0.12;
   armR.add(llave);
-  const mango = add(new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.03, 0.34, 8), metalMat), llave);
+  // mango largo
+  const mango = add(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.036, 0.52, 10), metalMat), llave);
   mango.rotation.x = Math.PI / 2;
-  const grip = add(new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.008, 6, 12), grasaMat), llave);
-  grip.position.z = -0.06;
+  // agarre oscuro
+  const grip = add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.16, 10), metalOscMat), llave);
   grip.rotation.x = Math.PI / 2;
+  grip.position.z = -0.12;
+  // cabeza ajustable (la rosca característica)
   const cabeza = new THREE.Group();
-  cabeza.position.z = 0.19;
+  cabeza.position.z = 0.3;
   llave.add(cabeza);
-  const barra = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.1), metalMat), cabeza);
-  const dienteSup = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.045, 0.1), metalMat), cabeza);
-  dienteSup.position.y = 0.055;
-  const dienteInf = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.045, 0.1), metalMat), cabeza);
-  dienteInf.position.y = -0.055;
+  const cuerpo = add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 0.14), metalMat), cabeza);
+  const quijadaSup = add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.14), metalMat), cabeza);
+  quijadaSup.position.y = 0.075;
+  quijadaSup.rotation.x = -0.25;
+  const quijadaInf = add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.055, 0.14), metalMat), cabeza);
+  quijadaInf.position.y = -0.07;
+  const rosca = add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.09, 8), metalOscMat), cabeza);
+  rosca.rotation.z = Math.PI / 2;
+  rosca.position.set(0, -0.02, 0.04);
+  // agujero del extremo del mango (como la llave real del splash art)
+  const puntaMango = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 12), metalMat), llave);
+  puntaMango.rotation.x = Math.PI / 2;
+  puntaMango.position.z = -0.27;
 
-  // ======================== cabeza con rizos y headband ========================
+  // ======================== cabeza: ojos de loco, sonrisa dentada, cigarrillo ========================
   const head = new THREE.Group();
-  head.position.set(0, 1.56, 0);
+  head.position.set(0, 1.62, 0);
   root.add(head);
-  const cuello = add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.08, 10), pielMat), head);
-  cuello.position.y = -0.02;
+  const cuello = add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.1, 10), pielMat), head);
+  cuello.position.y = -0.03;
   const craneo = add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 14), pielMat), head);
-  craneo.position.y = 0.16;
+  craneo.position.y = 0.14;
+  craneo.scale.set(0.9, 1.05, 0.95); // cara alargada (es flaco)
   for (const side of [-1, 1]) {
     const oreja = add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), pielMat), head);
-    oreja.position.set(side * 0.2, 0.16, 0);
+    oreja.position.set(side * 0.185, 0.14, 0);
+    oreja.scale.set(0.6, 1.2, 0.8); // orejas grandes y salidas
   }
-  // rizos: varias esferitas oscuras arriba (textura afro)
-  const rizos = [
-    [0, 0.34, 0.02, 0.1], [-0.09, 0.3, 0.06, 0.09], [0.09, 0.3, 0.06, 0.09],
-    [-0.06, 0.3, -0.07, 0.09], [0.06, 0.3, -0.07, 0.09], [0, 0.27, 0.12, 0.08],
-    [-0.13, 0.24, 0, 0.08], [0.13, 0.24, 0, 0.08],
+  // pelo morocho despeinado: mechones parados
+  const mechones = [
+    [0, 0.33, 0.02, 0.07, 0.16], [-0.07, 0.31, 0.06, 0.06, 0.13], [0.07, 0.31, 0.06, 0.06, 0.14],
+    [-0.05, 0.32, -0.06, 0.06, 0.12], [0.05, 0.32, -0.06, 0.06, 0.13], [0, 0.3, 0.12, 0.055, 0.11],
+    [-0.11, 0.27, 0, 0.05, 0.1], [0.11, 0.27, 0, 0.05, 0.11],
   ];
-  for (const [rx, ry, rz, rr] of rizos) {
-    const rizo = add(new THREE.Mesh(new THREE.SphereGeometry(rr, 8, 6), peloMat), head);
-    rizo.position.set(rx, ry, rz);
+  for (const [rx, ry, rz, rr, len] of mechones) {
+    const mech = add(new THREE.Mesh(new THREE.ConeGeometry(rr, len, 6), peloMat), head);
+    mech.position.set(rx, ry, rz);
+    mech.rotation.set((rz * 2) + 0.2, 0, -rx * 2.2);
   }
-  // headband blanca (vincha)
-  const headband = add(new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.035, 8, 20), blancoMat), head);
-  headband.position.y = 0.22;
-  headband.rotation.x = Math.PI / 2 - 0.12;
-  // ojos + cejas
-  for (const side of [-1, 1]) {
-    const ojo = add(new THREE.Mesh(new THREE.SphereGeometry(0.036, 10, 8), blancoMat), head);
-    ojo.position.set(side * 0.07, 0.17, 0.175);
-    const pupila = add(new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), negroMat), head);
-    pupila.position.set(side * 0.07, 0.17, 0.205);
-    const ceja = add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.022, 0.02), peloMat), head);
-    ceja.position.set(side * 0.075, 0.23, 0.185);
-    ceja.rotation.z = side * -0.12;
-  }
-  const nariz = add(new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), pielMat), head);
-  nariz.position.set(0, 0.13, 0.2);
-  // sonrisa confiada
-  const sonrisa = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.02), blancoMat), head);
-  sonrisa.position.set(0, 0.07, 0.185);
-  sonrisa.rotation.x = 0.1;
 
-  return { group: root, mats, hoodieMat: cueroMat, parts: { armL, armR, head } };
+  // OJOS SALTONES de loco: grandes, blancos, mirando para lados distintos
+  for (const side of [-1, 1]) {
+    const ojo = add(new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), blancoMat), head);
+    ojo.position.set(side * 0.075, 0.17, 0.17);
+    // pupila chica y descentrada (mirada de loco)
+    const pupila = add(new THREE.Mesh(new THREE.SphereGeometry(0.017, 8, 6), negroMat), head);
+    pupila.position.set(side * 0.075 + (side > 0 ? 0.012 : -0.012), 0.175 + (side > 0 ? 0.01 : -0.008), 0.21);
+    // cejas levantadas y finas (gesto maníaco)
+    const ceja = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.018, 0.015), peloMat), head);
+    ceja.position.set(side * 0.08, 0.24, 0.175);
+    ceja.rotation.z = side * -0.35;
+  }
+  const nariz = add(new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.08, 6), pielMat), head);
+  nariz.position.set(0, 0.12, 0.2);
+  nariz.rotation.x = Math.PI / 2.4;
+  // SONRISA DENTADA ancha de loco: boca grande con dientes
+  const boca = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.02), negroMat), head);
+  boca.position.set(0, 0.035, 0.175);
+  boca.rotation.x = 0.15;
+  const dientes = add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.035, 0.022), dientesMat), head);
+  dientes.position.set(0, 0.055, 0.178);
+  // separaciones de los dientes
+  for (const dx of [-0.045, -0.015, 0.015, 0.045]) {
+    const sep = add(new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.036, 0.024), negroMat), head);
+    sep.position.set(dx, 0.055, 0.179);
+  }
+  // CIGARRILLO colgando del labio
+  const pucho = add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.09, 6), cigMat), head);
+  pucho.position.set(0.08, 0.03, 0.19);
+  pucho.rotation.z = -1.1;
+  const brasa = add(new THREE.Mesh(new THREE.SphereGeometry(0.01, 6, 5), brasaMat), head);
+  brasa.position.set(0.115, 0.005, 0.19);
+  // filtros del pucho
+  const filtro = add(new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 0.02, 6), mkMat(0xd8a13a)), head);
+  filtro.position.set(0.065, 0.042, 0.19);
+  filtro.rotation.z = -1.1;
+
+  return { group: root, mats, hoodieMat: pielMat, parts: { armL, armR, head } };
 }

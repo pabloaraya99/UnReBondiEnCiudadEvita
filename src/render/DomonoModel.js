@@ -115,24 +115,73 @@ export function buildDomono() {
   const punoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), pielMat), armL);
   punoL.position.set(0.09, 0.12, 0.36);
 
-  // CONSOLA de mano en la mano izquierda (screen + botones, estilo retro)
+  // ======================== CONSOLA DJ PIONEER GRANDE (la lleva adelante, como el splash art) ========================
+  // correa que la sostiene del cuello
+  const correaConsola = add(new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.012, 8, 24, Math.PI * 1.1), negroMat));
+  correaConsola.position.set(0, 1.52, 0.12);
+  correaConsola.rotation.set(1.35, 0, 0);
+  // mesa de mezclas completa: grande, negra, con 2 platos, perillas y botones brillantes
   const consola = new THREE.Group();
-  consola.position.set(0.09, 0.12, 0.5);
-  armL.add(consola);
-  const carcasa = add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 0.16), negroMat), consola);
-  const screen = add(new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 0.045, 0.012),
-    mkMat(0xbfe3ff, { emissive: 0x7fd0ff, emissiveIntensity: 0.45, roughness: 0.2 }),
-  ), consola);
-  screen.position.set(0, 0.013, 0.085);
-  for (const [bx, bz] of [[-0.03, -0.05], [0.03, -0.05]]) {
-    const boton = add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.012, 8), verdeMat), consola);
-    boton.position.set(bx, -0.026, bz);
+  consola.position.set(0, 1.02, 0.5);
+  consola.rotation.x = 0.35; // inclinada hacia él, como si la estuviera usando
+  root.add(consola);
+  // carcasa principal (ancha, como una DDJ)
+  const carcasa = add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 0.34), negroMat), consola);
+  // borde plateado inferior
+  const borde = add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.02, 0.34), mkMat(0x4a4e55, { metalness: 0.7, roughness: 0.35 })), consola);
+  borde.position.y = -0.04;
+  // platos / jog wheels (lo más icónico): 2 círculos grandes con centro plateado
+  for (const side of [-1, 1]) {
+    const plato = add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.018, 24), mkMat(0x0c0e12, { roughness: 0.25, metalness: 0.4 })), consola);
+    plato.position.set(side * 0.17, 0.04, 0.05);
+    const centro = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.022, 16), mkMat(0x9aa0a6, { metalness: 0.85, roughness: 0.25 })), consola);
+    centro.position.set(side * 0.17, 0.045, 0.05);
+    // punto de marca del jog (rojo)
+    const marca = add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.024, 0.03), mkMat(0xd8352a, { emissive: 0xd8352a, emissiveIntensity: 0.8 })), consola);
+    marca.position.set(side * 0.17, 0.045, 0.14);
   }
-  // anillo chunky
-  const anilloL = add(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.018, 8, 14), oroMat), armL);
-  anilloL.position.set(0.09, 0.12, 0.36);
-  anilloL.rotation.x = 1.2;
+  // perillas (fila central doradas)
+  for (let i = -2; i <= 2; i++) {
+    const perilla = add(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.024, 10), oroMat), consola);
+    perilla.position.set(i * 0.045, 0.045, -0.04);
+  }
+  // faders verticales (2, negros con marca blanca)
+  for (const fx of [-0.05, 0.05]) {
+    const canal = add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.01, 0.12), mkMat(0x2b2f38)), consola);
+    canal.position.set(fx, 0.035, -0.1);
+    const fader = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.02), blancoMat), consola);
+    fader.position.set(fx, 0.045, -0.08);
+  }
+  // crossfader horizontal
+  const cross = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.015), blancoMat), consola);
+  cross.position.set(0, 0.04, -0.14);
+  // botones amarillos brillantes (pads, como el splash art)
+  for (const [bx, bz] of [[-0.24, -0.1], [-0.19, -0.1], [-0.24, -0.05], [-0.19, -0.05], [0.19, -0.1], [0.24, -0.1], [0.19, -0.05], [0.24, -0.05]]) {
+    const pad = add(new THREE.Mesh(
+      new THREE.BoxGeometry(0.035, 0.012, 0.035),
+      mkMat(0xf2c94c, { emissive: 0xf2c94c, emissiveIntensity: 0.6, roughness: 0.3 }),
+    ), consola);
+    pad.position.set(bx, 0.04, bz);
+  }
+  // pantalla LCD central brillante
+  const lcd = add(new THREE.Mesh(
+    new THREE.BoxGeometry(0.12, 0.012, 0.06),
+    mkMat(0x7fd0ff, { emissive: 0x5fc0ff, emissiveIntensity: 0.7, roughness: 0.2 }),
+  ), consola);
+  lcd.position.set(0, 0.04, 0.1);
+  // logo de marca (placa blanca al frente)
+  const logo = add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.012, 0.03), blancoMat), consola);
+  logo.position.set(0, 0.035, 0.16);
+  // cables colgando de la consola
+  const cable = add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 6), negroMat), consola);
+  cable.position.set(0.26, -0.06, -0.08);
+  cable.rotation.z = 0.5;
+
+  // parche rojo/blanco del hombro (como el splash art)
+  const parcheHombro = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.09, 0.03), mkMat(0xd8352a)), armL);
+  parcheHombro.position.set(0, -0.02, 0.1);
+  const franjaParche = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.032), blancoMat), armL);
+  franjaParche.position.set(0, -0.005, 0.1);
 
   const armR = new THREE.Group();
   armR.position.set(0.44, 1.5, 0);
@@ -145,9 +194,13 @@ export function buildDomono() {
   anteR.rotation.x = 1.2;
   const punoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), pielMat), armR);
   punoR.position.set(-0.03, -0.22, 0.44);
-  const anilloR = add(new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.018, 8, 14), oroMat), armR);
-  anilloR.position.set(-0.03, -0.22, 0.44);
-  anilloR.rotation.x = 1.2;
+  // reloj plateado grande en la muñeca (como el splash art)
+  const reloj = add(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.025, 16), mkMat(0xd7dce2, { metalness: 0.9, roughness: 0.2 })), armR);
+  reloj.position.set(-0.03, -0.19, 0.34);
+  reloj.rotation.x = Math.PI / 2.1;
+  const esfera = add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.028, 16), blancoMat), armR);
+  esfera.position.set(-0.03, -0.19, 0.34);
+  esfera.rotation.x = Math.PI / 2.1;
 
   // cadena con vinilo colgando
   const cadena = add(new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.014, 8, 22), oroMat));
