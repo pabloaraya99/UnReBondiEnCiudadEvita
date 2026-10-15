@@ -516,14 +516,14 @@ export class Renderer {
           linea.position.set(lx, 0.16, 0);
           seg.add(linea);
         }
-        // cordón de pasto a ambos lados de la colectora (bordea el predio)
+        // cordón FINO de hormigón a los lados (NO pasto: eso formaba las líneas verdes)
         for (const side of [-1, 1]) {
-          const banq = new THREE.Mesh(
-            new THREE.BoxGeometry(segLen, 0.2, 1.4),
-            new THREE.MeshStandardMaterial({ color: 0x4a9e42, roughness: 1 }),
+          const cordon = new THREE.Mesh(
+            new THREE.BoxGeometry(segLen, 0.16, 0.28),
+            new THREE.MeshStandardMaterial({ color: 0xb8b4ac, roughness: 0.95 }),
           );
-          banq.position.set(0, 0.06, side * (segW / 2 + 0.8));
-          colectora.add(banq);
+          cordon.position.set(0, 0.1, side * (segW / 2 + 0.14));
+          colectora.add(cordon);
         }
       }
       this.bgFar.add(colectora);
