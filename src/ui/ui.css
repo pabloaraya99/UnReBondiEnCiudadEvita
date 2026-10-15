@@ -4,8 +4,8 @@
    después: acá solo importa que la interfaz funcione.
    ============================================================ */
 
-/* Fuentes graffiti (Google Fonts): Bungee para títulos sólidos, Spray para detalle */
-@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rubik+Spray+Paint&display=swap');
+/* Fuentes graffiti: se cargan por <link> en index.html (NO por @import, que
+   bloquea TODO este stylesheet si Google Fonts va lento o está bloqueado) */
 
 #ui-root {
   position: fixed;
