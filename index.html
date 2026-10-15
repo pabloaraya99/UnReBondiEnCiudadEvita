@@ -67,6 +67,23 @@
     // cuando el módulo termina de cargar y montar la UI, se oculta el boot
     window.__bootDone = () => { const b = document.getElementById('boot'); if (b) b.remove(); };
     setTimeout(window.__bootDone, 30000); // por las dudas: nunca dejar el boot colgado
+
+    // MANEJADOR DE ERRORES VISIBLE: si algo falla al cargar, el error se muestra
+    // en pantalla en vez de quedar una página negra sin pistas
+    const showErr = (msg) => {
+      let e = document.getElementById('boot-error');
+      if (!e) {
+        e = document.createElement('pre');
+        e.id = 'boot-error';
+        e.style.cssText = 'position:fixed;left:12px;bottom:12px;max-width:90vw;max-height:40vh;overflow:auto;' +
+          'background:rgba(120,20,20,0.92);color:#fff;padding:12px 14px;border-radius:8px;' +
+          'font:12px/1.5 monospace;z-index:99;white-space:pre-wrap;';
+        document.body.appendChild(e);
+      }
+      e.textContent += msg + '\n';
+    };
+    window.addEventListener('error', (ev) => showErr('ERROR: ' + ev.message + ' @ ' + (ev.filename || '') + ':' + (ev.lineno || '')));
+    window.addEventListener('unhandledrejection', (ev) => showErr('PROMISE REJECTED: ' + (ev.reason?.message || ev.reason)));
   </script>
 </body>
 </html>
