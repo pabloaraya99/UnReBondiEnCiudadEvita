@@ -68,6 +68,10 @@ export class UI {
     play.classList.add('menu-play');
     s.append(play);
 
+    // etiqueta de versión (para verificar que no estás viendo una versión cacheada)
+    const version = el('div', 'menu-version', 'v2-splash-estatico');
+    s.append(version);
+
     this.root.append(s);
   }
 

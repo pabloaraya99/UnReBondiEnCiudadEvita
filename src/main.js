@@ -68,8 +68,17 @@ const ui = new UI(document.body, {
 
 function setState(s) {
   app.state = s;
-  if (s === 'menu') { renderer.clearLineup(); ui.showMenu(); }
-  else if (s === 'lobby') { renderer.showLineup(); ui.showLobby(app.slots); }
+  // el canvas 3D se oculta en el menú (title screen estático = solo la imagen)
+  // y se muestra en el resto (lobby usa el lineup 3D, playing usa el escenario)
+  const canvas = renderer.renderer.domElement;
+  if (s === 'menu') {
+    canvas.style.display = 'none';
+    renderer.clearLineup();
+    ui.showMenu();
+  } else {
+    canvas.style.display = '';
+    if (s === 'lobby') { renderer.showLineup(); ui.showLobby(app.slots); }
+  }
 }
 
 /** Crea una partida con los slots activos del lobby.
