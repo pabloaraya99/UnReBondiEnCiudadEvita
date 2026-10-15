@@ -8,6 +8,13 @@ const CHAMPION_LINEUP = [
   { id: 'faxo', img: '/assets/ui/pilots/faxo.webp' },
   { id: 'pablo', img: '/assets/ui/pilots/Kenai3d 1.png' },
 ];
+// tarjetas splash art de los personajes (estilo cómic con stats) para el champion select
+const CHARACTER_SPLASH = {
+  coco: '/assets/ui/pilots/El Coco Splash Art.jfif',
+  domono: '/assets/ui/pilots/Domono Splash Art.jfif',
+  faxo: '/assets/ui/pilots/Faxo Splash Art.jfif',
+  pablo: '/assets/ui/pilots/Kenai Splash Art.jfif',
+};
 const DIFFICULTIES = ['easy', 'normal', 'hard'];
 const DIFFICULTY_LABEL = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };
 const TYPE_LABEL = { off: 'Cerrado', human: 'Humano', cpu: 'CPU' };
@@ -84,7 +91,7 @@ export class UI {
   showLobby(slots) {
     this.clear();
     const s = el('div', 'ui-screen lobby-screen');
-    s.append(el('div', 'ui-title', 'LOBBY'), el('div', 'ui-subtitle', 'Elegí jugadores y personajes'));
+    s.append(el('div', 'ui-title', 'ELEGÍ TU PELEADOR'), el('div', 'ui-subtitle', 'Tocá la tarjeta para cambiar de personaje'));
 
     const row = el('div', 'lobby-slots');
     const rerender = () => { this.showLobby(slots); };
@@ -100,24 +107,22 @@ export class UI {
         rerender();
       }));
 
-      // personaje (cicla por GAME_CONFIG.characters) — muestra el retrato recortado como en el title screen
+      // personaje (cicla por GAME_CONFIG.characters) — muestra la TARJETA SPLASH ART
+      // del personaje (estilo champion select) en vez del retrato recortado
       const ch = GAME_CONFIG.characters[slot.character];
       const charBtn = smallBtn('', () => {
         const idx = CHARACTER_IDS.indexOf(slot.character);
         slot.character = CHARACTER_IDS[(idx + 1) % CHARACTER_IDS.length];
         rerender();
       });
-      charBtn.classList.add('slot-char');
+      charBtn.classList.add('slot-char', 'slot-char-card');
       const charImg = document.createElement('img');
       charImg.alt = ch.name;
       charImg.draggable = false;
-      const charEntry = CHAMPION_LINEUP.find(e => e.id === slot.character);
-      if (charEntry) {
-        cutoutPng(charEntry.img).then((url) => { charImg.src = url; });
-      } else {
-        charImg.src = '/assets/ui/pilots/Kenai3d 1.png';
-      }
-      charBtn.append(charImg, el('div', '', ch.name));
+      charImg.src = CHARACTER_SPLASH[slot.character] || '/assets/ui/pilots/Kenai3d 1.png';
+      const nameTag = el('div', 'slot-char-name', ch.name);
+      nameTag.style.background = ch.color;
+      charBtn.append(charImg, nameTag);
       card.append(charBtn);
 
       // dificultad (solo si es CPU)

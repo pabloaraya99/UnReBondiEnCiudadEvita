@@ -865,3 +865,57 @@
 .lobby-slot .slot-char:hover img {
   transform: scale(1.08) translateY(-4px);
 }
+
+/* ============================================================
+   CHAMPION SELECT: tarjetas splash art de los personajes
+   ============================================================ */
+.lobby-slot .slot-char-card {
+  gap: 0;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 3px solid #3a3f52;
+  background: #14161a;
+  padding: 0;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.lobby-slot .slot-char-card:hover {
+  border-color: #e9c46a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transform: translateY(-4px);
+}
+.lobby-slot .slot-char-card img {
+  width: 100%;
+  height: clamp(160px, 22vw, 260px);
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  filter: none;
+  transition: transform 0.2s ease;
+}
+.lobby-slot .slot-char-card:hover img {
+  transform: scale(1.04);
+}
+/* nombre del personaje sobre la tarjeta (cinta de color) */
+.lobby-slot .slot-char-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 10px;
+  font-family: 'Bungee', 'Arial Black', sans-serif;
+  font-size: clamp(0.7rem, 1.1vw, 0.95rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #14161a;
+  text-align: center;
+  border-top: 3px solid #14161a;
+}
+/* el slot cerrado atenúa la tarjeta */
+.lobby-slot.off .slot-char-card {
+  filter: grayscale(0.7) brightness(0.6);
+}
+.lobby-slot.off .slot-char-card:hover {
+  filter: grayscale(0.7) brightness(0.7);
+}
