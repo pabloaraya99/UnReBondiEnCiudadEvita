@@ -458,26 +458,6 @@ export class Renderer {
     // pradera entre la calle de juego y el templo
     mid(360, 2, 90, 0x4a9e42, 0, -8.2, -34, { shadow: false });
 
-    // ---- LA CALLE COLECTORA (Cam. de La Virgen María, fiel a la referencia):
-    // una segunda calle más chica que bordea el camino hacia el templo ----
-    {
-      const colectoraAsphalt = this.stageTex?.asphalt
-        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(40, 1); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); })()
-        : new THREE.MeshStandardMaterial({ color: 0x44474c, roughness: 0.95 });
-      // la colectora corre en z=-30 (entre la Richeri y el templo), más angosta
-      const colectora = new THREE.Mesh(new THREE.BoxGeometry(360, 0.35, 7), colectoraAsphalt);
-      colectora.position.set(0, -8.0, -30);
-      colectora.receiveShadow = true;
-      this.bgMid.add(colectora);
-      // línea central blanca de la colectora
-      for (let x = -170; x < 170; x += 8) {
-        mid(3.2, 0.05, 0.3, 0xf4f1e8, x, -7.8, -30, { shadow: false });
-      }
-      // banquinas de pasto a los lados de la colectora
-      mid(360, 0.3, 2.4, 0x4a9e42, 0, -7.95, -26, { shadow: false });
-      mid(360, 0.3, 2.4, 0x4a9e42, 0, -7.95, -34, { shadow: false });
-    }
-
     g.add(this.bgMid);
 
     // ================================================================ CAPA LEJANA (bgFar, parallax 0.88)
@@ -502,6 +482,52 @@ export class Renderer {
     // bajado un toque para que se vea la estatua dorada de la punta (ángel)
     temple.position.set(0, -8.2, -56);
     this.bgFar.add(temple);
+
+    // ---- LA CALLE COLECTORA (Cam. de La Virgen María, fiel a la referencia
+    // satelital): bordea el predio del templo curvando alrededor de él — NO es
+    // paralela a la Richeri. Capa intermedia entre el templo y la autopista,
+    // más chica y vista de lejos ----
+    {
+      const colectoraMat = this.stageTex?.asphalt
+        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(6, 1); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x474a4f, roughness: 0.95 });
+      const colectora = new THREE.Group();
+      const segLen = 90;   // largo de cada tramo (más corta que la Richeri)
+      const segW = 4.6;    // más angosta (calle interna, no autopista)
+      // 3 tramos formando un arco suave que bordea el frente del templo:
+      // izquierda sube, medio frente al templo, derecha baja (la curva del satélite)
+      const tramos = [
+        { x: -58, z: -45.5, rotY: 0.34 },   // tramo izquierdo (dobla hacia el templo)
+        { x: 0,   z: -47.5, rotY: 0 },      // tramo central (frente al templo)
+        { x: 58,  z: -45.5, rotY: -0.34 },  // tramo derecho (dobla hacia el templo)
+      ];
+      for (const tr of tramos) {
+        const seg = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.3, segW), colectoraMat);
+        seg.position.set(tr.x, -8.0, tr.z);
+        seg.rotation.y = tr.rotY;
+        seg.receiveShadow = true;
+        colectora.add(seg);
+        // línea central blanca quebrada de la calle interna
+        for (let lx = -segLen / 2 + 3; lx < segLen / 2 - 2; lx += 6) {
+          const linea = new THREE.Mesh(
+            new THREE.BoxGeometry(2.4, 0.04, 0.22),
+            new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.9 }),
+          );
+          linea.position.set(lx, 0.16, 0);
+          seg.add(linea);
+        }
+        // cordón de pasto a ambos lados de la colectora (bordea el predio)
+        for (const side of [-1, 1]) {
+          const banq = new THREE.Mesh(
+            new THREE.BoxGeometry(segLen, 0.2, 1.4),
+            new THREE.MeshStandardMaterial({ color: 0x4a9e42, roughness: 1 }),
+          );
+          banq.position.set(0, 0.06, side * (segW / 2 + 0.8));
+          colectora.add(banq);
+        }
+      }
+      this.bgFar.add(colectora);
+    }
 
     // ---- LAS REJAS DEL TEMPLO (fiel a Los Mormones): cerco de ~2m que recorre
     // el predio, blanco como el templo, delante del edificio hacia la calle ----
