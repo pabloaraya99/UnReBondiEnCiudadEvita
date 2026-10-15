@@ -367,27 +367,46 @@ export class Renderer {
       }
     }
 
-    // ---- plataformas flotantes: guardarraíles con textura de metal pintado ----
-    const railMetal = this.stageTex?.metal;
+    // ---- plataformas flotantes: guardarraíl de cemento + cartel verde fluor ----
     for (const o of stage.oneWays.slice(1)) {
       const cx = (o.l + o.r) / 2;
       const w = o.r - o.l;
-      // las dos cintas del guardarraíl: metal con textura si está
-      if (railMetal) {
-        const railTex = railMetal.clone();
-        railTex.repeat.set(Math.max(1, w / 3), 1);
-        const railMat = new THREE.MeshStandardMaterial({ map: railTex, color: 0xcfd4d8, metalness: 0.65, roughness: 0.4 });
-        const rail1 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.26, 0.34), railMat);
-        rail1.position.set(cx, o.top - 0.13, 0);
-        rail1.castShadow = true;
-        g.add(rail1);
-        const rail2 = rail1.clone();
-        rail2.position.set(cx, o.top - 0.4, 0);
-        g.add(rail2);
-      } else {
-        box(w, 0.26, 0.34, 0xc9ced4, cx, o.top - 0.13, 0, { metalness: 0.75, roughness: 0.3 });
-        box(w, 0.26, 0.34, 0x9aa0a6, cx, o.top - 0.4, 0, { metalness: 0.75, roughness: 0.3 });
-      }
+      // ---- GUARDARRAÍL DE AUTOPISTA DE CEMENTO (barrera tipo la Richeri) +
+      // CARTEL VERDE FLUOR de autopista arriba (estilo cartel de ruta real) ----
+      const cementTex = this.stageTex?.concrete
+        ? (() => { const t = this.stageTex.concrete.clone(); t.repeat.set(Math.max(1, w / 4), 1); return new THREE.MeshStandardMaterial({ map: t, color: 0xd4d0c8, roughness: 0.85, metalness: 0 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0xb8b4ac, roughness: 0.85, metalness: 0 });
+      // base de cemento (la barrera de autopista, más ancha abajo = perfil Jersey)
+      const base = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.5), cementTex);
+      base.position.set(cx, o.top - 0.4, 0);
+      base.castShadow = true;
+      base.receiveShadow = true;
+      g.add(base);
+      const perfil = new THREE.Mesh(new THREE.BoxGeometry(w, 0.34, 0.3), cementTex);
+      perfil.position.set(cx, o.top - 0.06, 0);
+      perfil.castShadow = true;
+      g.add(perfil);
+      // CARTEL VERDE FLUOR de autopista sobre el guardarraíl (plataforma vistosa)
+      const cartel = new THREE.Mesh(
+        new THREE.BoxGeometry(w * 0.92, 0.5, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x0a7a3c, roughness: 0.5, metalness: 0.1, emissive: 0x0a5a2c, emissiveIntensity: 0.25 }),
+      );
+      cartel.position.set(cx, o.top + 0.32, 0);
+      cartel.castShadow = true;
+      g.add(cartel);
+      // borde blanco del cartel (estilo cartel de autopista)
+      const bordeCartel = new THREE.Mesh(
+        new THREE.BoxGeometry(w * 0.92, 0.06, 0.11),
+        new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.5 }),
+      );
+      bordeCartel.position.set(cx, o.top + 0.55, 0);
+      g.add(bordeCartel);
+      const bordeCartelInf = bordeCartel.clone();
+      bordeCartelInf.position.set(cx, o.top + 0.09, 0);
+      g.add(bordeCartelInf);
+      // postes del cartel (2, grises, bajando al guardarraíl de cemento)
+      box(0.16, 0.5, 0.16, 0x8a8f96, cx - w / 4, o.top - 0.1, 0.06, { metalness: 0.5, roughness: 0.5 });
+      box(0.16, 0.5, 0.16, 0x8a8f96, cx + w / 4, o.top - 0.1, 0.06, { metalness: 0.5, roughness: 0.5 });
       box(0.18, 1.0, 0.18, 0x7a7f85, cx - w / 2 + 0.45, o.top - 0.95, 0, { metalness: 0.6, roughness: 0.4 });
       box(0.18, 1.0, 0.18, 0x7a7f85, cx + w / 2 - 0.45, o.top - 0.95, 0, { metalness: 0.6, roughness: 0.4 });
     }
@@ -438,6 +457,27 @@ export class Renderer {
 
     // pradera entre la calle de juego y el templo
     mid(360, 2, 90, 0x4a9e42, 0, -8.2, -34, { shadow: false });
+
+    // ---- LA CALLE COLECTORA (Cam. de La Virgen María, fiel a la referencia):
+    // una segunda calle más chica que bordea el camino hacia el templo ----
+    {
+      const colectoraAsphalt = this.stageTex?.asphalt
+        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(40, 1); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x44474c, roughness: 0.95 });
+      // la colectora corre en z=-30 (entre la Richeri y el templo), más angosta
+      const colectora = new THREE.Mesh(new THREE.BoxGeometry(360, 0.35, 7), colectoraAsphalt);
+      colectora.position.set(0, -8.0, -30);
+      colectora.receiveShadow = true;
+      this.bgMid.add(colectora);
+      // línea central blanca de la colectora
+      for (let x = -170; x < 170; x += 8) {
+        mid(3.2, 0.05, 0.3, 0xf4f1e8, x, -7.8, -30, { shadow: false });
+      }
+      // banquinas de pasto a los lados de la colectora
+      mid(360, 0.3, 2.4, 0x4a9e42, 0, -7.95, -26, { shadow: false });
+      mid(360, 0.3, 2.4, 0x4a9e42, 0, -7.95, -34, { shadow: false });
+    }
+
     g.add(this.bgMid);
 
     // ================================================================ CAPA LEJANA (bgFar, parallax 0.88)
@@ -479,6 +519,119 @@ export class Renderer {
       const porton = this.makeFence(10, fenceH * 1.2, 0xeceae4);
       porton.position.set(0, fenceY, fenceZ);
       this.bgFar.add(porton);
+    }
+
+    // ---- PREDIO DEL TEMPLO BIEN DECORADO (fiel a la referencia): césped,
+    // canteros de flores violetas y naranjas, arbustos redondeados, árboles y
+    // una plaza con fuente delante de la entrada ----
+    {
+      const groundY = -8.2;
+      // camino de hormigón que lleva a la entrada del templo
+      const camino = new THREE.Mesh(
+        new THREE.BoxGeometry(6, 0.25, 12),
+        new THREE.MeshStandardMaterial({ color: 0xd8d5ce, roughness: 0.95 }),
+      );
+      camino.position.set(0, groundY + 0.05, -50.5);
+      this.bgFar.add(camino);
+
+      // FUENTE circular de la plaza (como la referencia): base clara + agua
+      const fuenteBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.6, 2.9, 0.7, 20),
+        new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 0.7 }),
+      );
+      fuenteBase.position.set(0, groundY + 0.35, -51);
+      this.bgFar.add(fuenteBase);
+      const agua = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.2, 2.2, 0.2, 20),
+        new THREE.MeshStandardMaterial({ color: 0x6fc3e8, roughness: 0.15, metalness: 0.3 }),
+      );
+      agua.position.set(0, groundY + 0.72, -51);
+      this.bgFar.add(agua);
+      // chorrito del centro
+      const chorro = new THREE.Mesh(
+        new THREE.ConeGeometry(0.25, 1.2, 8),
+        new THREE.MeshStandardMaterial({ color: 0xbfe4fb, transparent: true, opacity: 0.8, roughness: 0.2 }),
+      );
+      chorro.position.set(0, groundY + 1.4, -51);
+      this.bgFar.add(chorro);
+
+      // CANTEROS DE FLORES (violetas y naranjas, como la referencia): alrededor
+      // de la fuente y bordeando los caminos del predio
+      const flores = [
+        // alrededor de la fuente (curvas de color)
+        [ -4.5, -51.5, 0x8a5fc0 ], [ 4.5, -51.5, 0x8a5fc0 ],
+        [ -4.5, -50.3, 0xe8963c ], [ 4.5, -50.3, 0xe8963c ],
+        // canteros a los costados del camino
+        [ -5.5, -47.5, 0x8a5fc0 ], [ 5.5, -47.5, 0xe8963c ],
+        [ -5.5, -46, 0xe8963c ], [ 5.5, -46, 0x8a5fc0 ],
+        // canteros grandes lejanos a los costados del predio
+        [ -18, -49, 0x8a5fc0 ], [ 18, -49, 0xe8963c ],
+      ];
+      for (const [fx, fz, fcol] of flores) {
+        const cantero = new THREE.Group();
+        // borde blanco del cantero
+        const borde = new THREE.Mesh(
+          new THREE.BoxGeometry(2.6, 0.35, 1.4),
+          new THREE.MeshStandardMaterial({ color: 0xf4f2ec, roughness: 0.8 }),
+        );
+        borde.position.y = 0.18;
+        cantero.add(borde);
+        // las flores: varios puntitos de color encima
+        for (let f = 0; f < 7; f++) {
+          const flor = new THREE.Mesh(
+            new THREE.SphereGeometry(0.22, 6, 5),
+            new THREE.MeshStandardMaterial({ color: fcol, roughness: 0.8 }),
+          );
+          flor.position.set(-1 + (f % 4) * 0.66, 0.42, -0.4 + Math.floor(f / 4) * 0.7);
+          cantero.add(flor);
+        }
+        cantero.position.set(fx, groundY, fz);
+        this.bgFar.add(cantero);
+      }
+
+      // ARBUSTOS REDONDEADOS (borduras verdes prolijas) alrededor del predio
+      const arbustoMat = new THREE.MeshStandardMaterial({ color: 0x3d8b3a, roughness: 0.9 });
+      const arbustoOscMat = new THREE.MeshStandardMaterial({ color: 0x2e7a2e, roughness: 0.9 });
+      const arbustosSpots = [
+        [-10, -48], [-14, -50], [10, -48], [14, -50],
+        [-24, -47], [24, -47], [-30, -51], [30, -51], [-8, -45.5], [8, -45.5],
+      ];
+      for (const [ax, az] of arbustosSpots) {
+        const a = new THREE.Group();
+        const bola = new THREE.Mesh(new THREE.SphereGeometry(0.9 + crnd() * 0.5, 10, 8), crnd() > 0.5 ? arbustoMat : arbustoOscMat);
+        bola.scale.y = 0.8;
+        bola.position.y = 0.6;
+        bola.castShadow = true;
+        a.add(bola);
+        const bola2 = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 6), arbustoMat);
+        bola2.position.set(0.6, 0.45, 0.3);
+        a.add(bola2);
+        a.position.set(ax, groundY, az);
+        this.bgFar.add(a);
+      }
+
+      // ÁRBOLES del predio (tronco + copa redonda, estilo prolijo de la referencia)
+      const arbolSpots = [[-16, -46], [16, -46], [-22, -52], [22, -52], [-6, -44.5], [6, -44.5]];
+      for (const [tx, tz] of arbolSpots) {
+        const arbol = new THREE.Group();
+        const tronco = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.16, 0.22, 1.6, 7),
+          new THREE.MeshStandardMaterial({ color: 0x7a5c3a, roughness: 0.9 }),
+        );
+        tronco.position.y = 0.8;
+        tronco.castShadow = true;
+        arbol.add(tronco);
+        const copa = new THREE.Mesh(
+          new THREE.SphereGeometry(1.3 + crnd() * 0.4, 12, 10),
+          new THREE.MeshStandardMaterial({ color: 0x4a9e42, roughness: 0.85 }),
+        );
+        copa.position.y = 2.2;
+        copa.scale.y = 1.15;
+        copa.castShadow = true;
+        arbol.add(copa);
+        arbol.position.set(tx, groundY, tz);
+        this.bgFar.add(arbol);
+      }
     }
 
     // palmeras junto al templo
