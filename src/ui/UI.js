@@ -48,7 +48,9 @@ export class UI {
     // Si no se ve → el problema es más profundo (DOM o algo que tapa todo).
     // ============================================================
     const s = document.createElement('div');
-    s.style.cssText = 'position:fixed;inset:0;z-index:50;background:#10121a url("/assets/ui/title-splash.jpg") center/cover no-repeat;';
+    // pointer-events: auto porque #ui-root tiene pointer-events:none (los clics
+    // pasan al canvas 3D en el juego); sin esto el botón no recibe clics
+    s.style.cssText = 'position:fixed;inset:0;z-index:50;background:#10121a url("/assets/ui/title-splash.jpg") center/cover no-repeat;pointer-events:auto;';
 
     const title = document.createElement('div');
     title.textContent = 'UN RE BONDI';
@@ -60,7 +62,7 @@ export class UI {
 
     const play = document.createElement('button');
     play.textContent = 'PRESS START';
-    play.style.cssText = 'position:absolute;bottom:8%;left:50%;transform:translateX(-50%);padding:18px 60px;font-size:clamp(20px,2.6vw,30px);font-weight:900;letter-spacing:0.05em;color:#10121a;background:#e9c46a;border:4px solid #14161a;border-radius:14px;cursor:pointer;z-index:51;animation:diagPulse 1.5s ease-in-out infinite;';
+    play.style.cssText = 'position:absolute;bottom:8%;left:50%;transform:translateX(-50%);padding:18px 60px;font-size:clamp(20px,2.6vw,30px);font-weight:900;letter-spacing:0.05em;color:#10121a;background:#e9c46a;border:4px solid #14161a;border-radius:14px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
     play.onclick = () => this.actions.onPlay();
 
     const version = document.createElement('div');
