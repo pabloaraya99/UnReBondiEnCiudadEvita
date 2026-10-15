@@ -47,11 +47,12 @@ export class UI {
     // TITLE SCREEN ESTÁTICO (provisorio): el splash art del barrio con los 4
     // personajes cubre toda la pantalla; el título y el botón van encima.
     const splash = el('div', 'menu-splash-bg');
-    const splashImg = document.createElement('img');
-    splashImg.src = '/assets/ui/title-splash.jpg';
-    splashImg.alt = 'Un Re Bondi En Ciudad Evita';
-    splashImg.draggable = false;
-    splash.append(splashImg);
+    // imagen como BACKGROUND inline (a prueba de balas: no depende del render
+    // del elemento <img>, que en algunos navegadores no mostraba la imagen)
+    splash.style.backgroundImage = "url('/assets/ui/title-splash.jpg')";
+    splash.style.backgroundSize = 'cover';
+    splash.style.backgroundPosition = 'center';
+    splash.style.backgroundRepeat = 'no-repeat';
     // viñeta suave arriba/abajo para que el título y el botón se lean
     splash.append(el('div', 'menu-splash-shade'));
     s.append(splash);
