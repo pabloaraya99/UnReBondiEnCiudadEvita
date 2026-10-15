@@ -488,43 +488,24 @@ export class Renderer {
     // paralela a la Richeri. Capa intermedia entre el templo y la autopista,
     // más chica y vista de lejos ----
     {
+      // calle colectora SUTIL y bien al fondo: asfalto oscuro, fina, sin
+      // detalles brillantes (las líneas blancas/hormigón molestaban la plataforma)
       const colectoraMat = this.stageTex?.asphalt
-        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(6, 1); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); })()
-        : new THREE.MeshStandardMaterial({ color: 0x474a4f, roughness: 0.95 });
+        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(6, 1); return new THREE.MeshStandardMaterial({ map: t, color: 0x8a8f96, roughness: 0.95 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x4a4e54, roughness: 0.95 });
       const colectora = new THREE.Group();
-      const segLen = 90;   // largo de cada tramo (más corta que la Richeri)
-      const segW = 4.6;    // más angosta (calle interna, no autopista)
-      // 3 tramos formando un arco suave que bordea el frente del templo:
-      // izquierda sube, medio frente al templo, derecha baja (la curva del satélite)
+      const segLen = 90;
+      const segW = 4.0;
       const tramos = [
-        { x: -58, z: -45.5, rotY: 0.34 },   // tramo izquierdo (dobla hacia el templo)
-        { x: 0,   z: -47.5, rotY: 0 },      // tramo central (frente al templo)
-        { x: 58,  z: -45.5, rotY: -0.34 },  // tramo derecho (dobla hacia el templo)
+        { x: -58, z: -49.5, rotY: 0.34 },
+        { x: 0,   z: -50.5, rotY: 0 },
+        { x: 58,  z: -49.5, rotY: -0.34 },
       ];
       for (const tr of tramos) {
-        const seg = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.3, segW), colectoraMat);
-        seg.position.set(tr.x, -8.0, tr.z);
+        const seg = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.18, segW), colectoraMat);
+        seg.position.set(tr.x, -8.6, tr.z); // más baja y más atrás (capa del fondo)
         seg.rotation.y = tr.rotY;
-        seg.receiveShadow = true;
         colectora.add(seg);
-        // línea central blanca quebrada de la calle interna
-        for (let lx = -segLen / 2 + 3; lx < segLen / 2 - 2; lx += 6) {
-          const linea = new THREE.Mesh(
-            new THREE.BoxGeometry(2.4, 0.04, 0.22),
-            new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.9 }),
-          );
-          linea.position.set(lx, 0.16, 0);
-          seg.add(linea);
-        }
-        // cordón FINO de hormigón a los lados (NO pasto: eso formaba las líneas verdes)
-        for (const side of [-1, 1]) {
-          const cordon = new THREE.Mesh(
-            new THREE.BoxGeometry(segLen, 0.16, 0.28),
-            new THREE.MeshStandardMaterial({ color: 0xb8b4ac, roughness: 0.95 }),
-          );
-          cordon.position.set(0, 0.1, side * (segW / 2 + 0.14));
-          colectora.add(cordon);
-        }
       }
       this.bgFar.add(colectora);
     }
