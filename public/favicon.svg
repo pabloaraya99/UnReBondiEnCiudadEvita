@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- fondo negro cómic redondeado -->
+  <rect width="64" height="64" rx="14" fill="#14161a"/>
+  <!-- hoja verde estilizada (el lore del juego) -->
+  <g transform="translate(32,34)">
+    <path d="M0 -22 q-8 14 -18 24 q26 -6 18 -24z M0 -22 q8 14 18 24 q-26 -6 -18 -24z M0 -18 q0 20 0 30 q-6 -10 0 -30z" fill="#3FA34D" stroke="#0f2d14" stroke-width="2"/>
+    <path d="M0 -20 q-12 10 -20 14 q18 2 20 -14z M0 -20 q12 10 20 14 q-18 2 -20 -14z" fill="#58c24e" stroke="#0f2d14" stroke-width="1.5"/>
+  </g>
+  <!-- chispa amarilla de pelea -->
+  <path d="M50 12 l2.5 6 6 2.5 -6 2.5 -2.5 6 -2.5 -6 -6 -2.5 6 -2.5z" fill="#F2C94C"/>
+</svg>
