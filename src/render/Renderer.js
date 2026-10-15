@@ -464,14 +464,7 @@ export class Renderer {
     this.bgFar = new THREE.Group();
     const far = this.makeGrouper(this.bgFar);
 
-    // colinas verdes azuladas (perspectiva atmosférica)
-    const hillMat = new THREE.MeshStandardMaterial({ color: 0x6fbf73, roughness: 1 });
-    for (let i = 0; i < 4; i++) {
-      const hill = new THREE.Mesh(new THREE.SphereGeometry(22 + i * 7, 16, 12), hillMat);
-      hill.scale.set(1.7, 0.32, 0.6);
-      hill.position.set(-55 + i * 38, -7.5, -70 - i * 4);
-      this.bgFar.add(hill);
-    }
+    // (colinas removidas a pedido: no eran correctas para el fondo del templo)
 
     // pasto lejano bajo el templo
     far(360, 2, 60, 0x55ab4e, 0, -7.8, -52, { shadow: false });
@@ -488,24 +481,34 @@ export class Renderer {
     // paralela a la Richeri. Capa intermedia entre el templo y la autopista,
     // más chica y vista de lejos ----
     {
-      // calle colectora SUTIL y bien al fondo: asfalto oscuro, fina, sin
-      // detalles brillantes (las líneas blancas/hormigón molestaban la plataforma)
+      // calle colectora: VISIBLE pero tranquila — calle de fondo que se lee como
+      // camino, sin competir con la plataforma. Asfalto a nivel del terreno,
+      // con línea central tenue (no blanco brillante que molestaba).
       const colectoraMat = this.stageTex?.asphalt
-        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(6, 1); return new THREE.MeshStandardMaterial({ map: t, color: 0x8a8f96, roughness: 0.95 }); })()
-        : new THREE.MeshStandardMaterial({ color: 0x4a4e54, roughness: 0.95 });
+        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(6, 1); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x474a4f, roughness: 0.95 });
       const colectora = new THREE.Group();
       const segLen = 90;
-      const segW = 4.0;
+      const segW = 4.4;
       const tramos = [
         { x: -58, z: -49.5, rotY: 0.34 },
         { x: 0,   z: -50.5, rotY: 0 },
         { x: 58,  z: -49.5, rotY: -0.34 },
       ];
       for (const tr of tramos) {
-        const seg = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.18, segW), colectoraMat);
-        seg.position.set(tr.x, -8.6, tr.z); // más baja y más atrás (capa del fondo)
+        const seg = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.22, segW), colectoraMat);
+        seg.position.set(tr.x, -8.05, tr.z); // a nivel del terreno del fondo
         seg.rotation.y = tr.rotY;
         colectora.add(seg);
+        // línea central TENUE (gris claro, no blanco brillante)
+        for (let lx = -segLen / 2 + 3; lx < segLen / 2 - 2; lx += 7) {
+          const linea = new THREE.Mesh(
+            new THREE.BoxGeometry(2.2, 0.03, 0.2),
+            new THREE.MeshStandardMaterial({ color: 0xa8adb3, roughness: 0.9 }),
+          );
+          linea.position.set(lx, 0.13, 0);
+          seg.add(linea);
+        }
       }
       this.bgFar.add(colectora);
     }
