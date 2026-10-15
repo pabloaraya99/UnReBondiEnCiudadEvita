@@ -223,6 +223,10 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
+  /* DIAGNÓSTICO: fondo azul oscuro visible si la imagen no carga — si la
+     pantalla queda NEGRA es que ni el contenedor renderiza; si queda AZUL
+     es que el contenedor está pero la imagen no llega */
+  background: #1a3a5c;
 }
 .menu-splash-bg img {
   width: 100%;
@@ -266,6 +270,16 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   z-index: 4;
   pointer-events: none;
+}
+/* DIAGNÓSTICO: el logo y el botón llevan marca visible — si no se ven,
+   el problema es de CSS/capas, no de la imagen */
+.menu-screen-splash .menu-logo-stack {
+  outline: 3px solid rgba(255, 0, 0, 0.6);
+  outline-offset: 6px;
+}
+.menu-screen-splash .menu-play {
+  outline: 3px solid rgba(0, 255, 255, 0.7);
+  outline-offset: 4px;
 }
 
 /* rayos de luz girando detrás del logo (anime/smash) */
