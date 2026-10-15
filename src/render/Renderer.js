@@ -1007,9 +1007,12 @@ export class Renderer {
       this.lineupBobs.push({ group: model.group, baseY: 0, phase: Math.abs(x) * 0.9 });
     }
     this.scene.add(this.lineup);
-    // enfocar la cámara hacia los personajes para que el lobby los muestre
+    // VISTA LEJANA DEL MAPA en el lobby: la cámara se aleja mostrando todo el
+    // escenario (estilo "establishing shot"); al empezar la pelea se acerca sola
+    this.cinematicView = { focus: new THREE.Vector3(0, 0.5, 0), distance: 44, elevation: 9 };
+    // posición inicial ya lejos (el render suaviza hacia este punto)
     this.rig.focus.set(0, 1.2, 0);
-    this.rig.distance = Math.max(this.rig.distance, 18);
+    this.rig.distance = Math.max(this.rig.distance, 44);
   }
 
   /** Saca el lineup (al arrancar la partida). */
@@ -1093,6 +1096,9 @@ export class Renderer {
 
   setPlayers(match) {
     this._lastMatch = match;
+    // al empezar la pelea se apaga la vista lejana del lobby: la cámara vuelve al
+    // encuadre automático de los peleadores (efecto de acercarse al ring)
+    this.cinematicView = null;
     for (const v of this.views) this.scene.remove(v.group);
     for (const v of this.views) this.scene.remove(v.debugHurt, v.debugHit);
     this.views = match.fighters.map((f) => this.makeView(f));
@@ -1355,7 +1361,19 @@ export class Renderer {
     this.updateParticles(dt);
     this.updateClouds(dt);
     this.updateBirds(dt);
-    this.rig.update(dt, targets, match.stage, false);
+    // Vista cinematográfica (lobby): la cámara queda LEJOS mostrando todo el mapa,
+    // ignorando el encuadre automático de los peleadores hasta que empiece la pelea
+    if (this.cinematicView) {
+      const cv = this.cinematicView;
+      const k = 1 - Math.exp(-2.2 * dt);
+      this.rig.focus.x += (cv.focus.x - this.rig.focus.x) * k;
+      this.rig.focus.y += (cv.focus.y - this.rig.focus.y) * k;
+      this.rig.distance += (cv.distance - this.rig.distance) * k;
+      this.rig.camera.position.set(this.rig.focus.x, this.rig.focus.y + cv.elevation, this.rig.distance);
+      this.rig.camera.lookAt(this.rig.focus.x, this.rig.focus.y + cv.elevation * 0.4, 0);
+    } else {
+      this.rig.update(dt, targets, match.stage, false);
+    }
 
     // ---- parallax de fondo (estilo Smash: el fondo sigue apenas a la cámara) ----
     const fx = this.rig.focus.x;
