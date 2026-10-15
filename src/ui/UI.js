@@ -42,37 +42,37 @@ export class UI {
 
   showMenu() {
     this.clear();
-    const s = el('div', 'ui-screen menu-screen menu-screen-splash');
+    // ============================================================
+    // DIAGNÓSTICO: menú con SOLO ESTILOS INLINE (sin depender de ui.css).
+    // Si esto se ve → el problema es la carga del CSS externo.
+    // Si no se ve → el problema es más profundo (DOM o algo que tapa todo).
+    // ============================================================
+    const s = document.createElement('div');
+    s.style.cssText = 'position:fixed;inset:0;z-index:50;background:#10121a url("/assets/ui/title-splash.jpg") center/cover no-repeat;';
 
-    // TITLE SCREEN ESTÁTICO (provisorio): el splash art del barrio con los 4
-    // personajes cubre toda la pantalla; el título y el botón van encima.
-    const splash = el('div', 'menu-splash-bg');
-    // imagen como BACKGROUND inline (a prueba de balas: no depende del render
-    // del elemento <img>, que en algunos navegadores no mostraba la imagen)
-    splash.style.backgroundImage = "url('/assets/ui/title-splash.jpg')";
-    splash.style.backgroundSize = 'cover';
-    splash.style.backgroundPosition = 'center';
-    splash.style.backgroundRepeat = 'no-repeat';
-    // viñeta suave arriba/abajo para que el título y el botón se lean
-    splash.append(el('div', 'menu-splash-shade'));
-    s.append(splash);
+    const title = document.createElement('div');
+    title.textContent = 'UN RE BONDI';
+    title.style.cssText = 'position:absolute;top:8%;left:50%;transform:translateX(-50%);font-size:clamp(40px,7vw,84px);font-weight:900;letter-spacing:0.04em;color:#4CC458;-webkit-text-stroke:3px #14161a;text-shadow:0 5px 0 #1E5B2E,0 10px 24px rgba(0,0,0,0.6);white-space:nowrap;';
 
-    // Logo central tipo Arcade (encima del splash, con sus animaciones)
-    const stack = el('div', 'menu-logo-stack');
-    const tMain = el('div', 't-main', 'UN RE BONDI');
-    const tSub = el('div', 't-sub', 'CIUDAD EVITA');
-    stack.append(tMain, tSub);
-    s.append(stack);
+    const sub = document.createElement('div');
+    sub.textContent = 'EN CIUDAD EVITA';
+    sub.style.cssText = 'position:absolute;top:24%;left:50%;transform:translateX(-50%);font-size:clamp(20px,3.4vw,40px);font-weight:900;letter-spacing:0.12em;color:#F2C94C;-webkit-text-stroke:2px #14161a;text-shadow:0 3px 0 #B8860B,0 8px 16px rgba(0,0,0,0.6);white-space:nowrap;';
 
-    // Botón Start
-    const play = btn('PRESS START', () => this.actions.onPlay());
-    play.classList.add('menu-play');
-    s.append(play);
+    const play = document.createElement('button');
+    play.textContent = 'PRESS START';
+    play.style.cssText = 'position:absolute;bottom:8%;left:50%;transform:translateX(-50%);padding:18px 60px;font-size:clamp(20px,2.6vw,30px);font-weight:900;letter-spacing:0.05em;color:#10121a;background:#e9c46a;border:4px solid #14161a;border-radius:14px;cursor:pointer;z-index:51;animation:diagPulse 1.5s ease-in-out infinite;';
+    play.onclick = () => this.actions.onPlay();
 
-    // etiqueta de versión (para verificar que no estás viendo una versión cacheada)
-    const version = el('div', 'menu-version', 'v2-splash-estatico');
-    s.append(version);
+    const version = document.createElement('div');
+    version.textContent = 'v3-inline-diagnostico';
+    version.style.cssText = 'position:absolute;bottom:12px;right:14px;font-size:12px;font-weight:700;color:rgba(244,241,232,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.9);';
 
+    // animación del botón por <style> inline (para no depender de ui.css)
+    const st = document.createElement('style');
+    st.textContent = '@keyframes diagPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.07);box-shadow:0 0 34px rgba(233,196,106,0.7)}}';
+    document.head.appendChild(st);
+
+    s.append(title, sub, play, version);
     this.root.append(s);
   }
 
