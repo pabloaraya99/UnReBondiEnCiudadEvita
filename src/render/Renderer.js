@@ -84,6 +84,10 @@ export class Renderer {
       ['asphaltRough', '/assets/textures/asphalt_rough.jpg'],
       ['concrete', '/assets/textures/concrete_diff.jpg'],
       ['grass', '/assets/textures/grass_diff.jpg'],
+      ['marble', '/assets/textures/marble_diff.jpg'],
+      ['dirt', '/assets/textures/dirt_diff.jpg'],
+      ['metal', '/assets/textures/metal_diff.jpg'],
+      ['wood', '/assets/textures/wood_diff.jpg'],
     ];
     let pending = defs.length;
     for (const [key, url] of defs) {
@@ -347,15 +351,43 @@ export class Renderer {
       topSlab.castShadow = true;
       topSlab.receiveShadow = true;
       g.add(topSlab);
-      box(w - 0.3, 0.8, 5.7, 0x8a5a33, cx, spawn.top - 0.8, 0, { roughness: 0.95 }); // tierra
+      // tierra bajo la plataforma: textura PBR de tierra si está, si no color plano
+      if (this.stageTex?.dirt) {
+        const dirtTex = this.stageTex.dirt.clone();
+        dirtTex.repeat.set(Math.max(1, w / 4), 1);
+        const dirtSlab = new THREE.Mesh(
+          new THREE.BoxGeometry(w - 0.3, 0.8, 5.7),
+          new THREE.MeshStandardMaterial({ map: dirtTex, roughness: 1, metalness: 0 }),
+        );
+        dirtSlab.position.set(cx, spawn.top - 0.8, 0);
+        dirtSlab.receiveShadow = true;
+        g.add(dirtSlab);
+      } else {
+        box(w - 0.3, 0.8, 5.7, 0x8a5a33, cx, spawn.top - 0.8, 0, { roughness: 0.95 }); // tierra
+      }
     }
 
-    // ---- plataformas flotantes: guardarraíles ----
+    // ---- plataformas flotantes: guardarraíles con textura de metal pintado ----
+    const railMetal = this.stageTex?.metal;
     for (const o of stage.oneWays.slice(1)) {
       const cx = (o.l + o.r) / 2;
       const w = o.r - o.l;
-      box(w, 0.26, 0.34, 0xc9ced4, cx, o.top - 0.13, 0, { metalness: 0.75, roughness: 0.3 });
-      box(w, 0.26, 0.34, 0x9aa0a6, cx, o.top - 0.4, 0, { metalness: 0.75, roughness: 0.3 });
+      // las dos cintas del guardarraíl: metal con textura si está
+      if (railMetal) {
+        const railTex = railMetal.clone();
+        railTex.repeat.set(Math.max(1, w / 3), 1);
+        const railMat = new THREE.MeshStandardMaterial({ map: railTex, color: 0xcfd4d8, metalness: 0.65, roughness: 0.4 });
+        const rail1 = new THREE.Mesh(new THREE.BoxGeometry(w, 0.26, 0.34), railMat);
+        rail1.position.set(cx, o.top - 0.13, 0);
+        rail1.castShadow = true;
+        g.add(rail1);
+        const rail2 = rail1.clone();
+        rail2.position.set(cx, o.top - 0.4, 0);
+        g.add(rail2);
+      } else {
+        box(w, 0.26, 0.34, 0xc9ced4, cx, o.top - 0.13, 0, { metalness: 0.75, roughness: 0.3 });
+        box(w, 0.26, 0.34, 0x9aa0a6, cx, o.top - 0.4, 0, { metalness: 0.75, roughness: 0.3 });
+      }
       box(0.18, 1.0, 0.18, 0x7a7f85, cx - w / 2 + 0.45, o.top - 0.95, 0, { metalness: 0.6, roughness: 0.4 });
       box(0.18, 1.0, 0.18, 0x7a7f85, cx + w / 2 - 0.45, o.top - 0.95, 0, { metalness: 0.6, roughness: 0.4 });
     }
@@ -410,20 +442,32 @@ export class Renderer {
     }
     g.add(this.bgFar);
 
-    // ---- nubes en dos profundidades (más parallax natural) ----
+    // ---- nubes suaves (billboards con textura de nube puffy, en dos profundidades) ----
+    if (!this._cloudTex) this._cloudTex = this.makeCloudTexture();
     this.clouds = [];
     for (let i = 0; i < 11; i++) {
       const cloud = new THREE.Group();
-      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const puffs = 3 + Math.floor(crnd() * 3);
-      for (let p = 0; p < puffs; p++) {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(1.6 + crnd() * 1.3, 12, 10), mat);
-        s.position.set(p * 2.1 - puffs, crnd() * 0.8, crnd() * 0.5);
-        s.scale.y = 0.62;
-        cloud.add(s);
+      const mat = new THREE.MeshBasicMaterial({
+        map: this._cloudTex,
+        transparent: true,
+        depthWrite: false,
+        opacity: 0.95,
+        color: 0xffffff,
+      });
+      // cada nube: 1-2 planos grandes con la textura puffy (mucho más real que esferas)
+      const w = 10 + crnd() * 9;
+      const h = w * (0.42 + crnd() * 0.14);
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      cloud.add(plane);
+      if (crnd() > 0.5) {
+        const plane2 = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, h * 0.7), mat);
+        plane2.position.set(w * 0.25, h * 0.18, 0.1);
+        cloud.add(plane2);
       }
       const lejos = i % 2 === 0;
       cloud.position.set(-70 + crnd() * 140, 10 + crnd() * 18, lejos ? -55 - crnd() * 20 : -20 - crnd() * 15);
+      // las nubes lejanas un poco más tenues: material propio clonado para no afectar las demás
+      if (lejos) cloud.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.opacity = 0.55; } });
       g.add(cloud);
       this.clouds.push({ group: cloud, speed: lejos ? 0.4 + crnd() * 0.5 : 0.9 + crnd() * 0.9 });
     }
@@ -483,8 +527,11 @@ export class Renderer {
     // repisa con plantita
     box(28, 0.8, 2.4, 0xa8764a, -30, 2.8, -23.6, { shadow: false });
 
-    // ---- LA MESA (plataforma principal de pelea): madera barnizada gigante ----
-    const madera = new THREE.MeshStandardMaterial({ color: 0x9c6b43, roughness: 0.42, metalness: 0.08 });
+    // ---- LA MESA (plataforma principal de pelea): madera barnizada PBR si está ----
+    const woodTex = this.stageTex?.wood;
+    const madera = woodTex
+      ? (() => { const t = woodTex.clone(); t.repeat.set(3, 1); return new THREE.MeshStandardMaterial({ map: t, color: 0xb98a5e, roughness: 0.4, metalness: 0.05 }); })()
+      : new THREE.MeshStandardMaterial({ color: 0x9c6b43, roughness: 0.42, metalness: 0.08 });
     const maderaOsc = new THREE.MeshStandardMaterial({ color: 0x7a5233, roughness: 0.5, metalness: 0.05 });
     const mesa = new THREE.Mesh(new THREE.BoxGeometry(52.5, 3.5, 12), madera);
     mesa.position.set(0, -8.25, 0);
@@ -818,11 +865,42 @@ export class Renderer {
     c.width = 1; c.height = 256;
     const ctx = c.getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#3d9be9');   // celeste intenso arriba
-    grad.addColorStop(0.55, '#7ec8f7');
-    grad.addColorStop(1, '#d9f0ff');   // casi blanco en el horizonte
+    grad.addColorStop(0, '#2f8fdd');   // celeste más profundo arriba
+    grad.addColorStop(0.45, '#6cc0f5');
+    grad.addColorStop(0.8, '#bfe4fb');
+    grad.addColorStop(1, '#eaf7ff');   // casi blanco cálido en el horizonte
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 1, 256);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** Textura de nube suave (puffy) dibujada en canvas: varios círculos con
+   *  gradiente radial que se funden — mucho más real que esferas duras. */
+  makeCloudTexture() {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, 256, 128);
+    const puff = (x, y, r, a) => {
+      const g = ctx.createRadialGradient(x, y, r * 0.15, x, y, r);
+      g.addColorStop(0, `rgba(255,255,255,${a})`);
+      g.addColorStop(0.75, `rgba(250,252,255,${a * 0.7})`);
+      g.addColorStop(1, 'rgba(245,250,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    // forma de nube clásica: base ancha + bultos arriba
+    puff(72, 92, 40, 0.95);
+    puff(112, 74, 46, 1);
+    puff(156, 70, 42, 1);
+    puff(190, 88, 36, 0.95);
+    puff(128, 96, 50, 0.9);
+    puff(96, 100, 36, 0.85);
+    puff(160, 100, 38, 0.85);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
@@ -843,7 +921,12 @@ export class Renderer {
   /** Templo de Buenos Aires: cuerpo blanco, frontón, agujas con ventanales, ángel dorado. */
   makeTemple() {
     const t = new THREE.Group();
-    const blanco = new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 0.7, metalness: 0.05 });
+    // mármol blanco PBR para el templo (como el templo real de Los Mormones)
+    const marbleTex = this.stageTex?.marble;
+    const blanco = marbleTex
+      ? new THREE.MeshStandardMaterial({ map: marbleTex.clone(), roughness: 0.45, metalness: 0.05, color: 0xf4f2ec })
+      : new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 0.7, metalness: 0.05 });
+    if (blanco.map) blanco.map.repeat.set(2, 2);
     const gris = new THREE.MeshStandardMaterial({ color: 0xd8d5ce, roughness: 0.8, metalness: 0.05 });
     const vidrio = new THREE.MeshStandardMaterial({ color: 0x2e3d54, roughness: 0.25, metalness: 0.4 });
 
@@ -888,28 +971,33 @@ export class Renderer {
     add(new THREE.BoxGeometry(10.6, 0.8, 6.6), gris, 16, 4.8, 0);
     for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(0.8, 2.4, 0.25), vidrio, 13.5 + i * 2.5, 2.4, 3.06);
 
-    // agujas: base + tramo medio + ventanal + punta cónica
-    const spire = (x, z, base, mid, tip) => {
-      add(new THREE.BoxGeometry(1.9, base, 1.9), blanco, x, 7 + base / 2, z);
-      add(new THREE.BoxGeometry(1.1, mid, 1.1), blanco, x, 7 + base + mid / 2, z);
-      add(new THREE.BoxGeometry(0.6, mid * 0.7, 0.15), vidrio, x, 7 + base + mid / 2, z + 0.6);
-      add(new THREE.ConeGeometry(0.65, tip, 4), gris, x, 7 + base + mid + tip / 2, z);
-      return 7 + base + mid + tip;
+    // agujas: base + tramo medio + ventanal + punta cónica.
+    // baseY = altura de la superficie donde se APOYA la aguja (antes era fijo y=7
+    // del cuerpo principal, y las agujas del anexo quedaban FLOTANDO 2.2 unidades)
+    const spire = (x, z, base, mid, tip, baseY) => {
+      // la base se entierra 0.6 en el techo para que nunca quede flotando
+      const sunk = 0.6;
+      add(new THREE.BoxGeometry(1.9, base + sunk, 1.9), blanco, x, baseY + (base + sunk) / 2 - sunk, z);
+      add(new THREE.BoxGeometry(1.1, mid, 1.1), blanco, x, baseY + base + mid / 2, z);
+      add(new THREE.BoxGeometry(0.6, mid * 0.7, 0.15), vidrio, x, baseY + base + mid / 2, z + 0.6);
+      add(new THREE.ConeGeometry(0.65, tip, 4), gris, x, baseY + base + mid + tip / 2, z);
+      return baseY + base + mid + tip;
     };
-    // torre central (la más alta) con ángel Moroni dorado
-    const topY = spire(0, 0, 7, 5.5, 5);
+    // torre central (la más alta) con ángel Moroni dorado — apoyada en y=7 (cuerpo)
+    const topY = spire(0, 0, 7, 5.5, 5, 7);
     const angel = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.28, 0.9, 4, 8),
       new THREE.MeshStandardMaterial({ color: 0xf2c94c, metalness: 0.85, roughness: 0.25 }),
     );
     angel.position.set(0, topY + 0.8, 0);
     t.add(angel);
-    // torres laterales sobre el cuerpo
-    spire(-8.5, 0, 4.5, 3.5, 3.5);
-    spire(8.5, 0, 4.5, 3.5, 3.5);
-    // agujas chicas del anexo
-    spire(13.5, 0, 3, 2.5, 2.5);
-    spire(18.5, 0, 3, 2.5, 2.5);
+    // torres laterales sobre el cuerpo — apoyadas en y=7 (techo del cuerpo principal)
+    spire(-8.5, 0, 4.5, 3.5, 3.5, 7);
+    spire(8.5, 0, 4.5, 3.5, 3.5, 7);
+    // agujas chicas del anexo — apoyadas en y=4.8 (techo del anexo, NO en y=7:
+    // ese era el bug que las dejaba flotando)
+    spire(13.5, 0, 3, 2.5, 2.5, 4.8);
+    spire(18.5, 0, 3, 2.5, 2.5, 4.8);
 
     return t;
   }
