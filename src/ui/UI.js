@@ -42,40 +42,21 @@ export class UI {
 
   showMenu() {
     this.clear();
-    const s = el('div', 'ui-screen menu-screen');
+    const s = el('div', 'ui-screen menu-screen menu-screen-splash');
 
-    // Layout Estilo Street Fighter / VS Mode
-    const fightGroup = el('div', 'fight-group');
-    
-    const leftGroup = el('div', 'fight-group-left');
-    const rightGroup = el('div', 'fight-group-right');
+    // TITLE SCREEN ESTÁTICO (provisorio): el splash art del barrio con los 4
+    // personajes cubre toda la pantalla; el título y el botón van encima.
+    const splash = el('div', 'menu-splash-bg');
+    const splashImg = document.createElement('img');
+    splashImg.src = '/assets/ui/title-splash.jpg';
+    splashImg.alt = 'Un Re Bondi En Ciudad Evita';
+    splashImg.draggable = false;
+    splash.append(splashImg);
+    // viñeta suave arriba/abajo para que el título y el botón se lean
+    splash.append(el('div', 'menu-splash-shade'));
+    s.append(splash);
 
-    const [p1, p2, p3, p4] = CHAMPION_LINEUP;
-
-    // P1 y P3 a la izquierda
-    for (const entry of [p1, p3]) {
-      const fighter = el('div', 'menu-fighter');
-      const img = document.createElement('img');
-      img.alt = entry.id;
-      cutoutPng(entry.img).then((url) => { img.src = url; });
-      fighter.append(img);
-      leftGroup.append(fighter);
-    }
-
-    // P2 y P4 a la derecha
-    for (const entry of [p2, p4]) {
-      const fighter = el('div', 'menu-fighter');
-      const img = document.createElement('img');
-      img.alt = entry.id;
-      cutoutPng(entry.img).then((url) => { img.src = url; });
-      fighter.append(img);
-      rightGroup.append(fighter);
-    }
-
-    fightGroup.append(leftGroup, rightGroup);
-    s.append(fightGroup);
-
-    // Logo central tipo Arcade
+    // Logo central tipo Arcade (encima del splash, con sus animaciones)
     const stack = el('div', 'menu-logo-stack');
     const tMain = el('div', 't-main', 'UN RE BONDI');
     const tSub = el('div', 't-sub', 'CIUDAD EVITA');

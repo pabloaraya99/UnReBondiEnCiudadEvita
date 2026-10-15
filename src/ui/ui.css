@@ -212,6 +212,50 @@
   box-shadow: inset 0 0 120px 40px rgba(5, 8, 16, 0.5);
 }
 
+/* ============================================================
+   TITLE SCREEN ESTÁTICO (provisorio): el splash art del barrio
+   ocupa toda la pantalla; el título y el botón van encima.
+   ============================================================ */
+.menu-screen-splash {
+  background: #10121a;
+}
+.menu-splash-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.menu-splash-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  /* zoom lentísimo para que el estático respire un poco */
+  animation: splashDrift 30s ease-in-out infinite alternate;
+}
+@keyframes splashDrift {
+  from { transform: scale(1); }
+  to   { transform: scale(1.06); }
+}
+/* viñeta para que el título y el botón se lean sobre el arte */
+.menu-splash-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 22%, rgba(8, 10, 20, 0.55), transparent 55%),
+    linear-gradient(rgba(8, 10, 20, 0.15), rgba(8, 10, 20, 0.55) 88%);
+  pointer-events: none;
+}
+/* sobre el splash, el título queda un poco más arriba */
+.menu-screen-splash .menu-logo-stack {
+  top: 6%;
+  z-index: 3;
+}
+.menu-screen-splash .menu-play {
+  bottom: 6%;
+  z-index: 3;
+}
+
 /* rayos de luz girando detrás del logo (anime/smash) */
 .menu-rays {
   position: absolute;
