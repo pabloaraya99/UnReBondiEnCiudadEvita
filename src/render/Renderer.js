@@ -68,7 +68,37 @@ export class Renderer {
     this.setupPostFX(container);
     this.loadCarModels();
     this.loadFighterModels();
+    this.loadStageTextures();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  /** Carga las texturas PBR del escenario (Poly Haven, CC0) en background.
+   *  Cuando llegan todas, reconstruye el escenario actual para usarlas. */
+  loadStageTextures() {
+    if (this._stageTexLoading) return;
+    this._stageTexLoading = true;
+    this.stageTex = {};
+    const loader = new THREE.TextureLoader();
+    const defs = [
+      ['asphalt', '/assets/textures/asphalt_diff.jpg'],
+      ['asphaltRough', '/assets/textures/asphalt_rough.jpg'],
+      ['concrete', '/assets/textures/concrete_diff.jpg'],
+      ['grass', '/assets/textures/grass_diff.jpg'],
+    ];
+    let pending = defs.length;
+    for (const [key, url] of defs) {
+      loader.load(url, (tex) => {
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.colorSpace = key.endsWith('Rough') ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        this.stageTex[key] = tex;
+        if (--pending === 0 && this.stage) {
+          // llegaron todas: reconstruir el escenario con las texturas reales
+          const st = this.stage;
+          this.setStage(st);
+        }
+      }, undefined, () => { pending--; });
+    }
   }
 
   /** Carga los GLB de los autos de Vita Machines (una sola vez, en background). */
@@ -254,19 +284,27 @@ export class Renderer {
     const crnd = () => ((cseed = (cseed * 16807) % 2147483647) / 2147483647);
 
     // ================================================================ CAPA JUEGO (sin parallax)
-    // ---- EL PISO ES LA CALLE: asfalto texturizado con líneas, de borde a borde ----
-    const asphaltTex = this.makeAsphaltTexture();
-    const grassTex = this.makeGrassTexture();
+    // ---- EL PISO ES LA CALLE: asfalto PBR real (Poly Haven) o procedural de fallback ----
+    const asphaltTex = this.stageTex?.asphalt ?? this.makeAsphaltTexture();
+    const asphaltRough = this.stageTex?.asphaltRough ?? null;
+    const grassTex = this.stageTex?.grass ?? this.makeGrassTexture();
     for (const s of stage.solids) {
       const w = s.r - s.l;
       const h = s.top - s.bottom;
       const cx = (s.l + s.r) / 2;
-      // losa de asfalto con textura procedural (grietas, manchas)
+      // losa de asfalto con textura PBR real (grietas, manchas) o procedural
       const slabTex = asphaltTex.clone();
       slabTex.repeat.set(Math.max(1, w / 10), Math.max(1, h / 4));
+      const slabMatOpts = { map: slabTex, roughness: 0.95, metalness: 0 };
+      if (asphaltRough) {
+        const roughTex = asphaltRough.clone();
+        roughTex.repeat.copy(slabTex.repeat);
+        slabMatOpts.roughnessMap = roughTex;
+        slabMatOpts.roughness = 1;
+      }
       const slab = new THREE.Mesh(
         new THREE.BoxGeometry(w, h, 9),
-        new THREE.MeshStandardMaterial({ map: slabTex, roughness: 0.95, metalness: 0 }),
+        new THREE.MeshStandardMaterial(slabMatOpts),
       );
       slab.position.set(cx, (s.top + s.bottom) / 2, 0);
       slab.castShadow = true;
@@ -279,9 +317,19 @@ export class Renderer {
       // bordes amarillos
       box(w, 0.1, 0.4, 0xf2c94c, cx, s.top + 0.05, 4.2, { shadow: false });
       box(w, 0.1, 0.4, 0xf2c94c, cx, s.top + 0.05, -4.2, { shadow: false });
-      // hombros de pasto por fuera del asfalto (visual, sin colisión extra)
-      box(4, h, 9, 0x58c24e, s.l - 2, (s.top + s.bottom) / 2, 0, { shadow: false });
-      box(4, h, 9, 0x58c24e, s.r + 2, (s.top + s.bottom) / 2, 0, { shadow: false });
+      // hombros de pasto por fuera del asfalto (visual, sin colisión extra): pasto real si hay textura
+      const grassShoulder = grassTex.clone();
+      grassShoulder.repeat.set(Math.max(1, 4 / 3), Math.max(1, h / 3));
+      const shoulderMat = this.stageTex?.grass
+        ? new THREE.MeshStandardMaterial({ map: grassShoulder, roughness: 1, metalness: 0 })
+        : new THREE.MeshStandardMaterial({ color: 0x58c24e, roughness: 0.85, metalness: 0 });
+      const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(4, h, 9), shoulderMat);
+      shoulderL.position.set(s.l - 2, (s.top + s.bottom) / 2, 0);
+      shoulderL.receiveShadow = true;
+      g.add(shoulderL);
+      const shoulderR = shoulderL.clone();
+      shoulderR.position.set(s.r + 2, (s.top + s.bottom) / 2, 0);
+      g.add(shoulderR);
     }
 
     // ---- terraplén de pasto (plataforma de spawn, losa fina para ver abajo) ----
