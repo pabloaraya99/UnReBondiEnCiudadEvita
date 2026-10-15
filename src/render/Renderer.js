@@ -403,6 +403,35 @@ export class Renderer {
     box(0.35, 8.5, 0.35, 0x6b5637, -26.6, -3.3, -10.4, { shadow: false });
     box(0.35, 8.5, 0.35, 0x6b5637, -21.6, -3.3, -10.4, { shadow: false });
 
+    // ================================================================ LA VEREDA (fiel a Ciudad Evita)
+    // Vereda de hormigón que acompaña la calle de punta a punta, detrás del
+    // borde amarillo (z≈-7), con su cordón y textura de hormigón real
+    {
+      const s = stage.solids[0];
+      if (s) {
+        const vx = (s.l + s.r) / 2;
+        const vw = (s.r - s.l) + 14; // un poco más larga que la calle
+        // cordón (el borde elevado que separa vereda de calle)
+        const cordon = new THREE.Mesh(
+          new THREE.BoxGeometry(vw, 0.22, 0.5),
+          new THREE.MeshStandardMaterial({ color: 0xb8b4ac, roughness: 0.9, metalness: 0 }),
+        );
+        cordon.position.set(vx, s.top + 0.08, -5.6);
+        cordon.castShadow = true;
+        cordon.receiveShadow = true;
+        g.add(cordon);
+        // la vereda misma: losa de hormigón con textura, apenas más baja que la calle
+        const veredaTex = this.stageTex?.concrete
+          ? (() => { const t = this.stageTex.concrete.clone(); t.repeat.set(Math.max(1, vw / 8), 1); return new THREE.MeshStandardMaterial({ map: t, color: 0xcfcbc2, roughness: 0.95, metalness: 0 }); })()
+          : new THREE.MeshStandardMaterial({ color: 0xb8b4ac, roughness: 0.9, metalness: 0 });
+        const vereda = new THREE.Mesh(new THREE.BoxGeometry(vw, 0.3, 2.6), veredaTex);
+        vereda.position.set(vx, s.top + 0.1, -7.2);
+        vereda.castShadow = true;
+        vereda.receiveShadow = true;
+        g.add(vereda);
+      }
+    }
+
     // ================================================================ CAPA MEDIA (bgMid, parallax 0.7)
     this.bgMid = new THREE.Group();
     const mid = this.makeGrouper(this.bgMid);
@@ -433,6 +462,24 @@ export class Renderer {
     // bajado un toque para que se vea la estatua dorada de la punta (ángel)
     temple.position.set(0, -8.2, -56);
     this.bgFar.add(temple);
+
+    // ---- LAS REJAS DEL TEMPLO (fiel a Los Mormones): cerco de ~2m que recorre
+    // el predio, blanco como el templo, delante del edificio hacia la calle ----
+    // El templo real tiene rejas bajas alrededor del terreno, no murallas altas.
+    {
+      const fenceZ = -53.5; // delante del templo, hacia la calle
+      const fenceY = -8.2;  // base al nivel del terreno del templo
+      const fenceH = 2.0;   // ~2 metros (los personajes miden ~1.8)
+      const fenceLen = 120; // recorre todo el ancho del predio
+      // postes cada ~2.4 unidades + 2 barras horizontales, blancos como el templo
+      const fence = this.makeFence(fenceLen, fenceH, 0xf4f2ec);
+      fence.position.set(0, fenceY, fenceZ);
+      this.bgFar.add(fence);
+      // portón central (entrada al templo, un toque más alto y con marco)
+      const porton = this.makeFence(10, fenceH * 1.2, 0xeceae4);
+      porton.position.set(0, fenceY, fenceZ);
+      this.bgFar.add(porton);
+    }
 
     // palmeras junto al templo
     for (const [px, pz] of [[-20, -50], [-14, -54], [22, -51], [28, -55], [32, -50]]) {
@@ -916,6 +963,34 @@ export class Renderer {
     wingR.position.x = 0.5;
     group.add(wingL, wingR);
     return { group, wingL, wingR };
+  }
+
+  /** Reja/cerco bajo estilo predio (postes + barras horizontales), fiel a Los
+   *  Mormones: ~2m de alto, blanco como el templo, recorre el ancho del terreno. */
+  makeFence(length, height, color) {
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.35 });
+    // postes verticales cada ~2.4 unidades
+    const step = 2.4;
+    const count = Math.max(2, Math.floor(length / step));
+    for (let i = 0; i <= count; i++) {
+      const x = -length / 2 + (i * length) / count;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, height, 0.16), mat);
+      post.position.set(x, height / 2, 0);
+      post.castShadow = true;
+      group.add(post);
+      // capitel simple arriba de cada poste (detalle)
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.26), mat);
+      cap.position.set(x, height + 0.05, 0);
+      group.add(cap);
+    }
+    // 2 barras horizontales (abajo y arriba del cerco)
+    for (const y of [height * 0.35, height * 0.9]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(length, 0.09, 0.09), mat);
+      rail.position.set(0, y, 0);
+      group.add(rail);
+    }
+    return group;
   }
 
   /** Templo de Buenos Aires: cuerpo blanco, frontón, agujas con ventanales, ángel dorado. */
