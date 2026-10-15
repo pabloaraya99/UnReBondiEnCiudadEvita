@@ -455,8 +455,68 @@ export class Renderer {
     this.bgMid = new THREE.Group();
     const mid = this.makeGrouper(this.bgMid);
 
-    // pradera entre la calle de juego y el templo
-    mid(360, 2, 90, 0x4a9e42, 0, -8.2, -34, { shadow: false });
+    // pradera entre la calle de juego y el templo — con textura de pasto real
+    {
+      const praderaMat = this.stageTex?.grass
+        ? (() => { const t = this.stageTex.grass.clone(); t.repeat.set(50, 12); return new THREE.MeshStandardMaterial({ map: t, roughness: 1 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x4a9e42, roughness: 1 });
+      const pradera = new THREE.Mesh(new THREE.BoxGeometry(360, 2, 90), praderaMat);
+      pradera.position.set(0, -8.2, -34);
+      pradera.receiveShadow = true;
+      this.bgMid.add(pradera);
+    }
+
+    // ---- POSTES DE LUZ del barrio (con textura de metal) a lo largo de la calle ----
+    {
+      const posteMat = this.stageTex?.metal
+        ? (() => { const t = this.stageTex.metal.clone(); t.repeat.set(1, 2); return new THREE.MeshStandardMaterial({ map: t, color: 0x8a8f96, metalness: 0.6, roughness: 0.45 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x5a5e64, metalness: 0.6, roughness: 0.45 });
+      const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffd98a, emissiveIntensity: 1.6, roughness: 0.3 });
+      for (const px of [-30, -10, 10, 30]) {
+        const poste = new THREE.Group();
+        // columna del poste
+        const columna = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 6.5, 8), posteMat);
+        columna.position.y = 3.25;
+        columna.castShadow = true;
+        poste.add(columna);
+        // brazo hacia la calle
+        const brazo = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.12), posteMat);
+        brazo.position.set(0.8, 6.3, 0);
+        poste.add(brazo);
+        // lámpara (brilla con el bloom)
+        const lampara = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), lampMat);
+        lampara.position.set(1.55, 6.2, 0);
+        poste.add(lampara);
+        poste.position.set(px, -6.5, -5.5);
+        g.add(poste);
+      }
+    }
+
+    // ---- CONTENEDORES DE BASURA del barrio (verde/gris, junto a la calle) ----
+    {
+      const contMat = new THREE.MeshStandardMaterial({ color: 0x2e7a3e, roughness: 0.7, metalness: 0.2 });
+      const contOscMat = new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.7, metalness: 0.2 });
+      for (const [cx, mat] of [[-26, contMat], [-24.2, contOscMat], [24, contMat]]) {
+        const cont = new THREE.Group();
+        const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.0, 1.1), mat);
+        cuerpo.position.y = 1.0;
+        cuerpo.castShadow = true;
+        cont.add(cuerpo);
+        const tapa = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.2, 1.2), mat);
+        tapa.position.y = 2.05;
+        tapa.rotation.z = 0.03;
+        cont.add(tapa);
+        // rueditas
+        for (const wx of [-0.6, 0.6]) {
+          const rueda = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 10), new THREE.MeshStandardMaterial({ color: 0x14161a }));
+          rueda.rotation.z = Math.PI / 2;
+          rueda.position.set(wx, 0.16, 0.5);
+          cont.add(rueda);
+        }
+        cont.position.set(cx, -6.5, 5.2);
+        g.add(cont);
+      }
+    }
 
     g.add(this.bgMid);
 
@@ -466,8 +526,16 @@ export class Renderer {
 
     // (colinas removidas a pedido: no eran correctas para el fondo del templo)
 
-    // pasto lejano bajo el templo
-    far(360, 2, 60, 0x55ab4e, 0, -7.8, -52, { shadow: false });
+    // pasto lejano bajo el templo — con textura de pasto real
+    {
+      const pastoTemploMat = this.stageTex?.grass
+        ? (() => { const t = this.stageTex.grass.clone(); t.repeat.set(50, 8); return new THREE.MeshStandardMaterial({ map: t, roughness: 1 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x55ab4e, roughness: 1 });
+      const pastoTemplo = new THREE.Mesh(new THREE.BoxGeometry(360, 2, 60), pastoTemploMat);
+      pastoTemplo.position.set(0, -7.8, -52);
+      pastoTemplo.receiveShadow = true;
+      this.bgFar.add(pastoTemplo);
+    }
 
     // ---- EL TEMPLO: centrado, imponente, visible sobre el horizonte ----
     const temple = this.makeTemple();
