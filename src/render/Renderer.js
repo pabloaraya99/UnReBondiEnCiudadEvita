@@ -487,28 +487,24 @@ export class Renderer {
       const colectoraMat = this.stageTex?.asphalt
         ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(6, 1); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); })()
         : new THREE.MeshStandardMaterial({ color: 0x474a4f, roughness: 0.95 });
+      // calle colectora BIEN AL FONDO: baja en el horizonte, DETRÁS del templo
+      // (no cruza el centro de la pantalla). Camino lejano de fondo, sutil.
       const colectora = new THREE.Group();
       const segLen = 90;
-      const segW = 4.4;
-      const tramos = [
-        { x: -58, z: -49.5, rotY: 0.34 },
-        { x: 0,   z: -50.5, rotY: 0 },
-        { x: 58,  z: -49.5, rotY: -0.34 },
-      ];
-      for (const tr of tramos) {
-        const seg = new THREE.Mesh(new THREE.BoxGeometry(segLen, 0.22, segW), colectoraMat);
-        seg.position.set(tr.x, -8.05, tr.z); // a nivel del terreno del fondo
-        seg.rotation.y = tr.rotY;
-        colectora.add(seg);
-        // línea central TENUE (gris claro, no blanco brillante)
-        for (let lx = -segLen / 2 + 3; lx < segLen / 2 - 2; lx += 7) {
-          const linea = new THREE.Mesh(
-            new THREE.BoxGeometry(2.2, 0.03, 0.2),
-            new THREE.MeshStandardMaterial({ color: 0xa8adb3, roughness: 0.9 }),
-          );
-          linea.position.set(lx, 0.13, 0);
-          seg.add(linea);
-        }
+      const segW = 4.0;
+      // un solo tramo horizontal bajo y detrás del templo, sin curvas que crucen la pantalla
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(segLen * 2.2, 0.16, segW), colectoraMat);
+      seg.position.set(0, -8.35, -62); // detrás del templo (z=-56), baja en el horizonte
+      seg.receiveShadow = true;
+      colectora.add(seg);
+      // línea central tenue, espaciada (apenas sugiere camino)
+      for (let lx = -segLen; lx < segLen; lx += 9) {
+        const linea = new THREE.Mesh(
+          new THREE.BoxGeometry(2.0, 0.03, 0.18),
+          new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9 }),
+        );
+        linea.position.set(lx, 0.1, 0);
+        seg.add(linea);
       }
       this.bgFar.add(colectora);
     }
