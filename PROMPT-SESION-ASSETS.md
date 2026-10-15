@@ -115,9 +115,19 @@ NO reemplazar los originales: guardar como "*-v2.jfif" en public/assets/ui/pilot
 
 # VERIFICACIÓN RÁPIDA ANTES DE EMPEZAR
 
-Listá primero los archivos de public/assets/ y leé public/assets/ui/RUTA-ASSETS-TITULO.md
-y public/assets/ui/PROMPTS-NANO-BANANA.md para confirmar el contexto. Si algo falta,
-avisá antes de generar. Después arrancá por la Tarea 1 (las 12 capas del title).
+REGLA DE ORO — NO LEER BINARIOS:
+- NUNCA abras/leas archivos binarios: .glb, .png, .jpg, .jfif, .webp, .svg con imágenes.
+  Son enormes (el Kenai.glb pesa 15MB) y hacen explotar el límite de tokens.
+- SOLO listá los NOMBRES de los archivos con un listado de directorio
+  (Get-ChildItem / ls / git ls-files) sin abrir su contenido.
+- SOLO leé archivos de TEXTO chicos: los .md de la carpeta public/assets/ui/.
+
+Pasos:
+1. Listá los nombres de archivos de public/assets/ (sin abrirlos).
+2. Leé SOLO estos 2 archivos de texto:
+   - public/assets/ui/RUTA-ASSETS-TITULO.md
+   - public/assets/ui/PROMPTS-NANO-BANANA.md
+3. Confirmá el contexto en 3 líneas y arrancá por la Tarea 1 (las 12 capas del title).
 ```
 
 ---
