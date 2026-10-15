@@ -4,18 +4,69 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Un Re Bondi En Ciudad Evita</title>
+  <link rel="preload" as="image" href="/assets/ui/title-splash.jpg">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #1a1a2e;
+      background: #10121a;
     }
     canvas { display: block; }
+    /* indicador de carga visible mientras baja el JS y la imagen (evita la
+       sensación de "no carga nada" en conexiones lentas) */
+    #boot {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+      background: #10121a;
+      color: #f4f1e8;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      z-index: 1;
+    }
+    #boot .boot-title {
+      font-size: 1.4rem;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+      color: #4CC458;
+      text-shadow: 0 2px 0 #1E5B2E;
+      animation: bootPulse 1.2s ease-in-out infinite;
+    }
+    #boot .boot-bar {
+      width: 180px;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+    }
+    #boot .boot-bar::after {
+      content: '';
+      display: block;
+      width: 40%;
+      height: 100%;
+      border-radius: 3px;
+      background: #F2C94C;
+      animation: bootSlide 1s ease-in-out infinite alternate;
+    }
+    @keyframes bootPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+    @keyframes bootSlide { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
   </style>
 </head>
 <body>
+  <div id="boot">
+    <div class="boot-title">UN RE BONDI</div>
+    <div class="boot-bar"></div>
+  </div>
   <script type="module" src="/src/main.js"></script>
+  <script>
+    // cuando el módulo termina de cargar y montar la UI, se oculta el boot
+    window.__bootDone = () => { const b = document.getElementById('boot'); if (b) b.remove(); };
+    setTimeout(window.__bootDone, 30000); // por las dudas: nunca dejar el boot colgado
+  </script>
 </body>
 </html>

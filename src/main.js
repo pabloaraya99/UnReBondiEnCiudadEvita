@@ -157,3 +157,5 @@ setState('menu');
 requestAnimationFrame(loop);
 
 console.log('Un Re Bondi En Ciudad Evita - iniciado');
+// avisar al boot del index.html que la UI ya montó (saca el indicador de carga)
+window.__bootDone?.();
