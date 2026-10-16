@@ -29,11 +29,6 @@ const CAR_MODEL_FILES = [
   { id: 'moto', url: '/assets/models/cars/moto.glb', rotY: 0 },
 ];
 
-// Modelos 3D de los peleadores (GLB). Solo Kenai tiene GLB por ahora.
-const FIGHTER_MODEL_FILES = [
-  { id: 'pablo', url: '/assets/models/kenai/Kenai.glb' },
-];
-
 const MOVES = GAME_CONFIG.moves;
 const CAM = GAME_CONFIG.camera;
 const GFX = GAME_CONFIG.graphics;
@@ -62,14 +57,12 @@ export class Renderer {
     this.particles = [];
     this.projectileMeshes = new Map();
     this.carMeshes = new Map(); // autos del tráfico (hazards del Match)
-    this.fighterModelPool = new Map(); // modelos 3D de los peleadores (GLB)
     this.tmp = new THREE.Vector3();
     this.tmpColor = new THREE.Color();
 
     this.setupLights();
     this.setupPostFX(container);
     this.loadCarModels();
-    this.loadFighterModels();
     this.loadStageTextures();
     window.addEventListener('resize', () => this.resize());
   }
@@ -149,71 +142,6 @@ export class Renderer {
         (err) => { console.warn('[cars] fallo al cargar', def.url, err); },
       );
     }
-  }
-
-  /** Carga los GLB de los peleadores (una sola vez, en background). */
-  loadFighterModels() {
-    if (this.fighterModelPool) return;
-    this.fighterModelPool = new Map();
-    const loader = new GLTFLoader();
-    for (const def of FIGHTER_MODEL_FILES) {
-      loader.load(
-        def.url,
-        (gltf) => {
-          const model = gltf.scene;
-          // Normalizar: escalar para que el alto sea ~1.8 y apoyar en y=0
-          const box = new THREE.Box3().setFromObject(model);
-          const size = box.getSize(new THREE.Vector3());
-          const maxDim = Math.max(size.x, size.y, size.z);
-          const escala = 1.8 / (maxDim || 1);
-          model.scale.setScalar(escala);
-          const box2 = new THREE.Box3().setFromObject(model);
-          const c = box2.getCenter(new THREE.Vector3());
-          model.position.x -= c.x;
-          model.position.y -= box2.min.y;
-          model.position.z -= c.z;
-          // recolectar materiales (para flash de hitstun / tinte / opacidad) igual que los builders
-          const mats = [];
-          model.traverse((o) => {
-            if (o.isMesh) {
-              o.castShadow = true;
-              const list = Array.isArray(o.material) ? o.material : [o.material];
-              for (const m of list) {
-                if (m && !mats.includes(m)) {
-                  if (!m.userData.base) m.userData.base = m.color.clone();
-                  mats.push(m);
-                }
-              }
-            }
-          });
-          this.fighterModelPool.set(def.id, { scene: model, mats });
-          // swap en caliente: si ya hay una vista primitiva de este personaje, la reemplazamos
-          this._swapFighterView(def.id);
-        },
-        undefined,
-        (err) => { console.warn('[GLB] fallo al cargar', def.url, err); },
-      );
-    }
-  }
-
-  /** Reemplaza la vista de un personaje cuando su GLB terminó de cargar (swap en caliente). */
-  _swapFighterView(characterId) {
-    const idx = this._lastMatch?.fighters.findIndex((f) => f.characterId === characterId);
-    if (idx == null || idx < 0) return;
-    const f = this._lastMatch.fighters[idx];
-    const builder = FIGHTER_BUILDERS[characterId];
-    if (!builder) return;
-    const old = this.views[idx];
-    if (!old) return;
-    const newView = this.makeFighterView(f, builder);
-    // conservar estado visual actual
-    newView.group.position.copy(old.group.position);
-    newView.turn = old.turn;
-    // eliminar la vieja
-    this.scene.remove(old.group);
-    if (old.blob) this.scene.remove(old.blob);
-    this.scene.remove(old.debugHurt, old.debugHit);
-    this.views[idx] = newView;
   }
 
   setupLights() {
@@ -1682,51 +1610,10 @@ export class Renderer {
     return ring;
   }
 
-  /** Vista de personaje con modelo detallado (Kenai, Coco, Domono, Faxo). */
-  /** Vista de personaje: GLB si ya cargó, si no el modelo primitivo (luego se hace swap en caliente). */
+  /** Vista de personaje con modelo detallado (Kenai, Coco, Domono, Faxo, Chubit). */
   makeFighterView(f, builder) {
     const spec = f.spec;
     const color = new THREE.Color(spec.color);
-    const entry = this.fighterModelPool?.get(f.characterId);
-    if (entry) {
-      const model = entry.scene.clone(true);
-      const pivot = new THREE.Group();
-      pivot.add(model);
-      const ring = this.makeSlotRing(f);
-      const group = new THREE.Group();
-      group.add(pivot, ring);
-      this.scene.add(group);
-      const blob = this.makeBlob();
-      // clones de materiales para que el flash/tinte de un jugador no afecte a otros
-      const mats = [];
-      const matMap = new Map();
-      model.traverse((o) => {
-        if (!o.isMesh) return;
-        o.castShadow = true;
-        const cloneMat = (m) => {
-          if (!matMap.has(m)) {
-            const c = m.clone();
-            c.userData.base = c.color.clone();
-            matMap.set(m, c);
-          }
-          return matMap.get(m);
-        };
-        if (Array.isArray(o.material)) o.material = o.material.map(cloneMat);
-        else o.material = cloneMat(o.material);
-      });
-      for (const m of matMap.values()) mats.push(m);
-      return {
-        group, pivot, ring, blob,
-        mat: mats[0] ?? new THREE.MeshStandardMaterial({ color: spec.color }),
-        mats,
-        isKenai: true,
-        baseColor: color,
-        turn: f.facing > 0 ? 0 : Math.PI,
-        debugHurt: this.makeEdges(0x44ff77),
-        debugHit: this.makeEdges(0xff4444),
-      };
-    }
-    // fallback: modelo primitivo (cuando el GLB cargue se hace swap en caliente)
     const model = builder();
     const group = new THREE.Group();
     const pivot = new THREE.Group();
@@ -1745,11 +1632,6 @@ export class Renderer {
       debugHurt: this.makeEdges(0x44ff77),
       debugHit: this.makeEdges(0xff4444),
     };
-  }
-
-  /** Compatibilidad con el nombre anterior. */
-  makeKenaiView(f) {
-    return this.makeFighterView(f, buildKenai);
   }
 
   /** Vista cápsula provisoria para el resto de los personajes. */
@@ -2194,16 +2076,6 @@ export class Renderer {
   }
 
   // ------------------------------------------------------------------ utilidades
-
-  /** Posición en pantalla de un punto del mundo: { x, y } en píxeles y si está dentro del cuadro. */
-  project(x, y) {
-    this.tmp.set(x, y, 0).project(this.rig.camera);
-    return {
-      x: (this.tmp.x * 0.5 + 0.5) * window.innerWidth,
-      y: (-this.tmp.y * 0.5 + 0.5) * window.innerHeight,
-      inside: Math.abs(this.tmp.x) <= 1 && Math.abs(this.tmp.y) <= 1,
-    };
-  }
 
   snapCamera(match) {
     const targets = match.fighters.filter((f) => f.alive).map((f) => ({ x: f.x, y: f.y + f.height / 2 }));

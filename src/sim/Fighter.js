@@ -55,7 +55,6 @@ export class Fighter {
     // --- Stance system (PabloQuemandoRuedas) ---
     this.stance = this.spec.stance ?? 'normal';
     this.stanceSwitchCd = 0;
-    this.stanceData = this.getStanceData();
     
     // --- Sword Slash state ---
     this.swordSlashPhase = null; // 'rise' | 'fall' | null
@@ -73,17 +72,6 @@ export class Fighter {
   getStanceData() {
     if (!this.spec.stances) return null;
     return this.spec.stances[this.stance] ?? this.spec.stances.normal ?? {};
-  }
-
-  /**
-   * Datos de un especial de personaje ('swordSlash' | 'blockForm'): lo definido en `moves` (única fuente de verdad)
-   * y, si la spec del personaje lo pisa, eso gana. Falla fuerte si falta un valor que se usa.
-   */
-  special(kind) {
-    const ref = this.spec[kind];
-    const move = MOVES[ref.moveId];
-    if (!move) throw new Error(`Falta el move "${ref.moveId}" en config.moves`);
-    return { ...move, ...ref };
   }
 
   getCurrentMoves() {
@@ -447,14 +435,11 @@ export class Fighter {
 
   // ============================================================ SWORD SLASH (Final Cutter)
 
-  /** Datos de un movimiento por id, con override del stance del personaje si aplica. */
+  /** Datos de un movimiento por id. */
   specialData(moveId) {
     const move = MOVES[moveId];
     if (!move) throw new Error(`Falta el move "${moveId}" en config.moves`);
-    // si el stance actual define un override para este id, se usa encima
-    const stanceMoves = this.getCurrentMoves();
-    const overrideId = stanceMoves[moveId] ? moveId : null;
-    return { ...move, _moveId: moveId };
+    return { ...move };
   }
 
   startSwordSlash(ctx, moveId = 'swordSlash') {
@@ -475,7 +460,6 @@ export class Fighter {
 
   stepSwordSlash(x, up, down, pressed, jumpHeld, ctx) {
     const ss = this._ssData ?? this.specialData('swordSlash');
-    const move = MOVES[this.attack?.id ?? 'swordSlash'];
     const a = this.attack;
 
     if (this.swordSlashPhase === 'rise') {
@@ -487,12 +471,7 @@ export class Fighter {
         this.state = 'swordSlashFall';
       }
       // Avanzar frame de ataque (hitbox en subida)
-      if (a) {
-        a.frame++;
-        if (a.frame >= move.startup + move.active) {
-          // Hitbox de subida terminó
-        }
-      }
+      if (a) a.frame++;
     } else if (this.swordSlashPhase === 'fall') {
       // Cayendo rápido
       this.vy = -ss.fallSpeed;
@@ -623,7 +602,6 @@ export class Fighter {
     const currentIdx = stances.indexOf(this.stance);
     const nextIdx = (currentIdx + 1) % stances.length;
     this.stance = stances[nextIdx];
-    this.stanceData = this.getStanceData();
     this.stanceSwitchCd = 60; // 1 segundo cooldown
     
     this.attack = { id: 'stanceSwitch', frame: 0, hit: [] };
@@ -791,7 +769,6 @@ export class Fighter {
     this.airFrames = 0;
     this.invuln = M.respawnInvuln;
     this.stance = 'normal';
-    this.stanceData = this.getStanceData();
     ctx.events.push({ type: 'respawn', i: this.index, x: this.x, y: this.y });
   }
 
@@ -842,7 +819,6 @@ export class Fighter {
     this.prevX = s.x;
     this.prevY = s.y;
     this.spec = CHARACTERS[s.characterId];
-    this.stanceData = this.getStanceData();
     this.attack = s.attack ? { id: s.attack.id, frame: s.attack.frame, hit: [...s.attack.hit] } : null;
     this.buf = { ...s.buf };
   }

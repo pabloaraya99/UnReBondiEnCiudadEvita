@@ -7,8 +7,6 @@
  */
 
 export const GAME_CONFIG = {
-  title: 'Un re bondi en Ciudad Evita',
-
   /** Paso fijo de la simulación (60 Hz). Todo lo que pasa en el juego ocurre en múltiplos de este paso. */
   physicsStep: 1 / 60,
 
@@ -99,7 +97,6 @@ export const GAME_CONFIG = {
       // Custom
       isStance: true,        // es un stance, no un ataque
       maxDuration: 180,      // 3 segundos máx (frames)
-      armorFrames: 999,      // superarmor mientras dura
       fallMultiplier: 3.5,   // cae rapidísimo
       landShockwave: true,   // onda al aterrizar
       landDamage: 22,
@@ -151,7 +148,6 @@ export const GAME_CONFIG = {
       damage: 8, base: 6, growth: 12, angle: 45,
       vortex: true,          // atrae al rival durante active
       vortexPull: 0.35,      // fuerza de succión (arrastra hacia Kenai)
-      spitDamage: 6, spitBase: 8, spitGrowth: 14, spitAngle: 55, // al escupir
     },
     // --- KENAI (Kirby): Hammer (especial de costado) ---
     // Martillazo lento pero muy fuerte (el Hammer de Kirby)
@@ -159,7 +155,6 @@ export const GAME_CONFIG = {
       startup: 18, active: 5, recovery: 24,
       box: { x: 1.3, y: 1.1, w: 1.7, h: 1.3 },
       damage: 20, base: 12, growth: 22, angle: 40, lunge: 2,
-      heavyHit: true,
     },
 
     // --- COCO (Ike): Eruption (especial neutro) ---
@@ -177,14 +172,13 @@ export const GAME_CONFIG = {
       startup: 8, active: 4, recovery: 18,
       box: { x: 1.2, y: 1.0, w: 1.9, h: 1.1 },
       damage: 15, base: 9, growth: 15, angle: 36, lunge: 9,
-      dashAttack: true,
     },
     // --- COCO (Ike): Counter (especial hacia abajo) ---
     // Postura de contraataque: reduce daño y devuelve el golpe (el Counter de Ike)
     counter: {
       startup: 3, active: 0, recovery: 0,
       box: null, damage: 0, base: 0, growth: 0, angle: 0,
-      isStance: true, maxDuration: 40, armorFrames: 999,
+      isStance: true, maxDuration: 40,
       counterMode: true,     // al recibir golpe: anula y contraataca ×1.2
       counterMult: 1.2, counterDamage: 12, counterBase: 8, counterAngle: 40,
       endLag: 14,
@@ -205,8 +199,6 @@ export const GAME_CONFIG = {
       startup: 12, active: 0, recovery: 22,
       projectile: { speed: 16, life: 50, radius: 0.4, y: 1.1, electric: true },
       damage: 10, base: 7, growth: 14, angle: 30,
-      controllable: true,    // se puede curvar con ← / → mientras vuela
-      selfLaunch: true,      // si le pega a Domono, lo lanza (recovery)
     },
     // --- DOMONO (Ness): PK Thunder recovery (especial hacia arriba) ---
     // Impulso eléctrico hacia arriba que además pega (recuperación de Ness)
@@ -220,7 +212,7 @@ export const GAME_CONFIG = {
     pkMagnet: {
       startup: 3, active: 0, recovery: 0,
       box: null, damage: 0, base: 0, growth: 0, angle: 0,
-      isStance: true, maxDuration: 70, armorFrames: 999,
+      isStance: true, maxDuration: 70,
       magnetMode: true,      // absorbe: reduce daño ×0.4 y cura un poco por golpe
       absorbMult: 0.4, healPerHit: 4, endLag: 10,
     },
@@ -229,7 +221,7 @@ export const GAME_CONFIG = {
     // Agua bendita que deja llamas en el suelo (el Holy Water de Richter)
     holyWater: {
       startup: 12, active: 0, recovery: 20,
-      projectile: { speed: 11, life: 35, radius: 0.36, y: 0.8, holy: true, gravity: true },
+      projectile: { speed: 11, life: 35, radius: 0.36, y: 0.8, holy: true },
       damage: 5, base: 4, growth: 8, angle: 20,
       groundFlame: true,     // deja una llama azul en el suelo
       flameFrames: 70, flameDamage: 6, flameBase: 3, flameGrowth: 8, flameRadius: 0.9,
@@ -241,7 +233,6 @@ export const GAME_CONFIG = {
       box: { x: 0.5, y: 2.1, w: 1.4, h: 1.2 },
       damage: 9, base: 6, growth: 16, angle: 85,
       launchesUp: true, launchSpeed: 17, maxHeight: 5, fallSpeed: 20,
-      whipRecovery: true,
     },
     // --- FAXO (Richter): Vampire Killer Whip (especial de costado) ---
     // El látigo largo de Richter: alcance enorme hacia adelante
@@ -249,13 +240,12 @@ export const GAME_CONFIG = {
       startup: 12, active: 5, recovery: 20,
       box: { x: 2.2, y: 0.9, w: 2.6, h: 0.7 },   // alcance muy largo (el látigo)
       damage: 13, base: 8, growth: 13, angle: 35,
-      longReach: true,
     },
     // --- FAXO (Richter): Axe (especial hacia abajo / proyectil en arco) ---
     // Hacha que vuela en arco (el Axe de Richter)
     axe: {
       startup: 11, active: 0, recovery: 19,
-      projectile: { speed: 13, life: 60, radius: 0.4, y: 1.2, arc: true, gravity: true },
+      projectile: { speed: 13, life: 60, radius: 0.4, y: 1.2, arc: true },
       damage: 11, base: 8, growth: 13, angle: 30,
       arcHeight: 4.5,        // altura del arco
     },
@@ -278,7 +268,6 @@ export const GAME_CONFIG = {
       startup: 10, active: 6, recovery: 20,
       box: { x: 1.3, y: 1.0, w: 2.2, h: 1.2 },
       damage: 13, base: 8, growth: 14, angle: 34, lunge: 11,
-      dashAttack: true, heavyHit: true,
     },
     // --- CHUBITCOIN (Pac-Man): Pac-Jump (especial hacia arriba) ---
     // Impulso hacia arriba que deja un trampolín (recuperación de Pac-Man)
@@ -286,7 +275,6 @@ export const GAME_CONFIG = {
       startup: 4, active: 10, recovery: 16,
       box: { x: 0.1, y: 0.9, w: 1.2, h: 1.6 },
       damage: 6, base: 5, growth: 16, angle: 80, boost: true,
-      trampoline: true,      // dibuja un trampolín al usarlo (visual)
     },
     // --- CHUBITCOIN (Pac-Man): Fire Hydrant (especial hacia abajo) ---
     // Manguera que queda en el piso y dispara chorros de agua al rival
@@ -380,7 +368,6 @@ export const GAME_CONFIG = {
 
       // === STANCE SYSTEM ===
       stance: 'normal',               // 'gordo' | 'flaco' | 'normal'
-      stanceSwitchCooldown: 0,        // frames
       
       // Stats por stance (se aplican multiplicadores al base)
       stances: {
@@ -463,7 +450,6 @@ export const GAME_CONFIG = {
       },
     },
   },
-  defaultCharacters: ['coco', 'faxo', 'domono', 'pablo', 'chubit'],
 
   // ------------------------------------------------------------------ escenarios
   stages: {
@@ -552,10 +538,9 @@ export const GAME_CONFIG = {
 
   // ------------------------------------------------------------------ jugadores locales (teclado y joystick)
   players: [
-    { short: 'P1', color: '#4d8bff', label: 'WASD + Espacio/G/H', controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'Space', attack: 'KeyG', special: 'KeyH' } },
-    { short: 'P2', color: '#ff5a36', label: 'Flechas + , . /', controls: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', jump: 'Comma', attack: 'Period', special: 'Slash' } },
-    { short: 'P3', color: '#5cc24a', label: 'IJKL + U/O/P', controls: { left: 'KeyJ', right: 'KeyL', up: 'KeyI', down: 'KeyK', jump: 'KeyU', attack: 'KeyO', special: 'KeyP' } },
-    { short: 'P4', color: '#ffc93c', label: 'Num 8456 + 1/2/3', controls: { left: 'Numpad4', right: 'Numpad6', up: 'Numpad8', down: 'Numpad5', jump: 'Numpad1', attack: 'Numpad2', special: 'Numpad3' } },
+    { short: 'P1', color: '#4d8bff', controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'Space', attack: 'KeyG', special: 'KeyH' } },
+    { short: 'P2', color: '#ff5a36', controls: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', jump: 'Comma', attack: 'Period', special: 'Slash' } },
+    { short: 'P3', color: '#5cc24a', controls: { left: 'KeyJ', right: 'KeyL', up: 'KeyI', down: 'KeyK', jump: 'KeyU', attack: 'KeyO', special: 'KeyP' } },
+    { short: 'P4', color: '#ffc93c', controls: { left: 'Numpad4', right: 'Numpad6', up: 'Numpad8', down: 'Numpad5', jump: 'Numpad1', attack: 'Numpad2', special: 'Numpad3' } },
   ],
-  maxPlayers: 4,
 };

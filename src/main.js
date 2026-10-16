@@ -177,6 +177,11 @@ function loop(now) {
       keys['Escape'] = false;
       setState('lobby');
     }
+    // F1 → mostrar/ocultar hitboxes de debug
+    if (keys['F1']) {
+      keys['F1'] = false;
+      renderer.toggleDebug();
+    }
   } else {
     // menú / lobby / resultados: solo el escenario de fondo + lineup si estamos en lobby
     accumulator = 0;
