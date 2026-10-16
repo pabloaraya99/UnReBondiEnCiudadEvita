@@ -67,11 +67,11 @@ export class UI {
     const titleWrap = document.createElement('div');
     titleWrap.style.cssText = 'position:absolute;top:5%;left:50%;width:min(78vw,900px);transform:translateX(-50%);animation:titleShake 3s ease-in-out infinite;';
     const titleImg = document.createElement('img');
-    titleImg.src = '/assets/ui/parallax/Title Text - Title Screen.jpg';
+    titleImg.src = '/assets/ui/parallax/Title Text - Title Screen.png';
     titleImg.alt = 'Un Re Bondi En Ciudad Evita';
     titleImg.draggable = false;
-    // screen elimina el fondo negro del JPG; si el archivo viene con fondo claro, cambiar a multiply
-    titleImg.style.cssText = 'display:block;width:100%;mix-blend-mode:screen;filter:drop-shadow(0 10px 28px rgba(0,0,0,0.75));animation:titleZoom 5s ease-in-out infinite;';
+    // PNG con transparencia real (el cuadriculado del JPG se removió por color)
+    titleImg.style.cssText = 'display:block;width:100%;filter:drop-shadow(0 10px 28px rgba(0,0,0,0.75));animation:titleZoom 5s ease-in-out infinite;';
     titleWrap.append(titleImg);
 
     const play = document.createElement('button');
