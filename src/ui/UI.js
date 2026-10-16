@@ -51,23 +51,28 @@ export class UI {
 
   showMenu() {
     this.clear();
-    // ============================================================
-    // DIAGNÓSTICO: menú con SOLO ESTILOS INLINE (sin depender de ui.css).
-    // Si esto se ve → el problema es la carga del CSS externo.
-    // Si no se ve → el problema es más profundo (DOM o algo que tapa todo).
-    // ============================================================
     const s = document.createElement('div');
     // pointer-events: auto porque #ui-root tiene pointer-events:none (los clics
     // pasan al canvas 3D en el juego); sin esto el botón no recibe clics
-    s.style.cssText = 'position:fixed;inset:0;z-index:50;background:#10121a url("/assets/ui/title-splash.jpg") center/cover no-repeat;pointer-events:auto;';
+    s.style.cssText = 'position:fixed;inset:0;z-index:50;overflow:hidden;background:#10121a;pointer-events:auto;';
 
-    const title = document.createElement('div');
-    title.textContent = 'UN RE BONDI';
-    title.style.cssText = 'position:absolute;top:8%;left:50%;transform:translateX(-50%);font-size:clamp(40px,7vw,84px);font-weight:900;letter-spacing:0.04em;color:#4CC458;-webkit-text-stroke:3px #14161a;text-shadow:0 5px 0 #1E5B2E,0 10px 24px rgba(0,0,0,0.6);white-space:nowrap;';
+    // fondo: capa exterior con vibración sutil + capa interior con zoom lento (Ken Burns)
+    const bgShake = document.createElement('div');
+    bgShake.style.cssText = 'position:absolute;inset:0;animation:menuBgShake 3.8s ease-in-out infinite;';
+    const bg = document.createElement('div');
+    bg.style.cssText = 'position:absolute;inset:-4%;background:url("/assets/ui/title-splash.jpg") center/cover no-repeat;animation:menuBgZoom 22s ease-in-out infinite alternate;';
+    bgShake.append(bg);
 
-    const sub = document.createElement('div');
-    sub.textContent = 'EN CIUDAD EVITA';
-    sub.style.cssText = 'position:absolute;top:24%;left:50%;transform:translateX(-50%);font-size:clamp(20px,3.4vw,40px);font-weight:900;letter-spacing:0.12em;color:#F2C94C;-webkit-text-stroke:2px #14161a;text-shadow:0 3px 0 #B8860B,0 8px 16px rgba(0,0,0,0.6);white-space:nowrap;';
+    // título: imagen JPG con zoom/pulse + vibración (wrapper separado para no pisar transforms)
+    const titleWrap = document.createElement('div');
+    titleWrap.style.cssText = 'position:absolute;top:5%;left:50%;width:min(78vw,900px);transform:translateX(-50%);animation:titleShake 3s ease-in-out infinite;';
+    const titleImg = document.createElement('img');
+    titleImg.src = '/assets/ui/parallax/Title Text - Title Screen.jpg';
+    titleImg.alt = 'Un Re Bondi En Ciudad Evita';
+    titleImg.draggable = false;
+    // screen elimina el fondo negro del JPG; si el archivo viene con fondo claro, cambiar a multiply
+    titleImg.style.cssText = 'display:block;width:100%;mix-blend-mode:screen;filter:drop-shadow(0 10px 28px rgba(0,0,0,0.75));animation:titleZoom 5s ease-in-out infinite;';
+    titleWrap.append(titleImg);
 
     const play = document.createElement('button');
     play.textContent = 'PRESS START';
@@ -75,15 +80,21 @@ export class UI {
     play.onclick = () => this.actions.onPlay();
 
     const version = document.createElement('div');
-    version.textContent = 'v3-inline-diagnostico';
+    version.textContent = 'v3-title-anim';
     version.style.cssText = 'position:absolute;bottom:12px;right:14px;font-size:12px;font-weight:700;color:rgba(244,241,232,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.9);';
 
-    // animación del botón por <style> inline (para no depender de ui.css)
+    // keyframes inline: pulse del botón + zoom/vibración de fondo y título
     const st = document.createElement('style');
-    st.textContent = '@keyframes diagPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.07);box-shadow:0 0 34px rgba(233,196,106,0.7)}}';
+    st.textContent = `
+      @keyframes diagPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.07);box-shadow:0 0 34px rgba(233,196,106,0.7)}}
+      @keyframes menuBgZoom{0%{transform:scale(1)}100%{transform:scale(1.07)}}
+      @keyframes menuBgShake{0%,100%{transform:translate(0,0)}22%{transform:translate(1.5px,-1px)}48%{transform:translate(-1px,1.5px)}74%{transform:translate(1px,1px)}}
+      @keyframes titleZoom{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+      @keyframes titleShake{0%,100%{transform:translateX(-50%) translate(0,0)}25%{transform:translateX(-50%) translate(2px,-1.5px)}50%{transform:translateX(-50%) translate(-1.5px,1.5px)}75%{transform:translateX(-50%) translate(1.5px,1px)}}
+    `;
     document.head.appendChild(st);
 
-    s.append(title, sub, play, version);
+    s.append(bgShake, titleWrap, play, version);
     this.root.append(s);
   }
 
@@ -128,6 +139,8 @@ export class UI {
       charImg.alt = ch.name;
       charImg.draggable = false;
       charImg.src = CHARACTER_SPLASH[slot.character] || '/assets/ui/pilots/Kenai3d 1.png';
+      // zoom sutil escalonado (cardZoom en ui.css) — cada tarjeta con su fase
+      charImg.style.animationDelay = `${i * 1.4}s`;
       const nameTag = el('div', 'slot-char-name', ch.name);
       nameTag.style.background = ch.color;
       charBtn.append(charImg, nameTag);

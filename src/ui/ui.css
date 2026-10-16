@@ -80,6 +80,15 @@
   font-size: 2rem;
   text-shadow: 0 3px 0 #7a5c1e, 0 6px 18px rgba(0,0,0,0.75);
   line-height: 1;
+  /* vibración sutil continua (micro-shake de pelea) */
+  animation: lobbyTitleShake 2.8s ease-in-out infinite;
+}
+@keyframes lobbyTitleShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(1px, -0.8px); }
+  40% { transform: translate(-1px, 0.8px); }
+  60% { transform: translate(0.8px, 1px); }
+  80% { transform: translate(-0.8px, -1px); }
 }
 .lobby-screen .ui-subtitle {
   margin-top: -10px;
@@ -903,6 +912,19 @@
   padding: 0;
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
+/* glow interior que "respira" — en pseudo-elemento para no pisar el hover del borde */
+.lobby-slot .slot-char-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  pointer-events: none;
+  animation: cardGlowPulse 4s ease-in-out infinite;
+}
+@keyframes cardGlowPulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px rgba(90, 96, 120, 0.25); }
+  50% { box-shadow: inset 0 0 0 2px rgba(120, 130, 170, 0.55), inset 0 0 18px rgba(120, 130, 170, 0.12); }
+}
 .lobby-slot .slot-char-card:hover {
   border-color: #e9c46a;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -916,6 +938,12 @@
   display: block;
   filter: none;
   transition: transform 0.2s ease;
+  /* zoom sutil tipo Ken Burns continuo (el delay se setea en UI.js por tarjeta) */
+  animation: cardZoom 6s ease-in-out infinite;
+}
+@keyframes cardZoom {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.07; }
 }
 .lobby-slot .slot-char-card:hover img {
   transform: scale(1.04);
