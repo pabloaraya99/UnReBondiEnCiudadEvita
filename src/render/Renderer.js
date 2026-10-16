@@ -117,11 +117,11 @@ export class Renderer {
         def.url,
         (gltf) => {
           const model = gltf.scene;
-          // normalizar: escalar para que el largo sea ~4.2 y apoyar en y=0
+          // normalizar: escalar para que el largo sea ~4.6 y apoyar en y=0
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
           const largo = Math.max(size.x, size.z);
-          const escala = 4.2 / (largo || 1);
+          const escala = 4.6 / (largo || 1);
           model.scale.setScalar(escala);
           // recentrar tras escalar
           const box2 = new THREE.Box3().setFromObject(model);
@@ -129,11 +129,24 @@ export class Renderer {
           model.position.x -= c.x;
           model.position.z -= c.z;
           model.position.y -= box2.min.y;
-          model.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
+          // preparar materiales para tinte posterior (clonar y marcar)
+          model.traverse((o) => {
+            if (o.isMesh) {
+              o.castShadow = true;
+              o.receiveShadow = true;
+              // clonar material para poder teñir cada instancia sin afectar al original
+              if (Array.isArray(o.material)) {
+                o.material = o.material.map((m) => m.clone());
+              } else if (o.material) {
+                o.material = o.material.clone();
+              }
+            }
+          });
           this.carModelPool.set(def.id, model);
+          console.log('[cars] GLB listo:', def.id, 'escala', escala.toFixed(2));
         },
         undefined,
-        () => { /* si falla, drawCars usa el auto procedural de fallback */ },
+        (err) => { console.warn('[cars] fallo al cargar', def.url, err); },
       );
     }
   }
@@ -1569,7 +1582,8 @@ export class Renderer {
     }
   }
 
-  /** Crea el mesh de un auto del tráfico: GLB de Vita Machines si está listo, si no el procedural. */
+  /** Crea el mesh de un auto del tráfico: GLB de Vita Machines si está listo, si no el procedural.
+   *  Cada instancia clona materiales y aplica un tinte de color argentino variable. */
   makeTrafficCar(id, carColors, poolIds) {
     const poolId = poolIds[id % poolIds.length];
     const def = CAR_MODEL_FILES.find((d) => d.id === poolId);
@@ -1577,6 +1591,22 @@ export class Renderer {
     if (src) {
       const clone = src.clone(true);
       if (def?.rotY) clone.rotation.y = def.rotY;
+      // tinte de color: recorrer meshes y multiplicar el color base del material
+      // por un color de carrocería (deja vidrios/metasles/neumáticos casi igual)
+      const tint = new THREE.Color(carColors[id % carColors.length]);
+      clone.traverse((o) => {
+        if (!o.isMesh || !o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) {
+          if (!m.color) continue;
+          // si el material es muy oscuro (neumáticos, plásticos) o muy claro (vidrios), no teñir
+          const hsl = { h: 0, s: 0, l: 0 };
+          m.color.getHSL(hsl);
+          if (hsl.l < 0.15 || hsl.l > 0.85 || hsl.s > 0.6) continue;
+          // multiplicar para obtener el tinte deseado preservando variación del modelo
+          m.color.multiply(tint);
+        }
+      });
       const holder = new THREE.Group();
       holder.add(clone);
       return holder;
