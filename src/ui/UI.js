@@ -134,15 +134,15 @@ export class UI {
       fxLayer.append(gl);
     });
 
-    // título: más abajo y más chico — que no tape las caras de Kenai y Coco
+    // título: grande, centrado abajo — que no tape las caras de Kenai y Coco
     const titleWrap = document.createElement('div');
-    titleWrap.style.cssText = 'position:absolute;top:54%;left:50%;width:min(36vw,440px);transform:translate(-50%,-50%);animation:titleShake 3s ease-in-out infinite;';
+    titleWrap.style.cssText = 'position:absolute;bottom:12%;left:50%;width:min(62vw,780px);transform:translateX(-50%);animation:titleShake 3s ease-in-out infinite;';
     const titleImg = document.createElement('img');
     titleImg.src = '/assets/ui/parallax/Title Text - Title Screen.png';
     titleImg.alt = 'Un Re Bondi En Ciudad Evita';
     titleImg.draggable = false;
     // PNG con transparencia real (el cuadriculado del JPG se removió por color)
-    titleImg.style.cssText = 'display:block;width:100%;filter:drop-shadow(0 8px 22px rgba(0,0,0,0.75));animation:titleZoom 5s ease-in-out infinite;';
+    titleImg.style.cssText = 'display:block;width:100%;filter:drop-shadow(0 10px 26px rgba(0,0,0,0.8));animation:titleZoom 5s ease-in-out infinite;';
     titleWrap.append(titleImg);
 
     // start: arriba, donde estaba el título
@@ -162,7 +162,7 @@ export class UI {
       @keyframes menuBgZoom{0%{transform:scale(1)}100%{transform:scale(1.07)}}
       @keyframes menuBgShake{0%,100%{transform:translate(0,0)}22%{transform:translate(2px,-1.5px)}48%{transform:translate(-1.5px,2px)}74%{transform:translate(1.5px,1.5px)}}
       @keyframes titleZoom{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
-      @keyframes titleShake{0%,100%{transform:translate(-50%,-50%) translate(0,0)}25%{transform:translate(-50%,-50%) translate(1.5px,-1px)}50%{transform:translate(-50%,-50%) translate(-1px,1.5px)}75%{transform:translate(-50%,-50%) translate(1px,1px)}}
+      @keyframes titleShake{0%,100%{transform:translateX(-50%) translate(0,0)}25%{transform:translateX(-50%) translate(1.5px,-1px)}50%{transform:translateX(-50%) translate(-1px,1.5px)}75%{transform:translateX(-50%) translate(1px,1px)}}
       @keyframes smokeDrift{0%{transform:translateX(0) translateY(0)}50%{transform:translateX(60vw) translateY(-3%)}100%{transform:translateX(120vw) translateY(-6%)}}
       @keyframes sparkFloat{0%{transform:translateY(0) scale(1);opacity:0}12%{opacity:1}60%{opacity:0.85}100%{transform:translateY(-48vh) scale(0.35);opacity:0}}
       @keyframes sparkFlicker{0%,100%{opacity:1}50%{opacity:0.35}}
