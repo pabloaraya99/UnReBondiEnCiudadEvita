@@ -175,35 +175,7 @@
   0%, 100% { border-color: #3a3f52; }
   50% { border-color: #6a7392; }
 }
-/* preview del mapa seleccionado (fondo que cambia con el botón) */
-.lobby-stage-preview {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.35;
-  transition: opacity 0.4s ease, background 0.5s ease;
-}
-.lobby-stage-preview.stage-mormones {
-  background:
-    radial-gradient(ellipse at 50% 80%, rgba(74, 158, 66, 0.4) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 30%, rgba(236, 234, 228, 0.25) 0%, transparent 40%),
-    linear-gradient(180deg, #2f8fdd 0%, #7ec8f0 35%, #9fd4f5 55%, #5a8a4a 75%, #3a6a30 100%);
-}
-.lobby-stage-preview.stage-escritorio {
-  background:
-    radial-gradient(ellipse at 50% 70%, rgba(139, 90, 43, 0.5) 0%, transparent 55%),
-    radial-gradient(ellipse at 30% 25%, rgba(255, 255, 255, 0.15) 0%, transparent 35%),
-    linear-gradient(180deg, #4a3728 0%, #6b4a2f 30%, #8a5a33 55%, #a07040 75%, #5a3a22 100%);
-}
-.lobby-stage-preview::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: url('/assets/ui/graffiti_diff.jpg') center/400px repeat;
-  opacity: 0.06;
-  mix-blend-mode: overlay;
-}
+
 /* indicador de joystick conectado en el lobby */
 .lobby-gamepad-ind {
   font-family: 'Bungee', 'Arial Black', sans-serif;

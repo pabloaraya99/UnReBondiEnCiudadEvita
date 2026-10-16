@@ -92,6 +92,12 @@ const ui = new UI(document.body, {
   onRematch: () => startMatch(app.slots, app.stageId),
   onLobby: () => setState('lobby'),
   onMenu: () => setState('menu'),
+  // al ciclar el mapa en el lobby: reconstruir el escenario 3D de fondo
+  onStageChange: (stageId) => {
+    renderer.setStage(GAME_CONFIG.stages[stageId]);
+    // re-mostrar el lineup sobre el escenario nuevo
+    if (app.state === 'lobby') renderer.showLineup();
+  },
 });
 
 function setState(s) {

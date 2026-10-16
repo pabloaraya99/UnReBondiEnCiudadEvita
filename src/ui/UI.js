@@ -183,11 +183,6 @@ export class UI {
     this.clear();
     const s = el('div', 'ui-screen lobby-screen');
 
-    // preview del mapa seleccionado (fondo que cambia al ciclar con el botón)
-    const stageId = this._stageId ?? GAME_CONFIG.defaultStage;
-    const stagePreview = el('div', `lobby-stage-preview stage-${stageId}`);
-    s.append(stagePreview);
-
     // capas de movimiento de fondo (mismo estilo que el title screen, más liviano)
     const fx = el('div', 'lobby-fx');
     // humo: blobs suaves que derivan (sin filter:blur)
@@ -289,11 +284,14 @@ export class UI {
     const active = slots.filter((x) => x.type !== 'off').length;
     const bottom = el('div', 'lobby-bottom');
 
-    // selector de mapa: cicla por GAME_CONFIG.stages
+    // selector de mapa: cicla por GAME_CONFIG.stages — al cambiar, el renderer
+    // reconstruye el escenario 3D de fondo (onStageChange en main.js)
     const stageIds = Object.keys(GAME_CONFIG.stages);
     const stageBtn = smallBtn(`MAPA: ${GAME_CONFIG.stages[this._stageId ?? GAME_CONFIG.defaultStage].name}`, () => {
       const cur = stageIds.indexOf(this._stageId ?? GAME_CONFIG.defaultStage);
       this._stageId = stageIds[(cur + 1) % stageIds.length];
+      // avisar al renderer para que cambie el escenario 3D de fondo
+      this.actions.onStageChange?.(this._stageId);
       rerender();
     });
     stageBtn.classList.add('lobby-stage-btn');
