@@ -134,9 +134,9 @@ export class UI {
       fxLayer.append(gl);
     });
 
-    // título: al centro, un poco más grande
+    // título: más abajo y más chico — que no tape las caras de Kenai y Coco
     const titleWrap = document.createElement('div');
-    titleWrap.style.cssText = 'position:absolute;top:42%;left:50%;width:min(44vw,540px);transform:translate(-50%,-50%);animation:titleShake 3s ease-in-out infinite;';
+    titleWrap.style.cssText = 'position:absolute;top:54%;left:50%;width:min(36vw,440px);transform:translate(-50%,-50%);animation:titleShake 3s ease-in-out infinite;';
     const titleImg = document.createElement('img');
     titleImg.src = '/assets/ui/parallax/Title Text - Title Screen.png';
     titleImg.alt = 'Un Re Bondi En Ciudad Evita';
