@@ -51,15 +51,18 @@ test('el especial neutro de Pablo cicla Normal → Gordo → Flaco → Normal (c
   assert.equal(p.stance, first, 'el cooldown evita cambiar dos veces seguidas');
 });
 
-test('los otros personajes siguen disparando con el especial neutro', () => {
+test('Coco (Ike) dispara Eruption con el especial neutro', () => {
   const m = new Match({ players: [{ character: 'coco' }, { character: 'faxo' }] });
   run(m, GAME_CONFIG.match.countdownFrames, []);
-  assert.equal(eventsOf(m, 12, [IN.SPECIAL], 'shot').length, 1);
+  // Eruption (proyectil de fuego de Ike) sale con especial neutro; tarda startup 16
+  assert.equal(eventsOf(m, 22, [IN.SPECIAL], 'shot').length, 1);
 });
 
-test('Pablo dispara con ← / → + especial', () => {
+test('Kenai (Kirby) usa Hammer con ← / → + especial', () => {
   const m = started();
-  assert.equal(eventsOf(m, 14, [IN.RIGHT | IN.SPECIAL], 'shot').length, 1);
+  // El especial de costado de Kirby es Hammer (cuerpo a cuerpo), no un proyectil
+  const ataques = eventsOf(m, 20, [IN.RIGHT | IN.SPECIAL], 'attack').filter((e) => e.move === 'hammer');
+  assert.equal(ataques.length, 1);
   assert.equal(m.fighters[0].stance, 'normal', 'no cambió de stance');
 });
 

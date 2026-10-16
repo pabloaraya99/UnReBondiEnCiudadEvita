@@ -102,6 +102,11 @@ export class Fighter {
     return baseVal * mult;
   }
 
+  /** Multiplicador de caída por personaje (Ness/Domono cae más lento = floaty). */
+  get floatyMult() {
+    return this.spec.floaty ?? 1.0;
+  }
+
   get width() {
     return this.getEffectiveStat('width', 'widthMult');
   }
@@ -127,10 +132,10 @@ export class Fighter {
     return this.getEffectiveStat('doubleJumpSpeed', 'jumpMult');
   }
   get fallSpeed() {
-    return this.getEffectiveStat('fallSpeed', 'fallMult');
+    return this.getEffectiveStat('fallSpeed', 'fallMult') * this.floatyMult;
   }
   get fastFallSpeed() {
-    return this.getEffectiveStat('fastFallSpeed', 'fallMult');
+    return this.getEffectiveStat('fastFallSpeed', 'fallMult') * this.floatyMult;
   }
   get alive() {
     return this.state !== 'ko' && this.state !== 'dead';
@@ -285,23 +290,36 @@ export class Fighter {
         this.startAttack(this.getMoveId(id), ctx);
       } else if (this.buf.special > 0) {
         const neutral = !up && !down && x === 0;
+        const sp = this.spec.specials; // especiales estilo Smash por personaje
+
         if (neutral && this.spec.stances) {
           // Stance Switch: especial neutro de los personajes con stances (Pablo). El proyectil sale con ← / →.
           if (this.stanceSwitchCd === 0) {
             this.startStanceSwitch(ctx);
             this.buf.special = 0;
           }
-        } else if (up) {
-          if (this.spec.swordSlash && !this.upSpecialUsed) {
-            // Sword Slash: ↑ + Especial (reemplaza el upSpecial genérico)
-            this.buf.special = 0;
-            this.startSwordSlash(ctx);
-          } else if (!this.spec.swordSlash && !this.upSpecialUsed && MOVES.upSpecial) {
-            this.buf.special = 0;
-            this.startAttack('upSpecial', ctx);
-          }
+        } else if (up && sp?.up && !this.upSpecialUsed) {
+          // ↑ + Especial: recovery del personaje (swordSlash/uppercut/pkThunderUp)
+          this.startSpecial(sp.up, ctx);
+        } else if (down && sp?.down) {
+          // ↓ + Especial: stance del personaje (blockForm/counter/pkMagnet/axe)
+          this.startSpecial(sp.down, ctx);
+        } else if (x !== 0 && sp?.side) {
+          // ← / → + Especial: especial de costado del personaje
+          this.facing = x;
+          this.startSpecial(sp.side, ctx);
+        } else if (neutral && sp?.neutral && this.shotCd === 0) {
+          // Especial neutro del personaje (sin dirección)
+          this.startSpecial(sp.neutral, ctx);
+        } else if (up && this.spec.swordSlash && !this.upSpecialUsed) {
+          // legacy: swordSlash de Pablo
+          this.buf.special = 0;
+          this.startSwordSlash(ctx);
+        } else if (up && !this.spec.swordSlash && !sp?.up && !this.upSpecialUsed && MOVES.upSpecial) {
+          this.buf.special = 0;
+          this.startAttack('upSpecial', ctx);
         } else if (down && this.spec.blockForm) {
-          // Block Form: ↓ + Especial
+          // legacy: blockForm de Pablo
           this.buf.special = 0;
           this.startBlockForm(ctx);
         } else if (this.shotCd === 0) {
@@ -317,6 +335,50 @@ export class Fighter {
     // ---- salto corto
     if (!jumpHeld && this.airFrames > 0 && this.airFrames <= P.jumpCutWindow && this.vy > P.jumpCutSpeed) this.vy = P.jumpCutSpeed;
     if (this.airFrames > 0) this.airFrames++;
+  }
+
+  /**
+   * Rutea un especial por su tipo (estilo Smash): swordSlash-type (sube y baja),
+   * stance-type (blockForm/counter/magnet), proyectil, o ataque cuerpo a cuerpo.
+   */
+  startSpecial(id, ctx) {
+    const m = MOVES[id];
+    if (!m) {
+      console.error(`[Fighter ${this.index}] Especial "${id}" no existe en MOVES`);
+      this.buf.special = 0;
+      return;
+    }
+    // swordSlash-type: sube y baja (swordSlash, uppercut)
+    if (m.launchesUp) {
+      if (this.upSpecialUsed) return;
+      this.buf.special = 0;
+      this.startSwordSlash(ctx, id);
+      return;
+    }
+    // boost de recuperación (pkThunderUp): impulso hacia arriba + hitbox
+    if (m.boost) {
+      if (this.upSpecialUsed) return;
+      this.buf.special = 0;
+      this.startAttack(id, ctx);
+      return;
+    }
+    // stance-type: se mantiene activo (blockForm, counter, pkMagnet)
+    if (m.isStance) {
+      this.buf.special = 0;
+      this.startBlockForm(ctx, id);
+      return;
+    }
+    // proyectiles: eruption, pkFire, pkThunder, holyWater, axe
+    if (m.projectile) {
+      if (this.shotCd > 0) return;
+      this.buf.special = 0;
+      this.shotCd = SHOT_COOLDOWN;
+      this.startAttack(id, ctx);
+      return;
+    }
+    // ataques cuerpo a cuerpo: inhale, hammer, quickDraw, whip
+    this.buf.special = 0;
+    this.startAttack(id, ctx);
   }
 
   startAttack(id, ctx) {
@@ -346,9 +408,19 @@ export class Fighter {
 
   // ============================================================ SWORD SLASH (Final Cutter)
 
-  startSwordSlash(ctx) {
-    const ss = this.special('swordSlash');
-    this.attack = { id: ss.moveId, frame: 0, hit: [] };
+  /** Datos de un movimiento por id, con override del stance del personaje si aplica. */
+  specialData(moveId) {
+    const move = MOVES[moveId];
+    if (!move) throw new Error(`Falta el move "${moveId}" en config.moves`);
+    // si el stance actual define un override para este id, se usa encima
+    const stanceMoves = this.getCurrentMoves();
+    const overrideId = stanceMoves[moveId] ? moveId : null;
+    return { ...move, _moveId: moveId };
+  }
+
+  startSwordSlash(ctx, moveId = 'swordSlash') {
+    const ss = this.specialData(moveId);
+    this.attack = { id: moveId, frame: 0, hit: [] };
     this.swordSlashPhase = 'rise';
     this.swordSlashPeakY = this.y + ss.maxHeight;
     this.swordSlashHitLanded = false;
@@ -358,12 +430,13 @@ export class Fighter {
     this.standingOn = null;
     this.upSpecialUsed = true;
     this.state = 'swordSlashRise';
-    ctx.events.push({ type: 'swordSlashStart', i: this.index, x: this.x, y: this.y });
+    this._ssData = ss;
+    ctx.events.push({ type: 'swordSlashStart', i: this.index, x: this.x, y: this.y, move: moveId });
   }
 
   stepSwordSlash(x, up, down, pressed, jumpHeld, ctx) {
-    const ss = this.special('swordSlash');
-    const move = MOVES[ss.moveId];
+    const ss = this._ssData ?? this.specialData('swordSlash');
+    const move = MOVES[this.attack?.id ?? 'swordSlash'];
     const a = this.attack;
 
     if (this.swordSlashPhase === 'rise') {
@@ -429,26 +502,29 @@ export class Fighter {
 
   // ============================================================ BLOCK FORM (Stone)
 
-  startBlockForm(ctx) {
-    const bf = this.special('blockForm');
+  startBlockForm(ctx, moveId = 'blockForm') {
+    const bf = this.specialData(moveId);
     this.blockFormActive = true;
+    this._bfData = bf;
     this.blockFormTimer = bf.maxDuration;
     this.blockFormHitLanded = false;
     this.vx = 0;
     this.vy = 0;
-    this.fastFall = true;
+    this.fastFall = bf.fallMultiplier ? true : false;
     this.state = 'blockForm';
-    this.attack = { id: bf.moveId, frame: 0, hit: [] };
-    ctx.events.push({ type: 'blockFormStart', i: this.index, x: this.x, y: this.y });
+    this.attack = { id: moveId, frame: 0, hit: [] };
+    ctx.events.push({ type: 'blockFormStart', i: this.index, x: this.x, y: this.y, move: moveId });
   }
 
   stepBlockForm(x, up, down, pressed, jumpHeld, ctx) {
-    const bf = this.special('blockForm');
+    const bf = this._bfData ?? this.specialData('blockForm');
 
     this.blockFormTimer--;
 
-    // Caída ultra rápida
-    this.vy = -bf.fallMultiplier * P.fallSpeed;
+    // Caída ultra rápida (solo Stone/blockForm; counter y magnet no caen)
+    if (bf.fallMultiplier) {
+      this.vy = -bf.fallMultiplier * P.fallSpeed;
+    }
 
     // No control horizontal, pero se puede mover levemente
     if (x !== 0) {
@@ -458,7 +534,7 @@ export class Fighter {
     // Cancelar: soltar especial o saltar o tiempo agotado
     const specialHeld = has(this.prevMask, IN.SPECIAL);
     const jumpPressed = (pressed & IN.JUMP) || this.buf.jump > 0;
-    
+
     if (!specialHeld || jumpPressed || this.blockFormTimer <= 0) {
       this.endBlockForm(ctx);
       if (jumpPressed && this.jumpsLeft > 0) {
@@ -468,15 +544,15 @@ export class Fighter {
       return;
     }
 
-    // Detectar aterrizaje para shockwave
-    if (this.grounded && !this.blockFormHitLanded) {
+    // Detectar aterrizaje para shockwave (solo Stone/blockForm)
+    if (bf.landShockwave && this.grounded && !this.blockFormHitLanded) {
       this.blockFormHitLanded = true;
       this.createBlockFormShockwave(ctx, bf);
     }
   }
 
   endBlockForm(ctx) {
-    const bf = this.special('blockForm');
+    const bf = this._bfData ?? this.specialData('blockForm');
     this.blockFormActive = false;
     this.fastFall = false;
     this.attack = null;
@@ -484,6 +560,7 @@ export class Fighter {
     ctx.events.push({ type: 'blockFormEnd', i: this.index, x: this.x, y: this.y });
     // End lag
     this.hitstun = bf.endLag;
+    this._bfData = null;
   }
 
   createBlockFormShockwave(ctx, bf) {

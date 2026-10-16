@@ -1825,12 +1825,19 @@ export class Renderer {
 
   drawProjectiles(match, alpha) {
     const seen = new Set();
+    const colorFor = (move) => {
+      if (move.projectile?.fire) return 0xff7a2a;      // fuego (Eruption, PK Fire)
+      if (move.projectile?.electric) return 0x7fd0ff;  // eléctrico (PK Thunder)
+      if (move.projectile?.holy) return 0x6fc3e8;      // agua bendita (Holy Water)
+      if (move.projectile?.arc) return 0xd8cfc0;       // hacha
+      return 0xffd23c;                                  // genérico
+    };
     for (const p of match.projectiles) {
       seen.add(p.id);
       let mesh = this.projectileMeshes.get(p.id);
       if (!mesh) {
         const r = MOVES[p.move].projectile.radius;
-        mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffd23c }));
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), new THREE.MeshBasicMaterial({ color: colorFor(MOVES[p.move]) }));
         this.scene.add(mesh);
         this.projectileMeshes.set(p.id, mesh);
       }
@@ -1843,6 +1850,46 @@ export class Renderer {
       mesh.material.dispose();
       this.projectileMeshes.delete(id);
     }
+    // ---- llamas persistentes en el suelo (Holy Water / PK Fire) ----
+    this.drawFlames(match);
+  }
+
+  /** Dibuja las llamas persistentes (Holy Water azul, PK Fire naranja). */
+  drawFlames(match) {
+    if (!this._flameMeshes) this._flameMeshes = [];
+    const flames = match.flames ?? [];
+    // ajustar la cantidad de meshes
+    while (this._flameMeshes.length < flames.length) {
+      const g = new THREE.Group();
+      const base = new THREE.Mesh(
+        new THREE.ConeGeometry(0.5, 1.2, 8),
+        new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0.9 }),
+      );
+      base.position.y = 0.6;
+      const inner = new THREE.Mesh(
+        new THREE.ConeGeometry(0.28, 0.8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.9 }),
+      );
+      inner.position.y = 0.5;
+      g.add(base, inner);
+      this.scene.add(g);
+      this._flameMeshes.push(g);
+    }
+    while (this._flameMeshes.length > flames.length) {
+      const g = this._flameMeshes.pop();
+      this.scene.remove(g);
+    }
+    const t = performance.now() / 1000;
+    flames.forEach((f, i) => {
+      const g = this._flameMeshes[i];
+      const isHoly = MOVES[f.move]?.groundFlame;
+      g.position.set(f.x, f.y, 0.5);
+      const flick = 1 + Math.sin(t * 18 + i * 2) * 0.18;
+      g.scale.set(flick, 1 + Math.sin(t * 22 + i) * 0.22, 1);
+      const col = isHoly ? 0x6fc3e8 : 0xff7a2a;
+      g.children[0].material.color.setHex(col);
+      g.children[0].material.opacity = 0.55 + Math.sin(t * 14 + i) * 0.2;
+    });
   }
 
   // ------------------------------------------------------------------ efectos (se disparan con los eventos de la simulación)
@@ -1867,6 +1914,22 @@ export class Renderer {
         this.burst(e.x, e.y + 0.9, 18, 0x9fe8ff, 6, 0.6, 0.14);
       } else if (e.type === 'shot-end') {
         this.burst(e.x, e.y, 6, 0xffd23c, 5, 0.25, 0.1);
+      } else if (e.type === 'burst') {
+        // explosión de fuego (Eruption de Ike / PK Fire de Ness)
+        this.burst(e.x, e.y, 22, 0xff7a2a, 12, 0.6, 0.22);
+        this.burst(e.x, e.y, 14, 0xffd23c, 8, 0.45, 0.16);
+        this.burst(e.x, e.y, 8, 0xff5a36, 6, 0.35, 0.14);
+        this.rig.addShake(CAM.shake.hit * 1.4);
+      } else if (e.type === 'counter') {
+        // contraataque de Ike: flash dorado fuerte
+        this.burst(e.x, e.y, 20, 0xf2c94c, 14, 0.6, 0.2);
+        this.burst(e.x, e.y, 12, 0xffffff, 10, 0.5, 0.16);
+      } else if (e.type === 'magnet') {
+        // absorción de Ness: flash celeste suave
+        this.burst(e.x, e.y, 10, 0x7fd0ff, 6, 0.4, 0.14);
+      } else if (e.type === 'inhale') {
+        // succión de Kirby: espiral blanca
+        this.burst(e.x, e.y, 10, 0xffffff, 5, 0.4, 0.13);
       } else if (e.type === 'boost') {
         this.burst(e.x, e.y, 10, 0xffffff, 6, 0.35, 0.12);
       } else if (e.type === 'car-spawn') {

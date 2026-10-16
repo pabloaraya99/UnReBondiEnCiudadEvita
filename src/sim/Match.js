@@ -4,6 +4,7 @@ import { Fighter } from './Fighter.js';
 const { physics: P, moves: MOVES, physicsStep: DT, match: M } = GAME_CONFIG;
 
 const overlap = (a, b) => a.l < b.r && a.r > b.l && a.b < b.t && a.t > b.b;
+const approach = (cur, target, step) => cur < target ? Math.min(cur + step, target) : Math.max(cur - step, target);
 const circleOverlap = (cx, cy, r, box) => {
   const dx = Math.max(box.l - cx, 0, cx - box.r);
   const dy = Math.max(box.b - cy, 0, cy - box.t);
@@ -46,6 +47,7 @@ export class Match {
     });
     this.projectiles = [];
     this.nextProjectileId = 1;
+    this.flames = []; // llamas persistentes (Holy Water / PK Fire)
     // tráfico del escenario (autos con hitbox, estilo Onett)
     this.cars = [];
     this.nextCarId = 1;
@@ -92,11 +94,39 @@ export class Match {
 
     this.fightFrames++;
     this.updateProjectiles(ctx);
+    this.updateFlames();
     this.updateTraffic(ctx);
+    this.resolveVortex();      // Inhale de Kirby: succión hacia el atacante
     this.resolveHits();
-    this.resolveSpecialHits(); // swordSlashLand, blockFormLand
+    this.resolveSpecialHits(); // swordSlashLand, blockFormLand, burst
     this.checkBlastZones();
     this.checkEnd();
+  }
+
+  /** Inhale (Kirby/Kenai): durante los frames activos, atrae al rival hacia el
+   *  atacante. El daño y el escupitajo salen del hitbox normal (resolveHits). */
+  resolveVortex() {
+    for (const a of this.fighters) {
+      const atk = a.attack;
+      if (!atk) continue;
+      const m = MOVES[atk.id];
+      if (!m?.vortex) continue;
+      if (atk.frame < m.startup || atk.frame >= m.startup + m.active) continue;
+      // atrae al rival dentro del área de succión hacia el atacante
+      const cx = a.x + a.facing * m.box.x;
+      const cy = a.y + m.box.y;
+      const area = { l: cx - m.box.w / 2, r: cx + m.box.w / 2, b: cy - m.box.h / 2, t: cy + m.box.h / 2 };
+      for (const v of this.fighters) {
+        if (v === a || !v.alive || v.invuln > 0) continue;
+        if (overlap(area, v.hurtbox())) {
+          // succión: acelera al rival hacia el atacante
+          const dir = Math.sign(a.x - v.x) || a.facing;
+          v.vx = approach(v.vx, dir * (m.vortexPull ?? 0.3) * 20, 2.5);
+          v.hitstun = Math.max(v.hitstun, 4); // lo mantiene atrapado
+          if (atk.frame === m.startup) this.events.push({ type: 'inhale', attacker: a.index, victim: v.index, x: v.x, y: v.y });
+        }
+      }
+    }
   }
 
   // ------------------------------------------------------------------ tráfico (autos con hitbox)
@@ -171,28 +201,75 @@ export class Match {
     for (const p of this.projectiles) {
       p.prevX = p.x;
       p.prevY = p.y;
+      const m = MOVES[p.move];
+      // Axe (Richter): vuela en ARCO — sube y cae con gravedad
+      if (m.projectile.arc) {
+        p.vy = (p.vy ?? m.arcHeight ?? 4) - P.gravity * DT * 0.9;
+        p.y += p.vy * DT;
+      }
       p.x += p.vx * DT;
       p.life--;
-      const r = MOVES[p.move].projectile.radius;
+      const r = m.projectile.radius;
       let dead = p.life <= 0;
+      let hitGround = false;
       for (const s of this.stage.solids) {
-        if (p.x + r > s.l && p.x - r < s.r && p.y + r > s.bottom && p.y - r < s.top) dead = true;
+        if (p.x + r > s.l && p.x - r < s.r && p.y + r > s.bottom && p.y - r < s.top) { dead = true; hitGround = true; }
       }
       if (!dead && this.phase === 'fighting') {
         const box = { l: p.x - r, r: p.x + r, b: p.y - r, t: p.y + r };
         for (const v of this.fighters) {
           if (v.index === p.owner || !v.alive || v.invuln > 0) continue;
           if (overlap(box, v.hurtbox())) {
-            this.applyHit(v, this.fighters[p.owner], MOVES[p.move], p.dir, { x: p.x, y: p.y });
+            this.applyHit(v, this.fighters[p.owner], m, p.dir, { x: p.x, y: p.y });
             dead = true;
             break;
           }
         }
       }
-      if (dead) this.events.push({ type: 'shot-end', x: p.x, y: p.y });
-      else keep.push(p);
+      if (dead) {
+        // BURST (Eruption de Ike / PK Fire de Ness): estalla en llamas con AoE
+        if (m.burst) {
+          this.events.push({ type: 'burst', i: p.owner, x: p.x, y: p.y, radius: m.burstRadius, damage: m.burstDamage, base: m.burstBase, growth: m.burstGrowth, angle: m.burstAngle, move: p.move });
+        }
+        // Holy Water / PK Fire con llama persistente: deja una llama en el suelo
+        if ((m.groundFlame || m.lingering) && hitGround) {
+          this.flames.push({
+            x: p.x, y: p.y, owner: p.owner, move: p.move,
+            frames: m.flameFrames ?? m.lingerFrames ?? 60,
+            radius: m.flameRadius ?? m.burstRadius ?? 0.9,
+            damage: m.flameDamage ?? m.burstDamage ?? 5,
+            base: m.flameBase ?? m.burstBase ?? 3,
+            growth: m.flameGrowth ?? m.burstGrowth ?? 8,
+            angle: 60,
+          });
+          this.events.push({ type: 'flame-start', x: p.x, y: p.y, move: p.move });
+        }
+        this.events.push({ type: 'shot-end', x: p.x, y: p.y });
+      } else keep.push(p);
     }
     this.projectiles = keep;
+  }
+
+  /** Llamas persistentes en el suelo (Holy Water / PK Fire): dañan por contacto. */
+  updateFlames() {
+    const keep = [];
+    for (const f of this.flames) {
+      f.frames--;
+      if (f.frames <= 0) { this.events.push({ type: 'flame-end', x: f.x, y: f.y }); continue; }
+      if (this.phase === 'fighting' && f.frames % 12 === 0) { // daña cada 12 frames (no cada frame)
+        const move = { damage: f.damage, base: f.base, growth: f.growth, angle: f.angle };
+        for (const v of this.fighters) {
+          if (v.index === f.owner || !v.alive || v.invuln > 0) continue;
+          const box = { l: f.x - f.radius, r: f.x + f.radius, b: f.y - 0.2, t: f.y + 1.2 };
+          if (overlap(box, v.hurtbox())) {
+            const dir = v.x > f.x ? 1 : -1;
+            this.applyHit(v, this.fighters[f.owner], move, dir, { x: f.x, y: f.y });
+          }
+        }
+      }
+      keep.push(f);
+    }
+    this.flames = keep;
   }
 
   // ------------------------------------------------------------------ golpes normales (hitboxes rectangulares)
@@ -218,7 +295,7 @@ export class Match {
 
   resolveSpecialHits() {
     for (const e of this.events) {
-      if (e.type === 'swordSlashLand' || e.type === 'blockFormLand') {
+      if (e.type === 'swordSlashLand' || e.type === 'blockFormLand' || e.type === 'burst') {
         const attacker = this.fighters[e.i];
         if (!attacker || !attacker.alive) continue;
 
@@ -250,10 +327,35 @@ export class Match {
   /** Daño + empuje + hitstun + hitlag. `dir` = ±1 hacia donde empuja (mira el atacante).
    *  `attacker` puede ser null (hazards del escenario, ej. los autos): power = 1. */
   applyHit(victim, attacker, move, dir, point) {
-    // Armor check (Gordo stance)
     const power = attacker ? attacker.power : 1; // incluye el multiplicador del stance
     const damage = move.damage * power;
-    
+
+    // ---- PK MAGNET (Ness/Domono): absorbe el golpe — reduce daño y cura un poco ----
+    if (victim.blockFormActive && victim._bfData?.magnetMode) {
+      const bf = victim._bfData;
+      const absorbed = damage * bf.absorbMult;
+      victim.percent += absorbed;                       // daño reducido ×absorbMult
+      victim.percent = Math.max(0, victim.percent - bf.healPerHit); // y cura
+      victim.hitlag = 2;
+      this.events.push({ type: 'magnet', victim: victim.index, attacker: attacker ? attacker.index : -1, x: point.x, y: point.y, damage: absorbed, healed: bf.healPerHit });
+      return;
+    }
+
+    // ---- COUNTER (Ike/Coco): anula el golpe recibido y contraataca ×counterMult ----
+    if (victim.blockFormActive && victim._bfData?.counterMode && attacker && attacker !== victim) {
+      const bf = victim._bfData;
+      victim.blockFormActive = false;
+      victim._bfData = null;
+      victim.fastFall = false;
+      victim.state = victim.grounded ? 'idle' : 'air';
+      // contraataque inmediato sobre el atacante
+      const counterMove = { damage: bf.counterDamage * bf.counterMult, base: bf.counterBase, growth: 12, angle: bf.counterAngle };
+      this.events.push({ type: 'counter', victim: victim.index, attacker: attacker.index, x: point.x, y: point.y });
+      this.applyHit(attacker, victim, counterMove, -dir, point);
+      return;
+    }
+
+    // Armor check (Gordo stance)
     if (victim.tryArmor(damage, attacker)) {
       // Hit absorvido por armadura: solo hitlag mínimo, sin knockback ni hitstun
       const lag = Math.min(2, Math.floor(P.hitlagBase + damage * P.hitlagPerDamage));
