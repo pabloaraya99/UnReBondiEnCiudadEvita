@@ -6,7 +6,7 @@ import * as THREE from 'three';
  * - Cabello NEGRO peinado para atrás (slicked back) con brillo
  * - Remera/botonería NEGRA de manga larga con botones DORADOS
  * - Boca abierta sonriendo con LENGUA PARA AFUERA (gesto canchero)
- * - Cejas gruesas, ojos oscuros, piel cálida bronceada
+ * - Cejas gruesas, ojos oscuros, piel BLANCA clara
  * - RELOJ DORADO en la muñeca izquierda + ANILLO dorado en la mano
  * - COLGANTE bitcoin dorado con cadena sobre el pecho
  * - Contextura media tirando a robusta ("BILLETES PESADOS")
@@ -23,9 +23,9 @@ export function buildChubitcoin() {
     return m;
   };
 
-  // paleta: negro con acentos ORO (bitcoin) + piel cálida
-  const PIEL = 0xd6a67c;       // piel bronceada cálida
-  const PIEL_OSC = 0xb98758;   // sombra de piel
+  // paleta: negro con acentos ORO (bitcoin) + piel BLANCA/clara
+  const PIEL = 0xf2d0b0;       // piel blanca clara (a pedido del usuario)
+  const PIEL_OSC = 0xdcb590;   // sombra de piel
   const NEGRO = 0x17171c;      // remera/botonería negra
   const NEGRO_CL = 0x2a2a32;   // negro claro (costuras, sombras)
   const ORO = 0xf0b429;        // oro bitcoin
