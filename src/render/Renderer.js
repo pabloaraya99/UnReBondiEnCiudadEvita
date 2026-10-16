@@ -327,8 +327,8 @@ export class Renderer {
       const grassShoulder = grassTex.clone();
       grassShoulder.repeat.set(Math.max(1, 4 / 3), Math.max(1, h / 3));
       const shoulderMat = this.stageTex?.grass
-        ? new THREE.MeshStandardMaterial({ map: grassShoulder, roughness: 1, metalness: 0 })
-        : new THREE.MeshStandardMaterial({ color: 0x58c24e, roughness: 0.85, metalness: 0 });
+        ? new THREE.MeshStandardMaterial({ map: grassShoulder, color: 0x8ef06e, roughness: 1, metalness: 0 })
+        : new THREE.MeshStandardMaterial({ color: 0x4ad83e, roughness: 0.85, metalness: 0 });
       const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(4, h, 9), shoulderMat);
       shoulderL.position.set(s.l - 2, (s.top + s.bottom) / 2, 0);
       shoulderL.receiveShadow = true;
@@ -347,7 +347,7 @@ export class Renderer {
       topTex.repeat.set(Math.max(1, w / 6), 1);
       const topSlab = new THREE.Mesh(
         new THREE.BoxGeometry(w, 0.4, 6),
-        new THREE.MeshStandardMaterial({ map: topTex, roughness: 0.9, metalness: 0 }),
+        new THREE.MeshStandardMaterial({ map: topTex, color: 0x8ef06e, roughness: 0.9, metalness: 0 }),
       );
       topSlab.position.set(cx, spawn.top - 0.2, 0);
       topSlab.castShadow = true;
@@ -460,8 +460,8 @@ export class Renderer {
     // pradera entre la calle de juego y el templo — con textura de pasto real
     {
       const praderaMat = this.stageTex?.grass
-        ? (() => { const t = this.stageTex.grass.clone(); t.repeat.set(50, 12); return new THREE.MeshStandardMaterial({ map: t, roughness: 1 }); })()
-        : new THREE.MeshStandardMaterial({ color: 0x4a9e42, roughness: 1 });
+        ? (() => { const t = this.stageTex.grass.clone(); t.repeat.set(50, 12); return new THREE.MeshStandardMaterial({ map: t, color: 0x8ef06e, roughness: 1 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x3fbf38, roughness: 1 });
       const pradera = new THREE.Mesh(new THREE.BoxGeometry(360, 2, 90), praderaMat);
       pradera.position.set(0, -8.2, -34);
       pradera.receiveShadow = true;
@@ -531,8 +531,8 @@ export class Renderer {
     // pasto lejano bajo el templo — con textura de pasto real
     {
       const pastoTemploMat = this.stageTex?.grass
-        ? (() => { const t = this.stageTex.grass.clone(); t.repeat.set(50, 8); return new THREE.MeshStandardMaterial({ map: t, roughness: 1 }); })()
-        : new THREE.MeshStandardMaterial({ color: 0x55ab4e, roughness: 1 });
+        ? (() => { const t = this.stageTex.grass.clone(); t.repeat.set(50, 8); return new THREE.MeshStandardMaterial({ map: t, color: 0x8ef06e, roughness: 1 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x48c440, roughness: 1 });
       const pastoTemplo = new THREE.Mesh(new THREE.BoxGeometry(360, 2, 60), pastoTemploMat);
       pastoTemplo.position.set(0, -7.8, -52);
       pastoTemplo.receiveShadow = true;
@@ -666,8 +666,8 @@ export class Renderer {
       }
 
       // ARBUSTOS REDONDEADOS (borduras verdes prolijas) alrededor del predio
-      const arbustoMat = new THREE.MeshStandardMaterial({ color: 0x3d8b3a, roughness: 0.9 });
-      const arbustoOscMat = new THREE.MeshStandardMaterial({ color: 0x2e7a2e, roughness: 0.9 });
+      const arbustoMat = new THREE.MeshStandardMaterial({ color: 0x35a830, roughness: 0.9 });
+      const arbustoOscMat = new THREE.MeshStandardMaterial({ color: 0x289828, roughness: 0.9 });
       const arbustosSpots = [
         [-10, -48], [-14, -50], [10, -48], [14, -50],
         [-24, -47], [24, -47], [-30, -51], [30, -51], [-8, -45.5], [8, -45.5],
@@ -699,7 +699,7 @@ export class Renderer {
         arbol.add(tronco);
         const copa = new THREE.Mesh(
           new THREE.SphereGeometry(1.3 + crnd() * 0.4, 12, 10),
-          new THREE.MeshStandardMaterial({ color: 0x4a9e42, roughness: 0.85 }),
+          new THREE.MeshStandardMaterial({ color: 0x3fbf38, roughness: 0.85 }),
         );
         copa.position.y = 2.2;
         copa.scale.y = 1.15;
@@ -1095,16 +1095,16 @@ export class Renderer {
     return tex;
   }
 
-  /** Pasto procedural: verde base con pinceladas de tonos (claro/oscuro). */
+  /** Pasto procedural: verde vivo con pinceladas de tonos (claro/oscuro). */
   makeGrassTexture() {
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const ctx = c.getContext('2d');
-    ctx.fillStyle = '#58c24e';
+    ctx.fillStyle = '#3ecc32';
     ctx.fillRect(0, 0, 256, 256);
     let s = 29;
     const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-    const tones = ['#4fb345', '#63d35a', '#55bd4a', '#6adb60', '#49a83f'];
+    const tones = ['#48d83a', '#5fe84a', '#3ec832', '#6af055', '#35b82c', '#7af560'];
     for (let i = 0; i < 900; i++) {
       ctx.strokeStyle = tones[(rnd() * tones.length) | 0];
       ctx.lineWidth = 1.6;
