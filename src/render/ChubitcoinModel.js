@@ -171,21 +171,21 @@ export function buildChubitcoin() {
     oreja.scale.set(0.6, 1.1, 0.8);
   }
 
-  // cabello NEGRO peinado para atrás (slicked back)
-  const capucha = add(new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), peloMat), head);
+  // cabello NEGRO peinado para atrás (slicked back) — copa solo en la coronilla/nuca
+  const capucha = add(new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), peloMat), head);
   capucha.position.set(0, 0.17, -0.015);
   capucha.scale.set(0.98, 1.1, 1.02);
-  // flequillo peinado hacia atrás con brillo (delantero alto)
+  // flequillo peinado hacia atrás con brillo (delantero alto, lejos de los ojos)
   const swoosh = add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.09, 0.22), peloBrilloMat), head);
-  swoosh.position.set(0, 0.31, 0.05);
+  swoosh.position.set(0, 0.33, 0.05);
   swoosh.rotation.x = -0.35;
   const swoosh2 = add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.16), peloMat), head);
-  swoosh2.position.set(0, 0.3, -0.09);
+  swoosh2.position.set(0, 0.32, -0.09);
   swoosh2.rotation.x = 0.4;
-  // patillas
+  // patillas: cortas y bajas, pegadas a la sien (NO como cinturón de máscara)
   for (const side of [-1, 1]) {
-    const patilla = add(new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.14, 0.1), peloMat), head);
-    patilla.position.set(side * 0.175, 0.16, 0.03);
+    const patilla = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.07, 0.07), peloMat), head);
+    patilla.position.set(side * 0.178, 0.08, 0.02);
   }
 
   // cejas GRUESAS arqueadas (gesto canchero)

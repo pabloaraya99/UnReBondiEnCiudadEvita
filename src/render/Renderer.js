@@ -551,30 +551,51 @@ export class Renderer {
     // paralela a la Richeri. Capa intermedia entre el templo y la autopista,
     // más chica y vista de lejos ----
     {
-      // calle colectora: VISIBLE pero tranquila — calle de fondo que se lee como
-      // camino, sin competir con la plataforma. Asfalto a nivel del terreno,
-      // con línea central tenue (no blanco brillante que molestaba).
+      // asfalto oscuro con textura si está disponible
       const colectoraMat = this.stageTex?.asphalt
-        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(6, 1); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); })()
+        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(4, 1); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); })()
         : new THREE.MeshStandardMaterial({ color: 0x474a4f, roughness: 0.95 });
-      // calle colectora BIEN AL FONDO: baja en el horizonte, DETRÁS del templo
-      // (no cruza el centro de la pantalla). Camino lejano de fondo, sutil.
+      const lineaMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9 });
+      // arco que bordea el predio del templo: semicírculo/óvalo alrededor del
+      // templo (centro z=-56), radio ~28 en X y ~14 en Z, abierto al frente (hacia la calle)
       const colectora = new THREE.Group();
-      const segLen = 90;
-      const segW = 4.0;
-      // un solo tramo horizontal bajo y detrás del templo, sin curvas que crucen la pantalla
-      const seg = new THREE.Mesh(new THREE.BoxGeometry(segLen * 2.2, 0.16, segW), colectoraMat);
-      seg.position.set(0, -8.35, -62); // detrás del templo (z=-56), baja en el horizonte
-      seg.receiveShadow = true;
-      colectora.add(seg);
-      // línea central tenue, espaciada (apenas sugiere camino)
-      for (let lx = -segLen; lx < segLen; lx += 9) {
-        const linea = new THREE.Mesh(
-          new THREE.BoxGeometry(2.0, 0.03, 0.18),
-          new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9 }),
-        );
-        linea.position.set(lx, 0.1, 0);
-        seg.add(linea);
+      const cxC = 0;              // centro X del arco
+      const czC = -56;            // centro Z del arco (templo)
+      const rx = 30;              // radio horizontal del arco
+      const rz = 15;              // radio de profundidad del arco
+      const roadW = 3.6;          // ancho de la calzada
+      const nSegs = 22;           // tramos del arco
+      // ángulos del arco: bordea costados y fondo del predio, ABIERTO al frente
+      // (hacia la calle de juego). Fracciones de 2π: 0.375 (frente-izq) → 1.125 (frente-der)
+      // pasando por izquierda (0.5), fondo (0.75), derecha (1.0).
+      const t0 = 0.375;
+      const t1 = 1.125;
+      for (let i = 0; i < nSegs; i++) {
+        const f0 = t0 + (t1 - t0) * (i / nSegs);
+        const f1 = t0 + (t1 - t0) * ((i + 1) / nSegs);
+        const a0 = f0 * Math.PI * 2;
+        const a1 = f1 * Math.PI * 2;
+        const x0 = cxC + rx * Math.cos(a0);
+        const z0 = czC + rz * Math.sin(a0);
+        const x1 = cxC + rx * Math.cos(a1);
+        const z1 = czC + rz * Math.sin(a1);
+        const mx = (x0 + x1) / 2;
+        const mz = (z0 + z1) / 2;
+        const dx = x1 - x0;
+        const dz = z1 - z0;
+        const len = Math.hypot(dx, dz) * 1.08; // solape leve para uniones
+        const ang = Math.atan2(dx, dz);        // rotación del segmento
+        const seg = new THREE.Mesh(new THREE.BoxGeometry(roadW, 0.16, len), colectoraMat);
+        seg.position.set(mx, -8.35, mz);
+        seg.rotation.y = ang;
+        seg.receiveShadow = true;
+        colectora.add(seg);
+        // línea central tenue por tramo (apenas sugiere camino)
+        if (i % 2 === 0) {
+          const linea = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, len * 0.55), lineaMat);
+          linea.position.set(0, 0.1, 0);
+          seg.add(linea);
+        }
       }
       this.bgFar.add(colectora);
     }
