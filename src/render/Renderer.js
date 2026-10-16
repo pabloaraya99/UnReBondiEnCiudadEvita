@@ -551,11 +551,11 @@ export class Renderer {
     // paralela a la Richeri. Capa intermedia entre el templo y la autopista,
     // más chica y vista de lejos ----
     {
-      // asfalto oscuro con textura si está disponible
-      const colectoraMat = this.stageTex?.asphalt
-        ? (() => { const t = this.stageTex.asphalt.clone(); t.repeat.set(4, 1); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }); })()
-        : new THREE.MeshStandardMaterial({ color: 0x474a4f, roughness: 0.95 });
-      const lineaMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9 });
+      // vereda/pavimento: textura de concrete si está, si no color plano claro
+      const colectoraMat = this.stageTex?.concrete
+        ? (() => { const t = this.stageTex.concrete.clone(); t.repeat.set(8, 2); return new THREE.MeshStandardMaterial({ map: t, color: 0xc8c4bc, roughness: 0.92 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0xb0aca4, roughness: 0.92 });
+      const lineaMat = new THREE.MeshStandardMaterial({ color: 0x8a8680, roughness: 0.9 });
       // arco que bordea el predio del templo: semicírculo/óvalo alrededor del
       // templo (centro z=-56), radio ~28 en X y ~14 en Z, abierto al frente (hacia la calle)
       const colectora = new THREE.Group();
@@ -1116,6 +1116,46 @@ export class Renderer {
     return tex;
   }
 
+  /** Tejas de piedra procedural: filas de rectángulos grises con sombreado y juntas. */
+  makeRoofTileTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    // base: piedra clara
+    ctx.fillStyle = '#b8b2a8';
+    ctx.fillRect(0, 0, 256, 256);
+    let s = 71;
+    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const tones = ['#b0aa9e', '#c2bcb0', '#a8a296', '#beb8ac', '#b6b0a4', '#cac4b8'];
+    const tileW = 42;
+    const tileH = 28;
+    const rows = Math.ceil(256 / tileH) + 1;
+    for (let r = 0; r < rows; r++) {
+      const y = r * tileH;
+      const offset = (r % 2) * (tileW / 2); // escalera tipo teja
+      for (let x = -tileW; x < 256 + tileW; x += tileW) {
+        const tx = x + offset;
+        const tone = tones[(rnd() * tones.length) | 0];
+        ctx.fillStyle = tone;
+        ctx.fillRect(tx + 1, y + 1, tileW - 2, tileH - 2);
+        // brillo arriba de la teja (luz)
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fillRect(tx + 1, y + 1, tileW - 2, 3);
+        // sombra abajo (volumen)
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillRect(tx + 1, y + tileH - 4, tileW - 2, 3);
+        // junta vertical tenue
+        ctx.strokeStyle = 'rgba(60,55,50,0.35)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(tx + 0.5, y + 0.5, tileW - 1, tileH - 1);
+      }
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
   /** Pasto procedural: verde vivo con pinceladas de tonos (claro/oscuro). */
   makeGrassTexture() {
     const c = document.createElement('canvas');
@@ -1254,6 +1294,14 @@ export class Renderer {
     if (blanco.map) blanco.map.repeat.set(2, 2);
     const gris = new THREE.MeshStandardMaterial({ color: 0xd8d5ce, roughness: 0.8, metalness: 0.05 });
     const vidrio = new THREE.MeshStandardMaterial({ color: 0x2e3d54, roughness: 0.25, metalness: 0.4 });
+    // techo con TEJAS DE PIEDRA (procedural si no hay textura externa)
+    const tileTex = this.makeRoofTileTexture();
+    tileTex.repeat.set(6, 3);
+    const techoMat = new THREE.MeshStandardMaterial({ map: tileTex, color: 0xd8d2c8, roughness: 0.88, metalness: 0.02 });
+    // textura de tejas para las puntas cónicas de las agujas (una sola, reutilizada)
+    const tileTipTex = this.makeRoofTileTexture();
+    tileTipTex.repeat.set(1, 2);
+    const tipMat = new THREE.MeshStandardMaterial({ map: tileTipTex, color: 0xd0cac0, roughness: 0.85 });
 
     const add = (geo, mat, x, y, z) => {
       const m = new THREE.Mesh(geo, mat);
@@ -1279,10 +1327,10 @@ export class Renderer {
     // puerta central
     add(new THREE.BoxGeometry(2.3, 4, 0.3), vidrio, 0, 3, 3.58);
 
-    // techo a dos aguas (prisma triangular) con ventana circular
+    // techo a dos aguas (prisma triangular) con tejas de piedra y ventana circular
     const tri = new THREE.Shape();
     tri.moveTo(-12.4, 0); tri.lineTo(0, 4.2); tri.lineTo(12.4, 0); tri.closePath();
-    const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 7, bevelEnabled: false }), gris);
+    const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 7, bevelEnabled: false }), techoMat);
     roof.position.set(0, 7, -3.5);
     roof.castShadow = true;
     t.add(roof);
@@ -1291,9 +1339,9 @@ export class Renderer {
     round.position.set(0, 8.4, 3.6);
     t.add(round);
 
-    // anexo lateral derecho (más bajo)
+    // anexo lateral derecho (más bajo) con techo de tejas
     add(new THREE.BoxGeometry(10, 4.5, 6), blanco, 16, 2.25, 0);
-    add(new THREE.BoxGeometry(10.6, 0.8, 6.6), gris, 16, 4.8, 0);
+    add(new THREE.BoxGeometry(10.6, 0.8, 6.6), techoMat, 16, 4.8, 0);
     for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(0.8, 2.4, 0.25), vidrio, 13.5 + i * 2.5, 2.4, 3.06);
 
     // agujas: base + tramo medio + ventanal + punta cónica.
@@ -1305,7 +1353,8 @@ export class Renderer {
       add(new THREE.BoxGeometry(1.9, base + sunk, 1.9), blanco, x, baseY + (base + sunk) / 2 - sunk, z);
       add(new THREE.BoxGeometry(1.1, mid, 1.1), blanco, x, baseY + base + mid / 2, z);
       add(new THREE.BoxGeometry(0.6, mid * 0.7, 0.15), vidrio, x, baseY + base + mid / 2, z + 0.6);
-      add(new THREE.ConeGeometry(0.65, tip, 4), gris, x, baseY + base + mid + tip / 2, z);
+      // punta cónica con techo de tejas (misma textura que el techo principal)
+      add(new THREE.ConeGeometry(0.65, tip, 4), tipMat, x, baseY + base + mid + tip / 2, z);
       return baseY + base + mid + tip;
     };
     // torre central (la más alta) con ángel Moroni dorado — apoyada en y=7 (cuerpo)
