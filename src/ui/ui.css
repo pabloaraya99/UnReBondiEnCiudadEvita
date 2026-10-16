@@ -94,6 +94,87 @@
   margin-top: -10px;
   font-size: 0.85rem;
 }
+/* ---------- capas de movimiento del lobby (fx) ---------- */
+.lobby-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* el contenido del lobby se apila arriba del fx */
+.lobby-screen > *:not(.lobby-fx) {
+  position: relative;
+  z-index: 1;
+}
+.lobby-smoke {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+}
+.lobby-dust {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(244, 241, 232, 0.45);
+}
+.lobby-glint {
+  position: absolute;
+  will-change: transform, opacity;
+}
+.lobby-glint-core {
+  position: absolute;
+  inset: 25%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 250, 230, 0.95) 0%, rgba(255, 230, 150, 0.5) 50%, transparent 75%);
+}
+.lobby-glint-arm-h {
+  position: absolute;
+  top: 45%;
+  left: 0;
+  width: 100%;
+  height: 12%;
+  background: linear-gradient(90deg, transparent, rgba(255, 250, 230, 0.85), transparent);
+}
+.lobby-glint-arm-v {
+  position: absolute;
+  top: 0;
+  left: 45%;
+  width: 12%;
+  height: 100%;
+  background: linear-gradient(180deg, transparent, rgba(255, 250, 230, 0.85), transparent);
+}
+@keyframes lobbySmokeDrift {
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(55vw) translateY(-2%); }
+  100% { transform: translateX(110vw) translateY(-5%); }
+}
+@keyframes lobbyDustDrift {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: 0.5; }
+  88% { opacity: 0.35; }
+  100% { transform: translate(-5vw, 3vh); opacity: 0; }
+}
+@keyframes lobbyGlintTwinkle {
+  0%, 100% { transform: scale(0.4) rotate(0deg); opacity: 0; }
+  40% { transform: scale(1) rotate(12deg); opacity: 1; }
+  70% { transform: scale(0.7) rotate(20deg); opacity: 0.5; }
+}
+/* botón de pelea: glow que respira (llamativo sin ser molesto) */
+.lobby-fight-btn:not(:disabled) {
+  animation: lobbyFightGlow 2.2s ease-in-out infinite;
+}
+@keyframes lobbyFightGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(233, 196, 106, 0); }
+  50% { box-shadow: 0 0 22px 3px rgba(233, 196, 106, 0.55), 0 0 48px 8px rgba(233, 196, 106, 0.18); }
+}
+/* selector de mapa: pulso de borde sutil */
+.lobby-stage-btn {
+  animation: lobbyStagePulse 3.4s ease-in-out infinite;
+}
+@keyframes lobbyStagePulse {
+  0%, 100% { border-color: #3a3f52; }
+  50% { border-color: #6a7392; }
+}
 /* indicador de joystick conectado en el lobby */
 .lobby-gamepad-ind {
   font-family: 'Bungee', 'Arial Black', sans-serif;

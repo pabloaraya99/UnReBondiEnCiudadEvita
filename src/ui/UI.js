@@ -182,6 +182,47 @@ export class UI {
   showLobby(slots) {
     this.clear();
     const s = el('div', 'ui-screen lobby-screen');
+
+    // capas de movimiento de fondo (mismo estilo que el title screen, más liviano)
+    const fx = el('div', 'lobby-fx');
+    // humo: blobs suaves que derivan (sin filter:blur)
+    [
+      { top: '12%', w: 300, dur: 28, delay: 0, op: 0.10 },
+      { top: '48%', w: 380, dur: 34, delay: 8, op: 0.08 },
+      { top: '70%', w: 260, dur: 24, delay: 14, op: 0.09 },
+    ].forEach((d) => {
+      const puff = el('div', 'lobby-smoke');
+      puff.style.cssText = `top:${d.top};left:-${d.w}px;width:${d.w}px;height:${d.w * 0.5}px;background:radial-gradient(ellipse,rgba(255,255,255,${d.op}) 0%,rgba(255,255,255,${d.op * 0.4}) 40%,transparent 72%);animation:lobbySmokeDrift ${d.dur}s linear ${d.delay}s infinite;`;
+      fx.append(puff);
+    });
+    // motas de polvo que derivan
+    [
+      { top: '22%', left: '8%', size: 2, dur: 20, delay: 0 },
+      { top: '55%', left: '78%', size: 3, dur: 24, delay: 6 },
+      { top: '38%', left: '45%', size: 2, dur: 18, delay: 11 },
+      { top: '72%', left: '90%', size: 2, dur: 22, delay: 3 },
+    ].forEach((d) => {
+      const mote = el('div', 'lobby-dust');
+      mote.style.cssText = `top:${d.top};left:${d.left};width:${d.size}px;height:${d.size}px;animation:lobbyDustDrift ${d.dur}s linear ${d.delay}s infinite;`;
+      fx.append(mote);
+    });
+    // brillos flotantes que titilan (cruz + núcleo, como en el title)
+    [
+      { top: '18%', left: '12%', size: 12, dur: 3.6, delay: 0 },
+      { top: '30%', left: '84%', size: 10, dur: 4.2, delay: 1.5 },
+      { top: '62%', left: '20%', size: 11, dur: 3.9, delay: 2.8 },
+      { top: '55%', left: '76%', size: 9, dur: 4.6, delay: 0.9 },
+    ].forEach((d) => {
+      const gl = el('div', 'lobby-glint');
+      gl.style.cssText = `top:${d.top};left:${d.left};width:${d.size}px;height:${d.size}px;animation:lobbyGlintTwinkle ${d.dur}s ease-in-out ${d.delay}s infinite;`;
+      const core = el('div', 'lobby-glint-core');
+      const armH = el('div', 'lobby-glint-arm-h');
+      const armV = el('div', 'lobby-glint-arm-v');
+      gl.append(core, armH, armV);
+      fx.append(gl);
+    });
+    s.append(fx);
+
     s.append(el('div', 'ui-title', 'ELEGÍ TU PELEADOR'), el('div', 'ui-subtitle', 'Tocá la tarjeta para cambiar de personaje'));
     // indicador de joystick conectado (Gamepad API)
     const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
@@ -255,6 +296,7 @@ export class UI {
 
     const fight = btn(`¡A PELEAR! (${active} jugadores)`, () => this.actions.onFight(slots, this._stageId ?? GAME_CONFIG.defaultStage));
     fight.disabled = active < 2;
+    fight.classList.add('lobby-fight-btn');
     const back = btn('VOLVER', () => this.actions.onMenu());
     back.classList.add('secondary');
     bottom.append(row, fight, back);
