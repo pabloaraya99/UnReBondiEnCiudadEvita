@@ -18,9 +18,35 @@ const keys = {};
 window.addEventListener('keydown', (e) => { keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
+// ---- JOYSTICK / GAMEPAD (Gamepad API): cada joystick controla un jugador ----
+// Mapeo estándar (Xbox/PS): stick izq. o d-pad = moverse · A/Cross = saltar ·
+// X/Square = atacar · B/Circle o Y/Triangle = especial · LB/RB = especial también
+const DEADZONE = 0.35;
+function readGamepad(playerIndex) {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = pads[playerIndex];
+  if (!gp || !gp.connected) return 0;
+  let mask = 0;
+  const ax0 = gp.axes[0] ?? 0; // stick izquierdo X
+  const ax1 = gp.axes[1] ?? 0; // stick izquierdo Y
+  const btn = (i) => gp.buttons[i]?.pressed;
+  // movimiento: stick izquierdo o d-pad
+  if (ax0 < -DEADZONE || btn(14)) mask |= IN.LEFT;
+  if (ax0 > DEADZONE || btn(15)) mask |= IN.RIGHT;
+  if (ax1 < -DEADZONE || btn(12)) mask |= IN.UP;
+  if (ax1 > DEADZONE || btn(13)) mask |= IN.DOWN;
+  // saltar: A / Cross (botón 0)
+  if (btn(0)) mask |= IN.JUMP;
+  // atacar: X / Square (botón 2)
+  if (btn(2)) mask |= IN.ATTACK;
+  // especial: B / Circle (1), Y / Triangle (3), o gatillos LB/RB
+  if (btn(1) || btn(3) || btn(4) || btn(5)) mask |= IN.SPECIAL;
+  return mask;
+}
+
 function readMask(playerIndex) {
   const p = GAME_CONFIG.players[playerIndex];
-  if (!p || !p.controls) return 0;
+  if (!p || !p.controls) return readGamepad(playerIndex);
   const c = p.controls;
   let mask = 0;
   if (keys[c.left]) mask |= IN.LEFT;
@@ -30,6 +56,8 @@ function readMask(playerIndex) {
   if (keys[c.jump]) mask |= IN.JUMP;
   if (keys[c.attack]) mask |= IN.ATTACK;
   if (keys[c.special]) mask |= IN.SPECIAL;
+  // joystick: se suma al teclado (cualquiera de los dos controla al jugador)
+  mask |= readGamepad(playerIndex);
   return mask;
 }
 

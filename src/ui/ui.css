@@ -85,6 +85,19 @@
   margin-top: -10px;
   font-size: 0.85rem;
 }
+/* indicador de joystick conectado en el lobby */
+.lobby-gamepad-ind {
+  font-family: 'Bungee', 'Arial Black', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: #7fd0a0;
+  background: rgba(20, 30, 22, 0.75);
+  border: 2px solid #3fa34d;
+  border-radius: 8px;
+  padding: 6px 16px;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
 .lobby-bottom {
   display: flex;
   flex-direction: column;

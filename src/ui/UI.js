@@ -92,6 +92,12 @@ export class UI {
     this.clear();
     const s = el('div', 'ui-screen lobby-screen');
     s.append(el('div', 'ui-title', 'ELEGÍ TU PELEADOR'), el('div', 'ui-subtitle', 'Tocá la tarjeta para cambiar de personaje'));
+    // indicador de joystick conectado (Gamepad API)
+    const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+    if (pads.some((p) => p?.connected)) {
+      const gp = el('div', 'lobby-gamepad-ind', '🎮 Joystick conectado — stick/d-pad: moverse · A: saltar · X: atacar · B/Y: especial');
+      s.append(gp);
+    }
 
     const row = el('div', 'lobby-slots');
     const rerender = () => { this.showLobby(slots); };

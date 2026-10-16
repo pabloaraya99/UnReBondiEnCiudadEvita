@@ -491,7 +491,7 @@ export const GAME_CONFIG = {
 
   // ------------------------------------------------------------------ jugadores locales (teclado y joystick)
   players: [
-    { short: 'P1', color: '#4d8bff', label: 'WASD + F/G/H', controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'KeyF', attack: 'KeyG', special: 'KeyH' } },
+    { short: 'P1', color: '#4d8bff', label: 'WASD + Espacio/G/H', controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'Space', attack: 'KeyG', special: 'KeyH' } },
     { short: 'P2', color: '#ff5a36', label: 'Flechas + , . /', controls: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', jump: 'Comma', attack: 'Period', special: 'Slash' } },
     { short: 'P3', color: '#5cc24a', label: 'IJKL + U/O/P', controls: { left: 'KeyJ', right: 'KeyL', up: 'KeyI', down: 'KeyK', jump: 'KeyU', attack: 'KeyO', special: 'KeyP' } },
     { short: 'P4', color: '#ffc93c', label: 'Num 8456 + 1/2/3', controls: { left: 'Numpad4', right: 'Numpad6', up: 'Numpad8', down: 'Numpad5', jump: 'Numpad1', attack: 'Numpad2', special: 'Numpad3' } },
