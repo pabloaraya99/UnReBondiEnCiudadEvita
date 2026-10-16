@@ -63,15 +63,61 @@ export class UI {
     bg.style.cssText = 'position:absolute;inset:-4%;background:url("/assets/ui/title-splash.jpg") center/cover no-repeat;animation:menuBgZoom 22s ease-in-out infinite alternate;';
     bgShake.append(bg);
 
-    // título: imagen JPG con zoom/pulse + vibración (wrapper separado para no pisar transforms)
+    // capas de movimiento sobre el splash: nubes de humo que derivan + chispas que flotan + motas de polvo
+    const fxLayer = document.createElement('div');
+    fxLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;';
+    // humos: blobs blancos borrosos que cruzan lento (estética nube de pelea)
+    const smokeDefs = [
+      { top: '18%', w: 300, dur: 26, delay: 0, op: 0.22 },
+      { top: '40%', w: 420, dur: 34, delay: 6, op: 0.16 },
+      { top: '62%', w: 260, dur: 22, delay: 12, op: 0.20 },
+      { top: '30%', w: 360, dur: 30, delay: 18, op: 0.14 },
+      { top: '72%', w: 320, dur: 28, delay: 3, op: 0.18 },
+    ];
+    smokeDefs.forEach((d) => {
+      const puff = document.createElement('div');
+      puff.style.cssText = `position:absolute;top:${d.top};left:-${d.w}px;width:${d.w}px;height:${d.w * 0.55}px;border-radius:50%;background:radial-gradient(ellipse,rgba(255,255,255,${d.op}) 0%,rgba(255,255,255,${d.op * 0.5}) 45%,transparent 70%);filter:blur(18px);animation:smokeDrift ${d.dur}s linear ${d.delay}s infinite;`;
+      fxLayer.append(puff);
+    });
+    // chispas: puntos chicos amarillos/naranjas que suben y parpadean (impacto de pelea)
+    const sparkDefs = [
+      { left: '18%', bottom: '10%', size: 5, dur: 5.5, delay: 0, color: '#ffd23c' },
+      { left: '32%', bottom: '6%', size: 4, dur: 7, delay: 1.4, color: '#ff9a3c' },
+      { left: '48%', bottom: '12%', size: 6, dur: 6, delay: 0.7, color: '#ffe08a' },
+      { left: '62%', bottom: '8%', size: 4, dur: 8, delay: 2.2, color: '#ffd23c' },
+      { left: '76%', bottom: '14%', size: 5, dur: 5, delay: 1.1, color: '#ff5a7a' },
+      { left: '86%', bottom: '9%', size: 4, dur: 7.5, delay: 3, color: '#ff9a3c' },
+      { left: '25%', bottom: '20%', size: 3, dur: 9, delay: 4, color: '#ffe08a' },
+      { left: '55%', bottom: '22%', size: 3, dur: 6.5, delay: 2.8, color: '#ffd23c' },
+    ];
+    sparkDefs.forEach((d) => {
+      const sp = document.createElement('div');
+      sp.style.cssText = `position:absolute;left:${d.left};bottom:${d.bottom};width:${d.size}px;height:${d.size}px;border-radius:50%;background:${d.color};box-shadow:0 0 ${d.size * 2.5}px ${d.color};animation:sparkFloat ${d.dur}s ease-in ${d.delay}s infinite,sparkFlicker ${d.dur * 0.35}s ease-in-out ${d.delay}s infinite;`;
+      fxLayer.append(sp);
+    });
+    // motas de polvo: puntos tenues que derivan en diagonal (profundidad)
+    const dustDefs = [
+      { top: '25%', left: '10%', size: 3, dur: 18, delay: 0 },
+      { top: '55%', left: '70%', size: 2, dur: 22, delay: 5 },
+      { top: '40%', left: '40%', size: 2, dur: 20, delay: 9 },
+      { top: '68%', left: '85%', size: 3, dur: 16, delay: 3 },
+      { top: '15%', left: '55%', size: 2, dur: 24, delay: 12 },
+    ];
+    dustDefs.forEach((d) => {
+      const mote = document.createElement('div');
+      mote.style.cssText = `position:absolute;top:${d.top};left:${d.left};width:${d.size}px;height:${d.size}px;border-radius:50%;background:rgba(244,241,232,0.5);animation:dustDrift ${d.dur}s linear ${d.delay}s infinite;`;
+      fxLayer.append(mote);
+    });
+
+    // título: más chico y arriba, para no tapar la cara ni el lore del splash
     const titleWrap = document.createElement('div');
-    titleWrap.style.cssText = 'position:absolute;top:5%;left:50%;width:min(78vw,900px);transform:translateX(-50%);animation:titleShake 3s ease-in-out infinite;';
+    titleWrap.style.cssText = 'position:absolute;top:2.5%;left:50%;width:min(46vw,520px);transform:translateX(-50%);animation:titleShake 3s ease-in-out infinite;';
     const titleImg = document.createElement('img');
     titleImg.src = '/assets/ui/parallax/Title Text - Title Screen.png';
     titleImg.alt = 'Un Re Bondi En Ciudad Evita';
     titleImg.draggable = false;
     // PNG con transparencia real (el cuadriculado del JPG se removió por color)
-    titleImg.style.cssText = 'display:block;width:100%;filter:drop-shadow(0 10px 28px rgba(0,0,0,0.75));animation:titleZoom 5s ease-in-out infinite;';
+    titleImg.style.cssText = 'display:block;width:100%;filter:drop-shadow(0 8px 20px rgba(0,0,0,0.7));animation:titleZoom 5s ease-in-out infinite;';
     titleWrap.append(titleImg);
 
     const play = document.createElement('button');
@@ -83,7 +129,7 @@ export class UI {
     version.textContent = 'v3-title-anim';
     version.style.cssText = 'position:absolute;bottom:12px;right:14px;font-size:12px;font-weight:700;color:rgba(244,241,232,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.9);';
 
-    // keyframes inline: pulse del botón + zoom/vibración de fondo y título
+    // keyframes inline: pulse del botón + zoom/vibración de fondo/título + capas fx
     const st = document.createElement('style');
     st.textContent = `
       @keyframes diagPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.07);box-shadow:0 0 34px rgba(233,196,106,0.7)}}
@@ -91,10 +137,14 @@ export class UI {
       @keyframes menuBgShake{0%,100%{transform:translate(0,0)}22%{transform:translate(1.5px,-1px)}48%{transform:translate(-1px,1.5px)}74%{transform:translate(1px,1px)}}
       @keyframes titleZoom{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
       @keyframes titleShake{0%,100%{transform:translateX(-50%) translate(0,0)}25%{transform:translateX(-50%) translate(2px,-1.5px)}50%{transform:translateX(-50%) translate(-1.5px,1.5px)}75%{transform:translateX(-50%) translate(1.5px,1px)}}
+      @keyframes smokeDrift{0%{transform:translateX(0) translateY(0)}50%{transform:translateX(60vw) translateY(-3%)}100%{transform:translateX(120vw) translateY(-6%)}}
+      @keyframes sparkFloat{0%{transform:translateY(0) scale(1);opacity:0}12%{opacity:1}60%{opacity:0.85}100%{transform:translateY(-48vh) scale(0.35);opacity:0}}
+      @keyframes sparkFlicker{0%,100%{opacity:1}50%{opacity:0.35}}
+      @keyframes dustDrift{0%{transform:translate(0,0);opacity:0}10%{opacity:0.55}90%{opacity:0.4}100%{transform:translate(-6vw,4vh);opacity:0}}
     `;
     document.head.appendChild(st);
 
-    s.append(bgShake, titleWrap, play, version);
+    s.append(bgShake, fxLayer, titleWrap, play, version);
     this.root.append(s);
   }
 
