@@ -70,7 +70,7 @@ export class Match {
     this.frame++;
     const ctx = {
       events: this.events,
-      spawnProjectile: (f, moveId) => this.spawnProjectile(f, moveId),
+      spawnProjectile: (f, moveId, at) => this.spawnProjectile(f, moveId, at),
     };
     const fighting = this.phase === 'fighting';
 
@@ -179,21 +179,25 @@ export class Match {
 
   // ------------------------------------------------------------------ proyectiles
 
-  spawnProjectile(f, moveId) {
+  spawnProjectile(f, moveId, at = null) {
     const m = MOVES[moveId];
+    const x = at?.x ?? f.x + f.facing * 0.7;
+    const y = at?.y ?? f.y + m.projectile.y;
+    const dir = at?.dir ?? f.facing;
     this.projectiles.push({
       id: this.nextProjectileId++,
       owner: f.index,
       move: moveId,
-      x: f.x + f.facing * 0.7,
-      y: f.y + m.projectile.y,
-      prevX: f.x + f.facing * 0.7,
-      prevY: f.y + m.projectile.y,
-      vx: f.facing * m.projectile.speed,
-      dir: f.facing,
+      x,
+      y,
+      prevX: x,
+      prevY: y,
+      vx: dir * m.projectile.speed,
+      dir,
       life: m.projectile.life,
+      tier: m.tiered ? (f.fruitTier ?? 0) : 0, // Bonus Fruit: tier cargado (escala daño)
     });
-    this.events.push({ type: 'shot', i: f.index, x: f.x, y: f.y + m.projectile.y });
+    this.events.push({ type: 'shot', i: f.index, x, y });
   }
 
   updateProjectiles() {
@@ -212,23 +216,65 @@ export class Match {
       const r = m.projectile.radius;
       let dead = p.life <= 0;
       let hitGround = false;
-      for (const s of this.stage.solids) {
-        if (p.x + r > s.l && p.x - r < s.r && p.y + r > s.bottom && p.y - r < s.top) { dead = true; hitGround = true; }
+      let hitFighter = false;
+
+      // --- Fire Hydrant (Pac-Man): cae hasta apoyarse y dispara chorros de agua ---
+      if (m.hydrant && !dead) {
+        if (!p.landed) {
+          p.vy = (p.vy ?? 0) - P.gravity * DT;
+          p.y += p.vy * DT;
+          for (const s of [...this.stage.solids, ...this.stage.oneWays]) {
+            // se apoya al cruzar el tope de una superficie (piso o plataforma)
+            if (p.x + r > s.l && p.x - r < s.r && p.prevY - r > s.top - 0.08 && p.y - r <= s.top) {
+              p.y = s.top + r;
+              p.vy = 0;
+              p.landed = true;
+              break;
+            }
+          }
+          if (p.y < -40) dead = true; // seguridad: se cayó al vacío
+        } else if (this.phase === 'fighting') {
+          p.shotT = (p.shotT ?? 0) + 1;
+          if (p.shotT % m.hydrant.interval === 0) {
+            // chorro al rival vivo más cercano (horizontal); si no hay, la dirección de la manguera
+            let dir = p.dir;
+            let best = Infinity;
+            for (const v of this.fighters) {
+              if (v.index === p.owner || !v.alive) continue;
+              const d = Math.abs(v.x - p.x);
+              if (d < best) { best = d; dir = v.x >= p.x ? 1 : -1; }
+            }
+            this.spawnProjectile(this.fighters[p.owner], m.hydrant.shot, { x: p.x + dir * 0.5, y: p.y + 0.05, dir });
+          }
+        }
+      }
+
+      // colisión con el piso (la manguera no muere al tocarlo: se apoya sola)
+      if (!m.hydrant) {
+        for (const s of this.stage.solids) {
+          if (p.x + r > s.l && p.x - r < s.r && p.y + r > s.bottom && p.y - r < s.top) { dead = true; hitGround = true; }
+        }
       }
       if (!dead && this.phase === 'fighting') {
         const box = { l: p.x - r, r: p.x + r, b: p.y - r, t: p.y + r };
         for (const v of this.fighters) {
           if (v.index === p.owner || !v.alive || v.invuln > 0) continue;
           if (overlap(box, v.hurtbox())) {
-            this.applyHit(v, this.fighters[p.owner], m, p.dir, { x: p.x, y: p.y });
+            // Bonus Fruit con tier cargado: escala daño y repulsión (cereza → llave)
+            const hitMove = p.tier
+              ? { ...m, damage: m.damage + p.tier * 2, base: m.base + p.tier, growth: m.growth + p.tier }
+              : m;
+            this.applyHit(v, this.fighters[p.owner], hitMove, p.dir, { x: p.x, y: p.y });
             dead = true;
+            hitFighter = true;
             break;
           }
         }
       }
       if (dead) {
-        // BURST (Eruption de Ike / PK Fire de Ness): estalla en llamas con AoE
-        if (m.burst) {
+        // BURST (Eruption de Ike / PK Fire de Ness / Fire Hydrant): estalla con AoE.
+        // La manguera solo estalla si le pega a un rival (al expirar se va sin estallar).
+        if (m.burst && (hitFighter || !m.hydrant)) {
           this.events.push({ type: 'burst', i: p.owner, x: p.x, y: p.y, radius: m.burstRadius, damage: m.burstDamage, base: m.burstBase, growth: m.burstGrowth, angle: m.burstAngle, move: p.move });
         }
         // Holy Water / PK Fire con llama persistente: deja una llama en el suelo

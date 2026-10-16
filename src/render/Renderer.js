@@ -10,12 +10,14 @@ import { buildKenai } from './KenaiModel.js';
 import { buildCoco } from './CocoModel.js';
 import { buildDomono } from './DomonoModel.js';
 import { buildFaxo } from './FaxoModel.js';
+import { buildChubitcoin } from './ChubitcoinModel.js';
 
 const FIGHTER_BUILDERS = {
   pablo: buildKenai,
   coco: buildCoco,
   domono: buildDomono,
   faxo: buildFaxo,
+  chubit: buildChubitcoin,
 };
 
 // Autos de Vita Machines (con créditos en README): se usan en el tráfico del escenario
@@ -1825,33 +1827,136 @@ export class Renderer {
 
   drawProjectiles(match, alpha) {
     const seen = new Set();
-    const colorFor = (move) => {
-      if (move.projectile?.fire) return 0xff7a2a;      // fuego (Eruption, PK Fire)
-      if (move.projectile?.electric) return 0x7fd0ff;  // eléctrico (PK Thunder)
-      if (move.projectile?.holy) return 0x6fc3e8;      // agua bendita (Holy Water)
-      if (move.projectile?.arc) return 0xd8cfc0;       // hacha
-      return 0xffd23c;                                  // genérico
-    };
     for (const p of match.projectiles) {
       seen.add(p.id);
       let mesh = this.projectileMeshes.get(p.id);
       if (!mesh) {
-        const r = MOVES[p.move].projectile.radius;
-        mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), new THREE.MeshBasicMaterial({ color: colorFor(MOVES[p.move]) }));
+        mesh = this.makeProjectileMesh(p);
         this.scene.add(mesh);
         this.projectileMeshes.set(p.id, mesh);
       }
       mesh.position.set(p.prevX + (p.x - p.prevX) * alpha, p.y, 0);
+      // la manguera tiembla apenas al disparar
+      if (mesh.userData.hydrant) {
+        const t = performance.now() / 1000;
+        mesh.rotation.z = Math.sin(t * 30) * 0.04;
+      }
     }
     for (const [id, mesh] of this.projectileMeshes) {
       if (seen.has(id)) continue;
       this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      mesh.material.dispose();
+      this.disposeObject(mesh);
       this.projectileMeshes.delete(id);
     }
     // ---- llamas persistentes en el suelo (Holy Water / PK Fire) ----
     this.drawFlames(match);
+    // ---- trampolines del Pac-Jump ----
+    this.updateTrampolines();
+  }
+
+  /** Color de un proyectil (las frutas de Bonus Fruit cambian por tier). */
+  projectileColor(move, p) {
+    if (move.hydrant || move.projectile?.water) return 0x6fc3e8; // agua
+    if (move.tiered && p) {
+      // ciclo de frutas: cereza → fresa → naranja → manzana → melón → Galaxian → campana → llave
+      const FRUTAS = [0xe84040, 0xff5a7a, 0xff9a3c, 0xd94f30, 0x6fc34f, 0x4fd0e8, 0xffd23c, 0xffe08a];
+      return FRUTAS[p.tier ?? 0] ?? 0xffd23c;
+    }
+    if (move.projectile?.fire) return 0xff7a2a;      // fuego (Eruption, PK Fire)
+    if (move.projectile?.electric) return 0x7fd0ff;  // eléctrico (PK Thunder)
+    if (move.projectile?.holy) return 0x6fc3e8;      // agua bendita (Holy Water)
+    if (move.projectile?.arc) return 0xd8cfc0;       // hacha
+    return 0xffd23c;                                  // genérico
+  }
+
+  /** Mesh de proyectil: manguera (Fire Hydrant) o esfera genérica. */
+  makeProjectileMesh(p) {
+    const move = MOVES[p.move];
+    const r = move.projectile.radius;
+    if (move.hydrant) return this.makeHydrantMesh();
+    return new THREE.Mesh(
+      new THREE.SphereGeometry(r, 14, 10),
+      new THREE.MeshBasicMaterial({ color: this.projectileColor(move, p) }),
+    );
+  }
+
+  /** Fire Hydrant estilo clásico: cuerpo rojo, tapa, tapas laterales y base. */
+  makeHydrantMesh() {
+    const g = new THREE.Group();
+    g.userData.hydrant = true;
+    const rojo = new THREE.MeshStandardMaterial({ color: 0xd8352a, roughness: 0.5, metalness: 0.25 });
+    const rojoOsc = new THREE.MeshStandardMaterial({ color: 0x9c241c, roughness: 0.6, metalness: 0.2 });
+    const agua = new THREE.MeshBasicMaterial({ color: 0x6fc3e8 });
+    const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.62, 14), rojo);
+    cuerpo.position.y = 0.32;
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.42, 0.1, 14), rojoOsc);
+    base.position.y = 0.05;
+    const tapa = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), rojo);
+    tapa.position.y = 0.63;
+    const pico = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.12, 8), rojoOsc);
+    pico.position.y = 0.78;
+    // tapas laterales (donde sale el agua)
+    for (const side of [-1, 1]) {
+      const tapaLateral = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 10), rojoOsc);
+      tapaLateral.rotation.z = Math.PI / 2;
+      tapaLateral.position.set(side * 0.33, 0.42, 0);
+      const gota = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), agua);
+      gota.position.set(side * 0.4, 0.42, 0);
+      g.add(tapaLateral, gota);
+    }
+    g.add(cuerpo, base, tapa, pico);
+    g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    return g;
+  }
+
+  /** Libera geometrías/materiales de un mesh o grupo (proyectiles, etc.). */
+  disposeObject(obj) {
+    if (obj.isGroup) {
+      obj.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) o.material.dispose();
+      });
+    } else {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    }
+  }
+
+  // ---- trampolines del Pac-Jump (visual que dura unos frames) ----
+  addTrampoline(x, y) {
+    if (!this.trampolines) this.trampolines = [];
+    const g = new THREE.Group();
+    const aro = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.55, 0.5, 0.1, 16),
+      new THREE.MeshBasicMaterial({ color: 0x4fd0e8, transparent: true, opacity: 0.9 }),
+    );
+    const piso = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42, 0.42, 0.06, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75 }),
+    );
+    piso.position.y = 0.05;
+    g.add(aro, piso);
+    g.position.set(x, y, 0.4);
+    this.scene.add(g);
+    this.trampolines.push({ g, life: 45 });
+  }
+
+  updateTrampolines() {
+    if (!this.trampolines) return;
+    const keep = [];
+    for (const tr of this.trampolines) {
+      tr.life--;
+      if (tr.life <= 0) {
+        this.scene.remove(tr.g);
+        this.disposeObject(tr.g);
+        continue;
+      }
+      const t = tr.life / 45;
+      tr.g.scale.set(1 + (1 - t) * 0.4, 1, 1 + (1 - t) * 0.4);
+      tr.g.children.forEach((c) => { c.material.opacity = 0.9 * t; });
+      keep.push(tr);
+    }
+    this.trampolines = keep;
   }
 
   /** Dibuja las llamas persistentes (Holy Water azul, PK Fire naranja). */
@@ -1915,11 +2020,20 @@ export class Renderer {
       } else if (e.type === 'shot-end') {
         this.burst(e.x, e.y, 6, 0xffd23c, 5, 0.25, 0.1);
       } else if (e.type === 'burst') {
-        // explosión de fuego (Eruption de Ike / PK Fire de Ness)
-        this.burst(e.x, e.y, 22, 0xff7a2a, 12, 0.6, 0.22);
-        this.burst(e.x, e.y, 14, 0xffd23c, 8, 0.45, 0.16);
-        this.burst(e.x, e.y, 8, 0xff5a36, 6, 0.35, 0.14);
+        // explosión: fuego (Eruption/PK Fire) o agua (Fire Hydrant)
+        const mv = MOVES[e.move];
+        const esAgua = !!(mv?.water || mv?.projectile?.water || mv?.hydrant);
+        const c1 = esAgua ? 0x6fc3e8 : 0xff7a2a;
+        const c2 = esAgua ? 0xd8f4ff : 0xffd23c;
+        const c3 = esAgua ? 0x3fa8cc : 0xff5a36;
+        this.burst(e.x, e.y, 22, c1, 12, 0.6, 0.22);
+        this.burst(e.x, e.y, 14, c2, 8, 0.45, 0.16);
+        this.burst(e.x, e.y, 8, c3, 6, 0.35, 0.14);
         this.rig.addShake(CAM.shake.hit * 1.4);
+      } else if (e.type === 'fruit-cycle') {
+        // Bonus Fruit: destello con el color de la fruta del tier actual
+        const FRUTAS = [0xe84040, 0xff5a7a, 0xff9a3c, 0xd94f30, 0x6fc34f, 0x4fd0e8, 0xffd23c, 0xffe08a];
+        this.burst(e.x, e.y, 7, FRUTAS[e.tier] ?? 0xffd23c, 4.5, 0.3, 0.13);
       } else if (e.type === 'counter') {
         // contraataque de Ike: flash dorado fuerte
         this.burst(e.x, e.y, 20, 0xf2c94c, 14, 0.6, 0.2);
@@ -1932,6 +2046,8 @@ export class Renderer {
         this.burst(e.x, e.y, 10, 0xffffff, 5, 0.4, 0.13);
       } else if (e.type === 'boost') {
         this.burst(e.x, e.y, 10, 0xffffff, 6, 0.35, 0.12);
+        // Pac-Jump de Pac-Man: deja un trampolín visible
+        if (e.move === 'pacJump') this.addTrampoline(e.x, e.y);
       } else if (e.type === 'car-spawn') {
         // bocina de advertencia: flash amarillo en el borde por donde viene el auto
         const warnX = -e.dir * 22;

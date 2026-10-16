@@ -46,6 +46,11 @@ export class Fighter {
     this.attack = null; // { id, frame, hit: [índices ya golpeados] }
     this.prevMask = 0;
     this.buf = { jump: 0, attack: 0, special: 0 };
+    // Bonus Fruit (Pac-Man): carga de fruta manteniendo el especial
+    this.fruitCharging = false;
+    this.fruitCharge = 0;
+    this.fruitTier = 0;
+    this.specialHeld = false;
 
     // --- Stance system (PabloQuemandoRuedas) ---
     this.stance = this.spec.stance ?? 'normal';
@@ -179,9 +184,11 @@ export class Fighter {
     if (pressed & IN.ATTACK) this.buf.attack = P.bufferFrames;
     if (pressed & IN.SPECIAL) this.buf.special = P.bufferFrames;
     const jumpHeld = has(mask, IN.JUMP);
+    const specialHeld = has(mask, IN.SPECIAL);
+    this.specialHeld = specialHeld; // se asigna ANTES de act(): la carga de Bonus Fruit lee este frame
 
-    if (this.state === 'dead') return;
-    if (this.state === 'ko') return this.stepKo(stage, ctx);
+    if (this.state === 'dead') { this.fruitCharging = false; return; }
+    if (this.state === 'ko') { this.fruitCharging = false; return this.stepKo(stage, ctx); }
 
     if (this.hitlag > 0) {
       this.hitlag--;
@@ -202,6 +209,7 @@ export class Fighter {
       this.hitstun--;
       this.attack = null;
       this.swordSlashPhase = null;
+      this.fruitCharging = false; // un golpe corta la carga de Bonus Fruit
       if (this.hitstun === 0) this.state = this.grounded ? 'idle' : 'air';
     } else {
       // Estado especial: Sword Slash
@@ -234,6 +242,25 @@ export class Fighter {
   // ============================================================ ACT (estado normal)
 
   act(x, up, down, pressed, jumpHeld, ctx) {
+    // --- Bonus Fruit (Pac-Man): carga manteniendo el especial, lanza al soltar ---
+    if (this.fruitCharging) {
+      if (this.attack) {
+        this.fruitCharging = false; // otro ataque interrumpe la carga
+      } else if (this.specialHeld) {
+        this.fruitCharge++;
+        const frames = MOVES[this._chargeMove]?.fruitFrames ?? 12;
+        const tier = Math.min(7, Math.floor(this.fruitCharge / frames));
+        if (tier !== this.fruitTier) {
+          this.fruitTier = tier;
+          ctx.events.push({ type: 'fruit-cycle', i: this.index, x: this.x, y: this.y + 1.5, tier });
+        }
+      } else {
+        // soltó el especial: lanza la fruta cargada (el tier escala el daño en Match)
+        this.fruitCharging = false;
+        this.shotCd = SHOT_COOLDOWN;
+        this.startAttack(this._chargeMove ?? this.spec.specials.neutral, ctx);
+      }
+    }
     const a = this.attack;
     if (a && !MOVES[a.id]) {
       console.error(`[Fighter ${this.index}] Move inválido en attack: "${a.id}"`);
@@ -251,7 +278,7 @@ export class Fighter {
           this.vy = P.upSpecialSpeed;
           this.vx = x * 4;
           this.upSpecialUsed = true;
-          ctx.events.push({ type: 'boost', i: this.index, x: this.x, y: this.y });
+          ctx.events.push({ type: 'boost', i: this.index, x: this.x, y: this.y, move: a.id });
         }
         if (m.lunge) this.vx = this.facing * m.lunge;
       }
@@ -308,6 +335,9 @@ export class Fighter {
           // ← / → + Especial: especial de costado del personaje
           this.facing = x;
           this.startSpecial(sp.side, ctx);
+        } else if (neutral && sp?.neutral && MOVES[sp.neutral]?.fruitCharge && this.shotCd === 0) {
+          // Bonus Fruit (Pac-Man): empieza a cargar (se lanza al soltar el especial)
+          this.startFruitCharge();
         } else if (neutral && sp?.neutral && this.shotCd === 0) {
           // Especial neutro del personaje (sin dirección)
           this.startSpecial(sp.neutral, ctx);
@@ -379,6 +409,15 @@ export class Fighter {
     // ataques cuerpo a cuerpo: inhale, hammer, quickDraw, whip
     this.buf.special = 0;
     this.startAttack(id, ctx);
+  }
+
+  /** Bonus Fruit (Pac-Man): empieza a cargar la fruta manteniendo el especial. */
+  startFruitCharge() {
+    this.buf.special = 0;
+    this.fruitCharging = true;
+    this.fruitCharge = 0;
+    this.fruitTier = 0;
+    this._chargeMove = this.spec.specials.neutral;
   }
 
   startAttack(id, ctx) {

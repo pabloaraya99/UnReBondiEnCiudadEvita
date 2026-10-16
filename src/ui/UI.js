@@ -7,6 +7,7 @@ const CHAMPION_LINEUP = [
   { id: 'domono', img: '/assets/ui/pilots/domono.webp' },
   { id: 'faxo', img: '/assets/ui/pilots/faxo.webp' },
   { id: 'pablo', img: '/assets/ui/pilots/Kenai3d 1.png' },
+  { id: 'chubit', img: '/assets/ui/pilots/Chubitcoin Splash Art.jpg' },
 ];
 // tarjetas splash art de los personajes (estilo cómic con stats) para el champion select
 const CHARACTER_SPLASH = {
@@ -14,6 +15,7 @@ const CHARACTER_SPLASH = {
   domono: '/assets/ui/pilots/Domono Splash Art.jfif',
   faxo: '/assets/ui/pilots/Faxo Splash Art.jfif',
   pablo: '/assets/ui/pilots/Kenai Splash Art.jfif',
+  chubit: '/assets/ui/pilots/Chubitcoin Splash Art.jpg',
 };
 const DIFFICULTIES = ['easy', 'normal', 'hard'];
 const DIFFICULTY_LABEL = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };

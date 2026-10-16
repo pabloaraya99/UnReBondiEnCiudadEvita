@@ -259,6 +259,51 @@ export const GAME_CONFIG = {
       damage: 11, base: 8, growth: 13, angle: 30,
       arcHeight: 4.5,        // altura del arco
     },
+
+    // --- CHUBITCOIN (Pac-Man): Bonus Fruit (especial neutro) ---
+    // Mantené el especial para cargar: el ciclo de frutas sube de tier
+    // (cereza → fresa → naranja → manzana → melón → Galaxian → campana → llave).
+    // Soltalo para tirar la fruta cargada: más tier = más daño.
+    bonusFruit: {
+      startup: 10, active: 0, recovery: 18,
+      projectile: { speed: 14, life: 60, radius: 0.3, y: 1.1 },
+      damage: 4, base: 4, growth: 8, angle: 30,
+      fruitCharge: true,     // se carga manteniendo el especial y se lanza al soltar
+      tiered: true,          // el tier cargado escala daño/repulsión (p tiers)
+      fruitFrames: 12,       // cuadros por fruta del ciclo
+    },
+    // --- CHUBITCOIN (Pac-Man): Power Pellet (especial de costado) ---
+    // Embestida con la cápsula amarilla comiendo todo (el Power Pellet)
+    powerPellet: {
+      startup: 10, active: 6, recovery: 20,
+      box: { x: 1.3, y: 1.0, w: 2.2, h: 1.2 },
+      damage: 13, base: 8, growth: 14, angle: 34, lunge: 11,
+      dashAttack: true, heavyHit: true,
+    },
+    // --- CHUBITCOIN (Pac-Man): Pac-Jump (especial hacia arriba) ---
+    // Impulso hacia arriba que deja un trampolín (recuperación de Pac-Man)
+    pacJump: {
+      startup: 4, active: 10, recovery: 16,
+      box: { x: 0.1, y: 0.9, w: 1.2, h: 1.6 },
+      damage: 6, base: 5, growth: 16, angle: 80, boost: true,
+      trampoline: true,      // dibuja un trampolín al usarlo (visual)
+    },
+    // --- CHUBITCOIN (Pac-Man): Fire Hydrant (especial hacia abajo) ---
+    // Manguera que queda en el piso y dispara chorros de agua al rival
+    fireHydrant: {
+      startup: 14, active: 0, recovery: 26,
+      projectile: { speed: 0, life: 480, radius: 0.45, y: 0.45 },
+      damage: 7, base: 5, growth: 10, angle: 55,
+      hydrant: { interval: 55, shot: 'waterShot' }, // chorros cada N frames
+      burst: true, burstRadius: 1.5, burstDamage: 6, burstBase: 5, burstGrowth: 12, burstAngle: 60,
+      water: true,
+    },
+    // --- CHUBITCOIN (Pac-Man): chorro de agua de la Fire Hydrant ---
+    waterShot: {
+      startup: 0, active: 0, recovery: 0,
+      projectile: { speed: 16, life: 55, radius: 0.2, y: 0, water: true },
+      damage: 4, base: 3, growth: 6, angle: 25,
+    },
   },
   shotCooldown: 24, // cuadros antes de poder lanzar otro proyectil
 
@@ -401,8 +446,24 @@ export const GAME_CONFIG = {
       swordSlash: { moveId: 'swordSlash' }, // ↑ + Especial (reemplaza el upSpecial genérico)
       blockForm: { moveId: 'blockForm' }, // ↓ + Especial
     },
+
+    // === CHUBITCOIN = PAC-MAN (frutas, Power Pellet, manguera) ===
+    // Stats del splash art: "PESO: BILLETES PESADOS · AGILIDAD: HODL MAESTRO ·
+    // PODER: VALOR EXPLOSIVO" → medio-pesado, tirando fuerte y veloz.
+    chubit: {
+      name: 'Chubitcoin', color: '#ffd23c',
+      weight: 104, power: 1.12, runSpeed: 7.4, airSpeed: 6.0, jumpSpeed: 12.9, doubleJumpSpeed: 12.0,
+      width: 0.85, height: 1.85,
+      // Especiales estilo Pac-Man
+      specials: {
+        neutral: 'bonusFruit',  // Bonus Fruit: cargar manteniendo el especial, lanzar al soltar
+        up: 'pacJump',          // Pac-Jump: impulso de recuperación + trampolín
+        side: 'powerPellet',    // Power Pellet: embestida mordiendo todo
+        down: 'fireHydrant',    // Fire Hydrant: manguera que tira chorros de agua
+      },
+    },
   },
-  defaultCharacters: ['coco', 'faxo', 'domono', 'pablo'],
+  defaultCharacters: ['coco', 'faxo', 'domono', 'pablo', 'chubit'],
 
   // ------------------------------------------------------------------ escenarios
   stages: {

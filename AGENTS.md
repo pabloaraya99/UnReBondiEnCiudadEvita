@@ -45,13 +45,15 @@ src/
     CocoModel.js     → modelo de El Coco (cuero manchado de grasa, tatuajes, jogging azul, llave inglesa)
     DomonoModel.js   → modelo de Dj Domono (campera verde camuflada, consola de mano, auriculares)
     FaxoModel.js     → modelo de Dr Faxo (flaco, bata, anteojos, cámara, ojotas con medias)
+    ChubitcoinModel.js → modelo de Chubitcoin (pelo negro peinado, camisa negra con botones dorados,
+                         lengua afuera, reloj/anillo/colgante bitcoin — Pac-Man del equipo)
   ui/                → interfaz genérica HTML/CSS sobre el canvas
     UI.js            → pantallas: menú (logo 3D + nube de pelea animada + lineup champ-select con
                        bursts de caricatura), lobby (selección jugadores/personajes), HUD, resultados
                        + cutoutPng() (recorte de fondo de imágenes por flood fill)
     ui.css           → estilos + Google Fonts (Bungee, Rubik Spray Paint)
 test/
-  pablo.test.js      → 14 tests de simulación (node --test). Deben pasar siempre.
+  pablo.test.js      → 17 tests de simulación (node --test). Deben pasar siempre.
 public/assets/
   models/            → GLB de modelos 3D (cuando se generen con IAs externas)
   concept/kenai/     → imágenes de referencia de personajes
@@ -74,13 +76,16 @@ start-server.bat     → levanta el dev server en Windows con doble clic
 
 ## Estado actual (qué funciona)
 
-- Menú Smash-style (logo 3D, nube de pelea animada, línea de personajes tipo champion select con
-  los 4 retratos: Kenai + Coco + Domono + Faxo — sin los autos, bursts + contorno de cómic + cinta de
-  nombre por personaje, escenario 3D vivo)
+- Título con splash art estático + lobby champion select con tarjetas splash art por personaje
+  (coco/domono/faxo/pablo/chubit), selector de escenario, teclado P1 (WASD + ESPACIO/G/H) y JOYSTICK
+  (Gamepad API: stick/d-pad, A saltar, X atacar, B/Y especial — 4 pads = 4 jugadores)
 - Lobby con selección de 4 slots (humano/CPU/cerrado, personaje, dificultad)
 - Partida: countdown, HUD con % y vidas, KO por blast zones, resultados, revancha
-- 4 personajes con modelos 3D propios (primitivas): pablo/kenai con stances/especiales, coco (cuero,
-  tatuajes, llave), domono (camuflada, consola), faxo (flaco, cámara)
+- 5 personajes con modelos 3D propios (primitivas): pablo/kenai (Kirby: stances, inhale, hammer,
+  stone), coco (Ike: eruption, counter, quickDraw), domono (Ness: pkFire, pkThunder, pkMagnet),
+  faxo (Richter: holyWater, whip, axe, uppercut), chubitcoin (Pac-Man: Bonus Fruit con carga por tier,
+  Power Pellet, Pac-Jump con trampolín, Fire Hydrant con chorros de agua)
+- IA: usa especiales neutros a rango real (sin marcha encima) y carga Bonus Fruit con Chubitcoin
 - Escenario "Los Mormones": templo de fondo (parallax), calle = piso con autos que PEGAN
 - Tráfico determinista de autos (hazards), guardarraíles como plataformas
 

@@ -74,7 +74,7 @@ function defaultSlots() {
   return [
     { type: 'human', character: 'pablo', difficulty: 'normal' },
     { type: 'cpu', character: 'coco', difficulty: 'normal' },
-    { type: 'cpu', character: 'faxo', difficulty: 'normal' },
+    { type: 'cpu', character: 'chubit', difficulty: 'normal' },
     { type: 'cpu', character: 'domono', difficulty: 'normal' },
   ];
 }

@@ -110,6 +110,16 @@ export class AIController {
         this.think = this.cfg.reaction + Math.floor(this.rng() * this.cfg.reaction);
       } else if (dist > 5 && dist < 14 && Math.abs(dy) < 2 && me.facing === dir && me.shotCd === 0 && this.rng() < this.cfg.shotChance * 10) {
         if (me.spec.stances) mask |= dir > 0 ? IN.RIGHT : IN.LEFT; // con stances, el especial neutro cambia de stance: el proyectil sale con ← / →
+        else mask &= ~(IN.LEFT | IN.RIGHT); // sin stances: especial NEUTRO de verdad (sin la marcha encima)
+        press(IN.SPECIAL);
+        // Bonus Fruit (Pac-Man): mantiene el especial un buen rato para cargar la fruta antes de tirarla
+        const spNeutral = GAME_CONFIG.moves[me.spec.specials?.neutral];
+        if (this.hold > 0 && spNeutral?.fruitCharge) this.hold = 45;
+        this.think = this.cfg.reaction;
+      } else if (dist > 4 && dist < 9 && Math.abs(dy) < 1.5 && me.grounded && me.shotCd === 0
+        && GAME_CONFIG.moves[me.spec.specials?.down]?.hydrant && this.rng() < 0.15) {
+        // Fire Hydrant (Pac-Man): planta la manguera a rango medio (↓ + especial)
+        mask |= IN.DOWN;
         press(IN.SPECIAL);
         this.think = this.cfg.reaction;
       } else {

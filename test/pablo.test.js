@@ -66,6 +66,46 @@ test('Kenai (Kirby) usa Hammer con ← / → + especial', () => {
   assert.equal(m.fighters[0].stance, 'normal', 'no cambió de stance');
 });
 
+test('Chubitcoin (Pac-Man) carga Bonus Fruit con el especial neutro y la lanza al soltar', () => {
+  const m = new Match({ players: [{ character: 'chubit' }, { character: 'coco' }] });
+  run(m, GAME_CONFIG.match.countdownFrames, []);
+  // mantener el especial: la fruta cicla mientras carga (eventos de tier)
+  const ciclos = eventsOf(m, 40, [IN.SPECIAL], 'fruit-cycle');
+  assert.ok(ciclos.length >= 2, `cambia de fruta mientras carga (${ciclos.length})`);
+  assert.ok(m.fighters[0].fruitCharging, 'sigue cargando mientras se mantiene apretado');
+  const tierCargado = m.fighters[0].fruitTier;
+  assert.ok(tierCargado >= 2, `tier cargado >= 2 después de 40 frames (tier ${tierCargado})`);
+  // soltar el especial: lanza Bonus Fruit
+  m.step([0]);
+  const lanzo = m.events.filter((e) => e.type === 'attack' && e.move === 'bonusFruit');
+  assert.equal(lanzo.length, 1, 'lanza la fruta al soltar el especial');
+  // el proyectil sale en el startup (10 frames) y guarda el tier cargado
+  assert.equal(eventsOf(m, 14, [], 'shot').length, 1, 'el proyectil sale en el startup');
+  assert.equal(m.projectiles.length, 1, 'la fruta queda en el aire');
+  assert.equal(m.projectiles[0].move, 'bonusFruit');
+  assert.equal(m.projectiles[0].tier, tierCargado, 'el proyectil guarda el tier cargado');
+});
+
+test('Chubitcoin (Pac-Man) usa Power Pellet con ← / → + especial', () => {
+  const m = new Match({ players: [{ character: 'chubit' }, { character: 'coco' }] });
+  run(m, GAME_CONFIG.match.countdownFrames, []);
+  const ataques = eventsOf(m, 20, [IN.RIGHT | IN.SPECIAL], 'attack').filter((e) => e.move === 'powerPellet');
+  assert.equal(ataques.length, 1, 'embiste con Power Pellet');
+});
+
+test('Chubitcoin (Pac-Man) tira la Fire Hydrant con ↓ + especial y dispara agua', () => {
+  const m = new Match({ players: [{ character: 'chubit' }, { character: 'coco' }] });
+  run(m, GAME_CONFIG.match.countdownFrames, []);
+  // ↓ + especial tira la manguera (proyectil en el startup, 14 frames)
+  assert.equal(eventsOf(m, 20, [IN.DOWN | IN.SPECIAL], 'shot').length, 1);
+  const manguera = m.projectiles.find((p) => p.move === 'fireHydrant');
+  assert.ok(manguera, 'la manguera queda en el escenario');
+  assert.equal(manguera.landed, true, 'la manguera se apoya en el piso');
+  // pasados ~55 frames, la manguera dispara su primer chorro de agua
+  eventsOf(m, 70, [], 'shot');
+  assert.ok(m.projectiles.some((p) => p.move === 'waterShot'), 'la manguera dispara chorros de agua');
+});
+
 test('el stance cambia peso, poder, tamaño y velocidad', () => {
   const m = started();
   const p = m.fighters[0];
