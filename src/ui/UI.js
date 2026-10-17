@@ -9,40 +9,18 @@ const CHARACTER_SPLASH = {
   pablo: '/assets/ui/pilots/Kenai Splash Art.jfif',
   chubit: '/assets/ui/pilots/Chubitcoin Splash Art.jpg',
 };
+// posición de la cara en cada splash art (fracciones 0-1 de ancho/alto de la imagen).
+// El HUD hace zoom sobre ese punto para mostrar el close-up del rostro.
+const FACE_POS = {
+  pablo: [0.48, 0.27],
+  coco: [0.50, 0.27],
+  domono: [0.55, 0.26],
+  faxo: [0.46, 0.28],
+  chubit: [0.60, 0.29],
+};
 const DIFFICULTIES = ['easy', 'normal', 'hard'];
 const DIFFICULTY_LABEL = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };
 const TYPE_LABEL = { off: 'Cerrado', human: 'Humano', cpu: 'CPU' };
-const STAT_LABEL = { peso: 'PESO', poder: 'PODER', velocidad: 'VEL', salto: 'SALTO', arco: 'ARCO' };
-
-/**
- * Barras de stats estilo Smash Bros para un personaje. Cada categoría (peso,
- * poder, velocidad, salto, arco) se dibuja como 5 celdas, de las cuales `value`
- * quedan llenas. Devuelve el contenedor listo para insertar en el DOM.
- */
-function smashBars(characterId) {
-  const stats = GAME_CONFIG.smashStats[characterId];
-  if (!stats) return document.createTextNode('');
-  const wrap = document.createElement('div');
-  wrap.className = 'smash-stats';
-  for (const key of GAME_CONFIG.smashStatKeys) {
-    const row = document.createElement('div');
-    row.className = 'smash-stat-row';
-    const label = document.createElement('span');
-    label.className = 'smash-stat-label';
-    label.textContent = STAT_LABEL[key] || key.toUpperCase();
-    const bars = document.createElement('span');
-    bars.className = 'smash-stat-bars';
-    const v = Math.max(1, Math.min(5, stats[key] | 0));
-    for (let i = 1; i <= 5; i++) {
-      const cell = document.createElement('i');
-      cell.className = `smash-stat-cell${i <= v ? ' on' : ''}`;
-      bars.appendChild(cell);
-    }
-    row.append(label, bars);
-    wrap.appendChild(row);
-  }
-  return wrap;
-}
 
 /**
  * Capa de interfaz genérica (HTML encima del canvas).
@@ -297,7 +275,7 @@ export class UI {
       charImg.style.animationDelay = `${i * 1.4}s`;
       const nameTag = el('div', 'slot-char-name', ch.name);
       nameTag.style.background = ch.color;
-      charBtn.append(charImg, nameTag, smashBars(slot.character));
+      charBtn.append(charImg, nameTag);
       card.append(charBtn);
 
       // dificultad (solo si es CPU)
@@ -536,18 +514,24 @@ export class UI {
     this.hudCards = match.fighters.map((f) => {
       const slot = GAME_CONFIG.players[f.index % GAME_CONFIG.players.length];
       const card = el('div', 'hud-card');
-      card.style.borderTopColor = slot.color;
-      // retrato del personaje (splash art, recorte superior = cara)
-      const img = el('img', 'hud-portrait');
+      card.style.setProperty('--pcolor', slot.color);
+      // rectángulo con CLOSE-UP del rostro (zoom + centrado por CSS según FACE_POS)
+      const face = el('div', 'hud-face');
+      const img = el('img', 'hud-face-img');
       img.src = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai3d 1.png';
       img.alt = f.spec.name;
       img.draggable = false;
+      const pos = FACE_POS[f.characterId] || [0.5, 0.27];
+      img.style.setProperty('--fx', pos[0]);
+      img.style.setProperty('--fy', pos[1]);
+      // el % queda integrado abajo del rectángulo del rostro (chip de color llamativo)
+      const pct = el('div', 'hud-pct', '0%');
+      face.append(img, pct);
       const info = el('div', 'hud-info');
       const name = el('div', 'hud-name', `${slot.short} · ${f.spec.name}`);
-      const pct = el('div', 'hud-percent', '0%');
       const stocks = el('div', 'hud-stocks');
-      info.append(name, pct, stocks);
-      card.append(img, info);
+      info.append(name, stocks);
+      card.append(face, info);
       hud.append(card);
       return { card, pct, stocks, f };
     });
@@ -564,9 +548,9 @@ export class UI {
     for (const c of this.hudCards) {
       const f = c.f;
       c.pct.textContent = `${Math.floor(f.percent)}%`;
-      // color del %: blanco → amarillo → naranja → rojo
+      // chip del %: amarillo bondi → naranja → rojo (texto oscuro siempre encima)
       const t = Math.min(1, f.percent / 150);
-      c.pct.style.color = `rgb(255, ${Math.round(255 - 140 * t)}, ${Math.round(255 - 220 * t)})`;
+      c.pct.style.background = `rgb(242, ${Math.round(201 - 140 * t)}, ${Math.round(76 - 60 * t)})`;
       // vidas
       c.stocks.innerHTML = '';
       for (let i = 0; i < match.stocks; i++) {
