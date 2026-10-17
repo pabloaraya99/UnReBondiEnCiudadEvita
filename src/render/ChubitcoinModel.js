@@ -127,17 +127,42 @@ export function buildChubitcoin() {
   const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 6, 10), camisaMat), armR);
   mangaR.position.set(0, -0.16, 0.05);
   mangaR.rotation.x = 0.45;
+  // TELÉFONO con gráfico crypto en la mano derecha
+  const phone = new THREE.Group();
+  phone.position.set(-0.01, -0.35, 0.18);
+  phone.rotation.set(-0.3, 0, 0.1);
+  armR.add(phone);
+  const phoneBody = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.14, 0.012), mkMat(0x0a0a0c, { roughness: 0.2 })), phone);
+  const phoneScreen = add(new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.11, 0.01), mkMat(0x0d1117, { emissive: 0x00ff88, emissiveIntensity: 0.6, roughness: 0.1 })), phone);
+  phoneScreen.position.z = 0.011;
+  // gráfico de velas crypto en pantalla (barras verdes/rojas)
+  for (let i = 0; i < 4; i++) {
+    const green = Math.random() > 0.3;
+    const bar = add(new THREE.Mesh(
+      new THREE.BoxGeometry(0.01, 0.015 + Math.random() * 0.03, 0.005),
+      mkMat(green ? 0x00ff88 : 0xff4444, { emissive: green ? 0x00ff88 : 0xff4444, emissiveIntensity: 0.8 })
+    ), phone);
+    bar.position.set(-0.02 + i * 0.014, -0.03 + Math.random() * 0.02, 0.012);
+  }
   manoConDedos(armR, -0.02, -0.41, 0.19, -1, pielMat);
   // ANILLO DORADO en el dedo de la mano derecha
   const anillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.028, 0.02), oroMat), armR);
   anillo.position.set(-0.02, -0.3, 0.23);
 
-  // ======================== cadena + COLGANTE bitcoin ========================
+  // ======================== cadenas + COLGANTE bitcoin ========================
+  // cadena principal (gruesa)
   for (const side of [-1, 1]) {
     const tira = add(new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.4, 0.012), oroOscMat));
     tira.position.set(side * 0.1, 1.45, 0.2);
     tira.rotation.x = 0.1;
     tira.rotation.z = side * -0.14;
+  }
+  // segunda cadena más fina y larga
+  for (const side of [-1, 1]) {
+    const tira = add(new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.55, 0.008), oroOscMat));
+    tira.position.set(side * 0.12, 1.4, 0.22);
+    tira.rotation.x = 0.08;
+    tira.rotation.z = side * -0.12;
   }
   const coin = new THREE.Group();
   coin.position.set(0, 1.22, 0.25);
