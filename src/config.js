@@ -465,8 +465,9 @@ export const GAME_CONFIG = {
         { l: -2.2, r: 2.2, top: 6.9 },   // guardarraíl alto central
       ],
       spawns: [
-        { x: -6, y: 0 }, { x: 6, y: 0 }, { x: -2.5, y: 0 }, { x: 2.5, y: 0 },
-        { x: -8.5, y: 0 }, { x: 8.5, y: 0 },
+        { x: -9, y: 0 }, { x: 9, y: 0 }, { x: -6, y: 0 }, { x: 6, y: 0 },
+        { x: -3, y: 0 }, { x: 3, y: 0 }, { x: -1, y: 0 }, { x: 1, y: 0 },
+        { x: -4.8, y: 3.6 }, { x: 4.8, y: 3.6 }, // guardarriles laterales
       ],
       respawn: { x: 0, y: 11 },
       blast: { left: -30, right: 30, bottom: -19, top: 24 },
@@ -495,7 +496,11 @@ export const GAME_CONFIG = {
         { l: 13, r: 19, top: 2.6 },      // lomo del libro derecho
         { l: -3.5, r: 3.5, top: 5.2 },   // la taza gigante (plataforma alta)
       ],
-      spawns: [{ x: -6, y: 0 }, { x: 6, y: 0 }, { x: -2.5, y: 0 }, { x: 2.5, y: 0 }],
+      spawns: [
+        { x: -6, y: 0 }, { x: 6, y: 0 }, { x: -2.5, y: 0 }, { x: 2.5, y: 0 },
+        { x: -9, y: 0 }, { x: 9, y: 0 }, { x: -4, y: 0 }, { x: 4, y: 0 },
+        { x: -16, y: 2.6 }, { x: 16, y: 2.6 }, // lomos de los libros gigantes
+      ],
       respawn: { x: 0, y: 11 },
       blast: { left: -30, right: 30, bottom: -19, top: 24 },
       camera: { minWidth: 22, padding: 7 },
@@ -540,8 +545,9 @@ export const GAME_CONFIG = {
   },
 
   // ------------------------------------------------------------------ jugadores locales (teclado y joystick)
-  // En online cada jugador usa el set de P1 en su propia máquina; P2-P6 son para
-  // varios humanos en una sola compu (teclado + joysticks).
+  // En online cada jugador usa el set de P1 en su propia máquina; P2-P10 son para
+  // varios humanos en una sola compu. P1-P6: teclado + joystick. P7-P10: solo
+  // joystick (los browsers exponen hasta ~8 pads; en online no limita nada).
   players: [
     { short: 'P1', color: '#4d8bff', label: 'WASD + ESP/G/H', controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'Space', attack: 'KeyG', special: 'KeyH' } },
     { short: 'P2', color: '#ff5a36', label: 'Flechas + , . /', controls: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', jump: 'Comma', attack: 'Period', special: 'Slash' } },
@@ -549,6 +555,10 @@ export const GAME_CONFIG = {
     { short: 'P4', color: '#ffc93c', label: 'Num 8456 + 1/2/3', controls: { left: 'Numpad4', right: 'Numpad6', up: 'Numpad8', down: 'Numpad5', jump: 'Numpad1', attack: 'Numpad2', special: 'Numpad3' } },
     { short: 'P5', color: '#ff6ec7', label: 'Teclas 1-7', controls: { left: 'Digit1', right: 'Digit2', up: 'Digit3', down: 'Digit4', jump: 'Digit5', attack: 'Digit6', special: 'Digit7' } },
     { short: 'P6', color: '#4dd0e1', label: 'Num 7/9/0/. + * ¼', controls: { left: 'Numpad7', right: 'Numpad9', up: 'Numpad0', down: 'NumpadDecimal', jump: 'NumpadAdd', attack: 'NumpadMultiply', special: 'NumpadDivide' } },
+    { short: 'P7', color: '#b388ff', label: 'Joystick 7' },
+    { short: 'P8', color: '#ff9800', label: 'Joystick 8' },
+    { short: 'P9', color: '#aed581', label: 'Joystick 9' },
+    { short: 'P10', color: '#9575cd', label: 'Joystick 10' },
   ],
-  maxPlayers: 6,
+  maxPlayers: 10,
 };

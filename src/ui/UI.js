@@ -485,6 +485,8 @@ export class UI {
     this.clear();
     const hud = el('div', '');
     hud.id = 'hud';
+    // con 8+ luchadores las tarjetas se achican para entrar en pantalla
+    if (match.fighters.length >= 8) hud.classList.add('many');
     this.hudCards = match.fighters.map((f) => {
       const slot = GAME_CONFIG.players[f.index % GAME_CONFIG.players.length];
       const card = el('div', 'hud-card');

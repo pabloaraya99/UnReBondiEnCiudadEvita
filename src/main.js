@@ -80,15 +80,16 @@ const app = {
   onlineRematch: false, // la partida actual es online
 };
 
-/** Lobby por defecto: P1 humano (Pablo) + 3 CPU + 2 puertos cerrados. */
+/** Lobby por defecto: P1 humano (Pablo) + 3 CPU + resto de puertos cerrados. */
 function defaultSlots() {
   return [
     { type: 'human', character: 'pablo', difficulty: 'normal' },
     { type: 'cpu', character: 'coco', difficulty: 'normal' },
     { type: 'cpu', character: 'chubit', difficulty: 'normal' },
     { type: 'cpu', character: 'domono', difficulty: 'normal' },
-    { type: 'off', character: 'pablo', difficulty: 'normal' },
-    { type: 'off', character: 'coco', difficulty: 'normal' },
+    ...Array.from({ length: GAME_CONFIG.maxPlayers - 4 }, (_, i) => ({
+      type: 'off', character: ['faxo', 'pablo', 'coco', 'domono', 'chubit', 'faxo'][i % 6], difficulty: 'normal',
+    })),
   ];
 }
 

@@ -260,13 +260,13 @@ test('Pablo CPU vs CPU: partida completa sin valores raros, con stances', async 
   assert.equal(m.phase, 'finished', `terminó (${frames} cuadros)`);
 });
 
-test('FFA de 6 jugadores: termina sin valores raros y con respawn repartido', async () => {
+test('FFA de 10 jugadores: termina sin valores raros y con respawn repartido', async () => {
   const { AIController } = await import('../src/sim/index.js');
-  const chars = ['pablo', 'coco', 'domono', 'faxo', 'pablo', 'coco'];
+  const chars = ['pablo', 'coco', 'domono', 'faxo', 'chubit', 'pablo', 'coco', 'domono', 'faxo', 'chubit'];
   const m = new Match({ players: chars.map((character) => ({ character })), stocks: 1 });
-  assert.equal(m.fighters.length, 6);
-  // el respawn reparte simétrico: 6 luchadores → offsets -3 .. +3
-  const offsets = m.fighters.map((f) => f.totalFighters === 6);
+  assert.equal(m.fighters.length, 10);
+  // el respawn reparte simétrico: 10 luchadores → offsets -4.5 .. +4.5
+  const offsets = m.fighters.map((f) => f.totalFighters === 10);
   assert.ok(offsets.every(Boolean), 'todos los fighters conocen el total');
   const cpus = m.fighters.map((f) => new AIController(f.index, 'hard', 3));
   let frames = 0;

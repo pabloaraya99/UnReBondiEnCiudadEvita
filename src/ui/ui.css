@@ -201,6 +201,9 @@
   flex: 0 1 auto;
   min-height: 0;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 96vw;
 }
 .lobby-slot {
   width: 180px;
@@ -248,8 +251,18 @@
   bottom: 12px;
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 18px;
 }
+/* con muchos luchadores (8-10) las tarjetas se achican para entrar en pantalla */
+#hud.many {
+  gap: 8px;
+  bottom: 8px;
+}
+#hud.many .hud-card { min-width: 118px; padding: 5px 9px 7px; }
+#hud.many .hud-name { font-size: 0.78rem; }
+#hud.many .hud-percent { font-size: 1.35rem; }
+#hud.many .hud-stock { width: 10px; height: 10px; }
 .hud-card {
   min-width: 170px;
   padding: 8px 14px 10px;
