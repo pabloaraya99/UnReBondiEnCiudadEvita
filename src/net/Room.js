@@ -72,7 +72,6 @@ export class Room {
     this.corrections = new Set(); // frames con input real ≠ usado (pendientes de re-hacer)
     this.resyncSnap = null; // snapshot del anfitrión para resincronizar
     this.requestedSnap = false; // ya pedí resync (evita spam)
-    this.justResync = false; // aplicué un resync en este paso (no reintegrar todavía)
     this.rtt = null; // ida y vuelta en ms (para el HUD)
     this._pingTs = 0;
     this._memberSeq = 0;

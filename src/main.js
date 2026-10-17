@@ -6,7 +6,13 @@ import { IN } from './sim/input.js';
 import { UI } from './ui/UI.js';
 import { Room, ROLLBACK_FRAMES } from './net/Room.js';
 import { hostLink, guestLink, randomCode } from './net/peerLink.js';
+import { audio } from './audio.js';
 import './ui/ui.css';
+
+// El navegador solo deja sonar audio después de un gesto del jugador
+const unlockAudio = () => audio.unlock();
+window.addEventListener('pointerdown', unlockAudio, true);
+window.addEventListener('keydown', unlockAudio, true);
 
 // ================================================================
 // Controlador principal: máquina de estados de la aplicación.
@@ -463,6 +469,7 @@ function stepOnline() {
   room.saveSnapshot(m.frame, m.snapshot());
   const inputs = room.resolve(N, localMasks);
   m.step(inputs);
+  audio.onEvents(m.events);
   renderer.onEvents(m.events, m);
   room.confirmFrame(N);
 
@@ -520,6 +527,7 @@ function loop(now) {
           app.cpus[i] ? app.cpus[i].decide(app.match) : readMask(i)
         );
         app.match.step(inputs);
+        audio.onEvents(app.match.events);
         renderer.onEvents(app.match.events, app.match);
       }
       accumulator -= DT;
@@ -555,6 +563,11 @@ function loop(now) {
     if (keys['F1']) {
       keys['F1'] = false;
       renderer.toggleDebug();
+    }
+    // M → silenciar / activar sonido
+    if (keys['KeyM']) {
+      keys['KeyM'] = false;
+      ui.toast(audio.toggleMute() ? 'Sonido silenciado (M)' : 'Sonido activado (M)');
     }
   } else {
     // menú / lobby / resultados: solo el escenario de fondo + lineup si estamos en lobby
