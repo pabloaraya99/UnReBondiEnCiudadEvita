@@ -1463,6 +1463,34 @@ export class Renderer {
     }
   }
 
+  /** Poses características por personaje para el lineup del lobby. */
+  applyLineupPose(model, id) {
+    const { armL, armR, head } = model.parts;
+    if (!armL || !armR || !head) return;
+    switch (id) {
+      case 'pablo': // Kenai: apoyado, mano en bolsillo, blunt en boca, cabeza confiada
+        armR.rotation.set(-0.2, 0, 0.3);
+        armL.rotation.set(0.8, 0, -0.4);
+        head.rotation.set(-0.15, 0, 0.1);
+        break;
+      case 'coco': // El Coco: brazos cruzados / mano en cadera, llave al hombro, cabeza echada back
+        armL.rotation.set(0.4, 0, 0.8);
+        armR.rotation.set(-0.3, 0, -1.1);
+        head.rotation.set(-0.3, 0, 0);
+        break;
+      case 'faxo': // Dr Faxo: cámara al ojo, otra mano ajustando lente, cabeza inclinada
+        armR.rotation.set(-1.2, 0, 0.2);
+        armL.rotation.set(0.6, 0, -0.5);
+        head.rotation.set(0.1, 0, -0.05);
+        break;
+      case 'domono': // DJ Domono: mano en audífonos, otra en perilla imaginaria, head bob
+        armL.rotation.set(-1.0, 0, 0.3);
+        armR.rotation.set(0.5, 0, -0.3);
+        head.rotation.set(0, 0, 0);
+        break;
+    }
+  }
+
   /** Muestra los 4 personajes paraditos en el escenario (fondo del lobby). */
   showLineup() {
     this.clearLineup();
@@ -1478,6 +1506,7 @@ export class Renderer {
       const builder = FIGHTER_BUILDERS[id];
       if (!builder) continue;
       const model = builder();
+      this.applyLineupPose(model, id);
       model.group.position.set(x, 0, 1.6);
       model.group.rotation.y = Math.PI * 0.06 * (x < 0 ? 1 : -1);
       this.lineup.add(model.group);
