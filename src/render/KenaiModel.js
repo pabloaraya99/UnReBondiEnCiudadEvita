@@ -99,6 +99,14 @@ export function buildKenai() {
   ));
   capucha.position.set(0, 1.48, -0.25);
   capucha.rotation.x = -0.6;
+  // cordones de la capucha (dos colgando al frente)
+  for (const side of [-1, 1]) {
+    const cord = add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.22, 6), cadenaMat));
+    cord.position.set(side * 0.07, 1.38, 0.28);
+    cord.rotation.set(0.2, 0, side * 0.15);
+    const bolita = add(new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), cadenaMat));
+    bolita.position.set(side * 0.07, 1.2, 0.3);
+  }
 
   // ======================== brazos (grupos para animar) ========================
   // izquierdo: guardia junto a la cara
@@ -136,9 +144,15 @@ export function buildKenai() {
     h.position.set(-0.04 + (i % 2 ? 0.02 : -0.02), -0.05 + i * 0.08, 0.55);
     h.castShadow = false;
   }
+  // humo extra cerca de la boca (visible en lineup donde el blunt está en la mano izq)
+  for (let i = 0; i < 3; i++) {
+    const h = add(new THREE.Mesh(new THREE.SphereGeometry(0.028 + i * 0.012, 8, 6), humoMat), root);
+    h.position.set(-0.02, 1.52 + i * 0.06, 0.35);
+    h.castShadow = false;
+  }
 
   // ======================== cadenas de plata ========================
-  for (const [r, z] of [[0.13, 0.09], [0.165, 0.07]]) {
+  for (const [r, z] of [[0.13, 0.09], [0.165, 0.07], [0.205, 0.04]]) {
     const cad = add(new THREE.Mesh(new THREE.TorusGeometry(r, 0.013, 8, 22), cadenaMat));
     cad.position.set(0, 1.52, z);
     cad.rotation.x = 1.35;
