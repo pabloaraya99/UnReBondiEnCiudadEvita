@@ -24,10 +24,11 @@ const FIGHTER_BUILDERS = {
 // Autos de Vita Machines (con créditos en README): se usan en el tráfico del escenario
 // rotY: corrección de orientación del modelo (si van de culata/de costado, se ajusta acá)
 const CAR_MODEL_FILES = [
-  { id: 'corolla', url: '/assets/models/cars/corolla.glb', rotY: 0 },
-  { id: 'clio', url: '/assets/models/cars/clio.glb', rotY: 0 },
-  { id: 'peugeot', url: '/assets/models/cars/peugeot.glb', rotY: 0 },
-  { id: 'moto', url: '/assets/models/cars/moto.glb', rotY: 0 },
+  // size: largo objetivo al normalizar (sin eso, la moto quedaría del tamaño de un auto)
+  { id: 'corolla', url: '/assets/models/cars/corolla.glb', rotY: 0, size: 4.5 },
+  { id: 'clio', url: '/assets/models/cars/clio.glb', rotY: 0, size: 4.0 },
+  { id: 'peugeot', url: '/assets/models/cars/peugeot.glb', rotY: 0, size: 4.5 },
+  { id: 'moto', url: '/assets/models/cars/moto.glb', rotY: 0, size: 2.3 },
 ];
 
 const MOVES = GAME_CONFIG.moves;
@@ -120,11 +121,11 @@ export class Renderer {
         def.url,
         (gltf) => {
           const model = gltf.scene;
-          // normalizar: escalar para que el largo sea ~4.6 y apoyar en y=0
+          // normalizar: escalar al largo objetivo del modelo y apoyar en y=0
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
           const largo = Math.max(size.x, size.z);
-          const escala = 4.6 / (largo || 1);
+          const escala = (def.size ?? 4.6) / (largo || 1);
           model.scale.setScalar(escala);
           // recentrar tras escalar
           const box2 = new THREE.Box3().setFromObject(model);
