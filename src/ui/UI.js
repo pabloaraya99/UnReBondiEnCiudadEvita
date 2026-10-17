@@ -65,6 +65,13 @@ export class UI {
     bg.style.cssText = 'position:absolute;inset:-4%;background:url("/assets/ui/title-splash.jpg") center/cover no-repeat;animation:menuBgZoom 22s ease-in-out infinite alternate;will-change:transform;';
     bgShake.append(bg);
 
+    // capa de barrio: poste con lámpara de sodio y tendido eléctrico (sobre el bg)
+    const posteImg = document.createElement('img');
+    posteImg.src = '/assets/ui/props/poste-cables-wide.png';
+    posteImg.alt = '';
+    posteImg.draggable = false;
+    posteImg.style.cssText = 'position:absolute;left:0;right:0;bottom:0;width:100%;pointer-events:none;user-select:none;';
+
     // flash sutil de impacto: pulso blanco cálido cada ~7s desde el centro
     const flash = document.createElement('div');
     flash.style.cssText = 'position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,rgba(255,244,214,0.55) 0%,rgba(255,244,214,0.18) 35%,transparent 65%);animation:impactFlash 7s ease-out infinite;';
@@ -135,6 +142,13 @@ export class UI {
       fxLayer.append(gl);
     });
 
+    // EL BONDI 56: cruza el fondo de lado a lado cada tanto (ícono del juego)
+    const bondiImg = document.createElement('img');
+    bondiImg.src = '/assets/ui/props/bondi-56.png';
+    bondiImg.alt = '';
+    bondiImg.draggable = false;
+    bondiImg.style.cssText = 'position:absolute;left:0;bottom:3%;width:min(32vw,440px);pointer-events:none;user-select:none;will-change:translate;animation:bondiPasa 16s linear infinite,bondiBob 0.8s ease-in-out infinite;';
+
     // título: abajo, mitad de tamaño, SIN transform translateX (queda más nítido)
     const titleWrap = document.createElement('div');
     titleWrap.style.cssText = 'position:absolute;bottom:4%;left:0;right:0;margin:0 auto;width:min(32vw,400px);animation:titleShake 3s ease-in-out infinite;';
@@ -160,7 +174,7 @@ export class UI {
     help.style.cssText = 'position:absolute;top:calc(2% + 116px);left:0;right:0;margin:0 auto;width:max-content;font-size:clamp(11px,1.5vw,15px);font-weight:700;color:rgba(244,241,232,0.85);text-shadow:0 1px 3px rgba(0,0,0,0.9);z-index:50;';
 
     const version = document.createElement('div');
-    version.textContent = 'v3-title-anim';
+    version.textContent = 'v4-bondi-poste';
     version.style.cssText = 'position:absolute;bottom:12px;right:14px;font-size:12px;font-weight:700;color:rgba(244,241,232,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.9);';
 
     // keyframes inline: todos transform/opacity (GPU-composited, baratos)
@@ -177,10 +191,12 @@ export class UI {
       @keyframes dustDrift{0%{transform:translate(0,0);opacity:0}10%{opacity:0.55}90%{opacity:0.4}100%{transform:translate(-6vw,4vh);opacity:0}}
       @keyframes impactFlash{0%,88%,100%{opacity:0}92%{opacity:0.7}96%{opacity:0.25}}
       @keyframes glintTwinkle{0%,100%{transform:scale(0.4) rotate(0deg);opacity:0}40%{transform:scale(1) rotate(12deg);opacity:1}70%{transform:scale(0.7) rotate(20deg);opacity:0.5}}
+      @keyframes bondiPasa{0%{translate:-45vw 0}100%{translate:112vw 0}}
+      @keyframes bondiBob{0%,100%{transform:translateY(0) rotate(0deg)}35%{transform:translateY(-4px) rotate(-0.8deg)}70%{transform:translateY(-2px) rotate(0.5deg)}}
     `;
     document.head.appendChild(st);
 
-    s.append(bgShake, flash, fxLayer, titleWrap, play, online, help, version);
+    s.append(bgShake, posteImg, flash, fxLayer, bondiImg, titleWrap, play, online, help, version);
     this.root.append(s);
   }
 
