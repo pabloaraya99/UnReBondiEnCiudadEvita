@@ -448,6 +448,50 @@
   filter: grayscale(0.7) brightness(0.7);
 }
 
+/* ---- Stats estilo Smash (barras de 5 celdas por categoría) ---- */
+.smash-stats {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 44px; /* deja espacio para el nombre (.slot-char-name) */
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 8px;
+  background: linear-gradient(to top, rgba(10, 12, 18, 0.82), rgba(10, 12, 18, 0));
+  pointer-events: none;
+}
+.smash-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.smash-stat-label {
+  flex: 0 0 42px;
+  font-family: 'Bungee', 'Arial Black', sans-serif;
+  font-size: 0.52rem;
+  letter-spacing: 0.05em;
+  color: #f4f1e8;
+  text-shadow: 0 1px 2px #000;
+  text-align: right;
+}
+.smash-stat-bars {
+  display: flex;
+  gap: 2px;
+  flex: 1 1 auto;
+}
+.smash-stat-cell {
+  flex: 1 1 0;
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(244, 241, 232, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.smash-stat-cell.on {
+  background: #ffd23c;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 4px rgba(255, 210, 60, 0.5);
+}
+
 /* ============================================================
    ONLINE: crear/unirse a sala + lobby de la sala
    ============================================================ */

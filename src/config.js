@@ -451,6 +451,22 @@ export const GAME_CONFIG = {
     },
   },
 
+  // Stats estilo Smash Bros por personaje. Cada categoría va de 1 a 5 (como las
+  // barras del Smash). Se muestran en el champ select junto al retrato. El
+  // "arco" (ARCO) es el alcance/tipo de su especial neutro. Derivadas de las
+  // stats reales de cada luchador y de su inspiración en Smash.
+  //   Kenai = Kirby · Coco = Ike · Domono = Ness · Faxo = Richter · Chubitcoin = Pac-Man
+  smashStats: {
+    pablo:  { peso: 3, poder: 3, velocidad: 4, salto: 5, arco: 2 }, // Kirby: liviano y saltarín
+    coco:   { peso: 5, poder: 5, velocidad: 1, salto: 2, arco: 3 }, // Ike: pesadísimo y lento
+    domono: { peso: 2, poder: 3, velocidad: 5, salto: 4, arco: 4 }, // Ness: flota, veloz, proyectiles
+    faxo:   { peso: 3, poder: 4, velocidad: 4, salto: 3, arco: 5 }, // Richter: alcance con látigo
+    chubit: { peso: 4, poder: 4, velocidad: 3, salto: 3, arco: 4 }, // Pac-Man: versátil, trampolín
+  },
+
+  // Orden de categorías para dibujar las barras en el mismo orden siempre.
+  smashStatKeys: ['peso', 'poder', 'velocidad', 'salto', 'arco'],
+
   // ------------------------------------------------------------------ escenarios
   stages: {
     mormones: {

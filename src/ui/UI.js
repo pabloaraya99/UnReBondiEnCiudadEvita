@@ -12,6 +12,37 @@ const CHARACTER_SPLASH = {
 const DIFFICULTIES = ['easy', 'normal', 'hard'];
 const DIFFICULTY_LABEL = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };
 const TYPE_LABEL = { off: 'Cerrado', human: 'Humano', cpu: 'CPU' };
+const STAT_LABEL = { peso: 'PESO', poder: 'PODER', velocidad: 'VEL', salto: 'SALTO', arco: 'ARCO' };
+
+/**
+ * Barras de stats estilo Smash Bros para un personaje. Cada categoría (peso,
+ * poder, velocidad, salto, arco) se dibuja como 5 celdas, de las cuales `value`
+ * quedan llenas. Devuelve el contenedor listo para insertar en el DOM.
+ */
+function smashBars(characterId) {
+  const stats = GAME_CONFIG.smashStats[characterId];
+  if (!stats) return document.createTextNode('');
+  const wrap = document.createElement('div');
+  wrap.className = 'smash-stats';
+  for (const key of GAME_CONFIG.smashStatKeys) {
+    const row = document.createElement('div');
+    row.className = 'smash-stat-row';
+    const label = document.createElement('span');
+    label.className = 'smash-stat-label';
+    label.textContent = STAT_LABEL[key] || key.toUpperCase();
+    const bars = document.createElement('span');
+    bars.className = 'smash-stat-bars';
+    const v = Math.max(1, Math.min(5, stats[key] | 0));
+    for (let i = 1; i <= 5; i++) {
+      const cell = document.createElement('i');
+      cell.className = `smash-stat-cell${i <= v ? ' on' : ''}`;
+      bars.appendChild(cell);
+    }
+    row.append(label, bars);
+    wrap.appendChild(row);
+  }
+  return wrap;
+}
 
 /**
  * Capa de interfaz genérica (HTML encima del canvas).
@@ -266,7 +297,7 @@ export class UI {
       charImg.style.animationDelay = `${i * 1.4}s`;
       const nameTag = el('div', 'slot-char-name', ch.name);
       nameTag.style.background = ch.color;
-      charBtn.append(charImg, nameTag);
+      charBtn.append(charImg, nameTag, smashBars(slot.character));
       card.append(charBtn);
 
       // dificultad (solo si es CPU)
