@@ -491,10 +491,17 @@ export class UI {
       const slot = GAME_CONFIG.players[f.index % GAME_CONFIG.players.length];
       const card = el('div', 'hud-card');
       card.style.borderTopColor = slot.color;
+      // retrato del personaje (splash art, recorte superior = cara)
+      const img = el('img', 'hud-portrait');
+      img.src = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai3d 1.png';
+      img.alt = f.spec.name;
+      img.draggable = false;
+      const info = el('div', 'hud-info');
       const name = el('div', 'hud-name', `${slot.short} · ${f.spec.name}`);
       const pct = el('div', 'hud-percent', '0%');
       const stocks = el('div', 'hud-stocks');
-      card.append(name, pct, stocks);
+      info.append(name, pct, stocks);
+      card.append(img, info);
       hud.append(card);
       return { card, pct, stocks, f };
     });

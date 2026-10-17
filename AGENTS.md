@@ -37,6 +37,12 @@ src/
     Match.js         → partida: step(inputs), hitboxes, daño/knockback, blast zones,
                        vidas, TRÁFICO (autos con hitbox, spawn por hashFrame determinista)
     AI.js            → AIController.decide(match) devuelve máscara de input; RNG con semilla
+    math.js          → sin/cos deterministas (Q30) + powInt por multiplicación (cross-motor)
+  net/               → ONLINE: salas PeerJS topología estrella vía anfitrión + rollback
+    Room.js          → lógica pura de sala (lobby, protocolo, rollback con snapshots +
+                       corrección de inputs, hash FNV-1a de desvío, resync del anfitrión).
+                       Sin PeerJS ni DOM: el transporte se inyecta, se testea en Node.
+    peerLink.js      → glue PeerJS (hostLink/guestLink, códigos de sala de 6 letras)
   render/            → VISUAL: solo LEE el estado de la simulación, nunca lo modifica.
     Renderer.js      → escena Three.js, EffectComposer (bloom), escenario "Los Mormones",
                        partículas, eventos visuales, drawCars (tráfico), sombras de contacto
@@ -62,6 +68,8 @@ public/assets/
                        Kenai usa /assets/concept/kenai/Kenai3Dreferencia.png (mismo recurso del menú)
 ART_DIRECTION.md     → biblia visual: paleta, estilo "gangster de barrio verde", prompts para IAs
 start-server.bat     → levanta el dev server en Windows con doble clic
+src/audio.js         → SFX sintetizados con Web Audio (sin archivos); audio.onEvents()
+                       traduce eventos de la simulación; mute con M; unlock() con 1er gesto
 ```
 
 ## Reglas duras (NO romper)
@@ -76,10 +84,15 @@ start-server.bat     → levanta el dev server en Windows con doble clic
 
 ## Estado actual (qué funciona)
 
-- Título con splash art estático + lobby champion select con tarjetas splash art por personaje
-  (coco/domono/faxo/pablo/chubit), selector de escenario, teclado P1 (WASD + ESPACIO/G/H) y JOYSTICK
-  (Gamepad API: stick/d-pad, A saltar, X atacar, B/Y especial — 4 pads = 4 jugadores)
-- Lobby con selección de 4 slots (humano/CPU/cerrado, personaje, dificultad)
+- Título con splash art + botones "PRESS START" (local) y "JUGAR EN LÍNEA"; lobby champion select
+  con tarjetas splash art por personaje, selector de escenario (reconstruye el 3D de fondo),
+  teclado P1 (WASD + ESPACIO/G/H) y JOYSTICK (Gamepad API: stick/d-pad, A saltar, X atacar,
+  B/Y especial)
+- Hasta 10 jugadores: lobby local con 10 puertos (P1-P6 teclado+joystick, P7-P10 solo joystick);
+  HUD con retratos de personajes (se achica con 8+)
+- ONLINE: salas con código de 6 letras (PeerJS, topología estrella vía anfitrión), hasta 10
+  jugadores, CPUs agregables por el anfitrión, rollback netcode (predicción + corrección,
+  resync autoritativo), revancha. La simulación es determinista (ver reglas duras)
 - Partida: countdown, HUD con % y vidas, KO por blast zones, resultados, revancha
 - 5 personajes con modelos 3D propios (primitivas): pablo/kenai (Kirby: stances, inhale, hammer,
   stone), coco (Ike: eruption, counter, quickDraw), domono (Ness: pkFire, pkThunder, pkMagnet),
@@ -87,14 +100,17 @@ start-server.bat     → levanta el dev server en Windows con doble clic
   Power Pellet, Pac-Jump con trampolín, Fire Hydrant con chorros de agua)
 - IA: usa especiales neutros a rango real (sin marcha encima) y carga Bonus Fruit con Chubitcoin
 - Escenario "Los Mormones": templo de fondo (parallax), calle = piso con autos que PEGAN
-- Tráfico determinista de autos (hazards), guardarraíles como plataformas
+- Tráfico determinista de autos (hazards), guardarraíles como plataformas; segundo escenario
+  "El Escritorio" (mesa gigante, libros, taza)
+- Audio sintetizado (Web Audio, sin archivos): golpes/saltos/KO/countdown/win mapeados a los
+  eventos de la simulación; mute con M
 
 ## Qué falta / siguiente
 
+- Probar online con jugadores reales en browser (fue testeado con red simulada en Node:
+  jitter, pérdida 25%/40%, resync — 24/24 tests)
 - Pulir modelos 3D (más detalle por personaje sin pasar el presupuesto web) y sus poses en el lineup 3D
 - Autos argentinos (Falcon, 128, Torino...) como variantes del tráfico
-- HUD con retratos de personajes
-- Online (netcode autoritativo, rollback — la simulación ya es determinista y tiene snapshot/restore)
-- Audio (Web Audio sintetizado, estilo Vita Machines)
 - Stats estilo Smash por champion (el usuario va a indicar qué peleador de Smash usa cada personaje)
-- Git: todavía no hay user.name/email configurados → no se commiteó hasta autorización explícita
+- Online v2 (fuera del alcance actual): espectadores, chat, equipos, unirse a mitad de partida,
+  transferencia del anfitrión

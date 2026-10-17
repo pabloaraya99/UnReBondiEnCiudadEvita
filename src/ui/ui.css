@@ -259,7 +259,8 @@
   gap: 8px;
   bottom: 8px;
 }
-#hud.many .hud-card { min-width: 118px; padding: 5px 9px 7px; }
+#hud.many .hud-card { min-width: 118px; padding: 5px 9px 7px; gap: 7px; }
+#hud.many .hud-portrait { width: 32px; height: 32px; border-radius: 6px; }
 #hud.many .hud-name { font-size: 0.78rem; }
 #hud.many .hud-percent { font-size: 1.35rem; }
 #hud.many .hud-stock { width: 10px; height: 10px; }
@@ -270,7 +271,22 @@
   background: rgba(16, 18, 26, 0.82);
   border: 2px solid #3a3f52;
   border-top-width: 5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
 }
+.hud-portrait {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  object-fit: cover;
+  object-position: top center;
+  border: 2px solid rgba(255,255,255,0.5);
+  background: #202434;
+  flex: 0 0 auto;
+}
+.hud-info { min-width: 0; }
 .hud-name {
   font-weight: 800;
   font-size: 0.95rem;
