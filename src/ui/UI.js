@@ -233,6 +233,11 @@ export class UI {
     const row = el('div', 'lobby-slots');
     const rerender = () => { this.showLobby(slots); };
 
+    // grilla scrolleable: con 8-10 puertos no empuja el botón de pelea
+    const scroll = el('div', 'lobby-slots-scroll');
+    if (this._slotsCollapsed) scroll.classList.add('collapsed');
+    scroll.append(row);
+
     slots.forEach((slot, i) => {
       const cfg = GAME_CONFIG.players[i];
       const card = el('div', `lobby-slot ui-panel${slot.type === 'off' ? ' off' : ''}`);
@@ -278,10 +283,20 @@ export class UI {
       card.querySelectorAll('.slot-btn').forEach((b) => b.classList.add('slot-btn'));
       row.append(card);
     });
-    s.append(row);
+    s.append(scroll);
 
     const active = slots.filter((x) => x.type !== 'off').length;
     const bottom = el('div', 'lobby-bottom');
+
+    // con muchos puertos la grilla puede tapar la pantalla: toggle para colapsar
+    if (slots.length >= 8) {
+      const toggle = smallBtn(
+        this._slotsCollapsed ? `MOSTRAR PUERTOS (${slots.length}) ▾` : `OCULTAR PUERTOS ▴`,
+        () => { this._slotsCollapsed = !this._slotsCollapsed; rerender(); },
+      );
+      toggle.classList.add('slot-btn', 'lobby-slots-toggle');
+      bottom.append(toggle);
+    }
 
     // selector de mapa: cicla por GAME_CONFIG.stages — al cambiar, el renderer
     // reconstruye el escenario 3D de fondo (onStageChange en main.js)
@@ -301,7 +316,7 @@ export class UI {
     fight.classList.add('lobby-fight-btn');
     const back = btn('VOLVER', () => this.actions.onMenu());
     back.classList.add('secondary');
-    bottom.append(row, fight, back);
+    bottom.append(fight, back);
     s.append(bottom);
     this.root.append(s);
   }
