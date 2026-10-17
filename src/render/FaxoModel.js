@@ -39,7 +39,7 @@ export function buildFaxo() {
   const CABLE = 0x3a3730;      // cable oscuro cálido
   const METAL = 0x9aa0a6;
 
-  const pielMat = mkMat(PIEL);
+  const pielMat = mkMat(PIEL, { roughness: 0.5 });
   const remeraMat = mkMat(BEIGE, { roughness: 0.85 });
   const remeraOscMat = mkMat(BEIGE_OSC, { roughness: 0.9 });
   const jeanMat = mkMat(MARRON, { roughness: 0.8 });
@@ -58,6 +58,8 @@ export function buildFaxo() {
   const blancoMat = mkMat(0xffffff, { roughness: 0.3 });
   const screenMat = mkMat(0x9be86e, { emissive: 0x7fd44c, emissiveIntensity: 0.9, roughness: 0.2 });
   const verdeLuzMat = mkMat(0x3fa34d, { emissive: 0x3fa34d, emissiveIntensity: 1.2, roughness: 0.3 });
+  const brilloMat = mkMat(0xffffff, { roughness: 0.1, emissive: 0xffffff, emissiveIntensity: 0.25 });
+  const labioMat = mkMat(0xa8705a, { roughness: 0.6 });
 
   const root = new THREE.Group();
   const add = (mesh, parent = root) => {
@@ -106,9 +108,7 @@ export function buildFaxo() {
   const anteL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.26, 6, 10), pielMat), armL);
   anteL.position.set(0.05, -0.1, 0.22);
   anteL.rotation.set(-1.1, 0, -0.4);
-  const manoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), pielMat), armL);
-  manoL.position.set(0.08, 0.08, 0.34);
-  manoL.scale.set(0.75, 1.2, 0.75);
+  manoConDedos(armL, 0.08, 0.04, 0.34, 1, pielMat);
 
   const armR = new THREE.Group();
   armR.position.set(0.3, 1.52, 0);
@@ -119,9 +119,7 @@ export function buildFaxo() {
   const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.26, 6, 10), pielMat), armR);
   anteR.position.set(-0.02, -0.14, 0.24);
   anteR.rotation.x = 1.2;
-  const manoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), pielMat), armR);
-  manoR.position.set(-0.03, -0.18, 0.4);
-  manoR.scale.set(0.75, 1.2, 0.75);
+  manoConDedos(armR, -0.03, -0.22, 0.4, -1, pielMat);
 
   // ======================== CÁMARA PROFESIONAL colgada del cuello ========================
   // correa: dos tiras que bajan del cuello al pecho
@@ -225,8 +223,8 @@ export function buildFaxo() {
     iris.position.set(side * 0.07, 0.15, 0.19);
     const pupila = add(new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), negroMat), head);
     pupila.position.set(side * 0.07, 0.15, 0.205);
-    const brillo = add(new THREE.Mesh(new THREE.SphereGeometry(0.007, 6, 5), blancoMat), head);
-    brillo.position.set(side * 0.062, 0.158, 0.2);
+    const brillo = add(new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 5), brilloMat), head);
+    brillo.position.set(side * 0.078, 0.158, 0.2);
     // cejas finas arqueadas
     const ceja = add(new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.014, 0.012), peloOscMat), head);
     ceja.position.set(side * 0.075, 0.215, 0.165);
@@ -235,10 +233,27 @@ export function buildFaxo() {
   const nariz = add(new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.07, 6), pielMat), head);
   nariz.position.set(0, 0.1, 0.19);
   nariz.rotation.x = Math.PI / 2.5;
-  // sonrisa leve (gesto tranquilo)
-  const sonrisa = add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.015), mkMat(0x8f6350)), head);
-  sonrisa.position.set(0, 0.045, 0.17);
-  sonrisa.rotation.x = 0.1;
+  // sonrisa leve con labios (gesto tranquilo, no una barra lisa)
+  const boca = add(new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.03, 0.016), labioMat), head);
+  boca.position.set(0, 0.045, 0.168);
+  boca.rotation.x = 0.1;
+
+  /**
+   * Mano con dedos: palma + 4 dedos + pulgar. `dir` = 1 si la mano mira hacia
+   * adelante (+z) o -1 si apunta hacia atrás. Evita el look de "esfera lisa".
+   */
+  function manoConDedos(parent, x, y, z, dir, mat) {
+    const palma = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.08), mat), parent);
+    palma.position.set(x, y, z);
+    for (let i = 0; i < 4; i++) {
+      const dedo = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.019, 0.055, 4, 8), mat), parent);
+      dedo.position.set(x - 0.043 + i * 0.029, y + 0.1, z + dir * 0.02);
+      dedo.rotation.x = dir * 0.5;
+    }
+    const pulgar = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.021, 0.045, 4, 8), mat), parent);
+    pulgar.position.set(x + dir * 0.08, y + 0.02, z + dir * 0.03);
+    pulgar.rotation.z = dir * 1.1;
+  }
 
   return { group: root, mats, hoodieMat: remeraMat, parts: { armL, armR, head } };
 }

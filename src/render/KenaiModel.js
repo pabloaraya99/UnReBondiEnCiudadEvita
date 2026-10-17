@@ -32,8 +32,8 @@ export function buildKenai() {
   const ROJO = 0xd8352a;
 
   const hoodieMat = mkMat(HOODIE);
-  const pielMat = mkMat(PIEL);
-  const peloMat = mkMat(PELO, { roughness: 0.85 });
+  const pielMat = mkMat(PIEL, { roughness: 0.5 });
+  const peloMat = mkMat(PELO, { roughness: 0.8 });
   const cargoMat = mkMat(CARGO, { roughness: 0.8 });
   const hoodieOscMat = mkMat(HOODIE_OSC);
   const zapaMat = mkMat(ZAPA, { roughness: 0.5 });
@@ -45,6 +45,9 @@ export function buildKenai() {
   const rojoMat = mkMat(ROJO);
   const brasaMat = mkMat(0xff7a2a, { emissive: 0xff7a2a, emissiveIntensity: 2.2 });
   const humoMat = mkMat(0x9fb3a5, { transparent: true, opacity: 0.5, roughness: 1 });
+  const irisMat = mkMat(0x4a3324, { roughness: 0.3 });   // iris castaño
+  const brilloMat = mkMat(0xffffff, { roughness: 0.1, emissive: 0xffffff, emissiveIntensity: 0.25 });
+  const enciaMat = mkMat(0x8f5a4a, { roughness: 0.6 });  // labios/encia para la sonrisa
 
   const root = new THREE.Group();
   const add = (mesh, parent = root) => {
@@ -81,11 +84,14 @@ export function buildKenai() {
   // bolsillo canguro
   const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.12), hoodieOscMat));
   bolsillo.position.set(0, 1.05, 0.35);
-  // gráfico del frente (azul con detalle rojo)
+  // gráfico del frente (azul con detalle rojo) + toque verde de identidad del barrio
   const grafico = add(new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.03), azulMat));
   grafico.position.set(0, 1.38, 0.375);
   const graficoR = add(new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.025), rojoMat));
   graficoR.position.set(0, 1.4, 0.38);
+  // franja verde #3FA34D en la base del gráfico (identidad "verde del barrio")
+  const graficoVerde = add(new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.05, 0.035), mkMat(0x3fa34d)));
+  graficoVerde.position.set(0, 1.22, 0.376);
   // capucha atrás
   const capucha = add(new THREE.Mesh(
     new THREE.SphereGeometry(0.2, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.6),
@@ -105,8 +111,7 @@ export function buildKenai() {
   const anteL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.2, 6, 10), hoodieMat), armL);
   anteL.position.set(0.06, -0.1, 0.24);
   anteL.rotation.set(-1.1, 0, -0.5);
-  const punoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), pielMat), armL);
-  punoL.position.set(0.1, 0.1, 0.34);
+  manoConDedos(armL, 0.1, 0.06, 0.34, 1, pielMat);
 
   // derecho: jab adelante con el blunt
   const armR = new THREE.Group();
@@ -118,8 +123,7 @@ export function buildKenai() {
   const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.2, 6, 10), hoodieMat), armR);
   anteR.position.set(-0.02, -0.16, 0.26);
   anteR.rotation.x = 1.2;
-  const punoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), pielMat), armR);
-  punoR.position.set(-0.04, -0.2, 0.42);
+  manoConDedos(armR, -0.04, -0.24, 0.42, -1, pielMat);
 
   // blunt con brasa (brilla con el bloom) y humito
   const blunt = add(new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.13, 8), mkMat(0x6b4a2f)), armR);
@@ -161,22 +165,52 @@ export function buildKenai() {
   const flequillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.07, 0.08), peloMat), head);
   flequillo.position.set(0, 0.28, 0.16);
   flequillo.rotation.x = -0.25;
-  // ojos (blanco + pupila) y cejas
+  // ojos: blanco + iris castaño + pupila + brillo especular (más vivos que una pelota lisa)
   for (const side of [-1, 1]) {
-    const ojo = add(new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), blancoMat), head);
+    const ojo = add(new THREE.Mesh(new THREE.SphereGeometry(0.042, 12, 10), blancoMat), head);
     ojo.position.set(side * 0.075, 0.18, 0.185);
-    const pupila = add(new THREE.Mesh(new THREE.SphereGeometry(0.017, 8, 6), negroMat), head);
-    pupila.position.set(side * 0.075, 0.18, 0.215);
+    ojo.scale.set(1, 1.1, 0.7); // ojo más ovalado, menos "pelota"
+    const iris = add(new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), irisMat), head);
+    iris.position.set(side * 0.075, 0.18, 0.205);
+    const pupila = add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), negroMat), head);
+    pupila.position.set(side * 0.075, 0.18, 0.222);
+    const brillo = add(new THREE.Mesh(new THREE.SphereGeometry(0.007, 6, 5), brilloMat), head);
+    brillo.position.set(side * 0.086, 0.192, 0.218);
     const ceja = add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.025, 0.02), peloMat), head);
     ceja.position.set(side * 0.08, 0.245, 0.19);
     ceja.rotation.z = side * -0.15;
   }
-  // nariz y sonrisa
+  // nariz
   const nariz = add(new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 6), pielMat), head);
   nariz.position.set(0, 0.14, 0.21);
-  const sonrisa = add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.045, 0.02), blancoMat), head);
-  sonrisa.position.set(0, 0.075, 0.195);
-  sonrisa.rotation.x = 0.1;
+  // sonrisa ancha con labios/encia y dientes (no una barra blanca plana)
+  const boca = add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.055, 0.02), enciaMat), head);
+  boca.position.set(0, 0.07, 0.19);
+  boca.rotation.x = 0.1;
+  const dientes = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.024), blancoMat), head);
+  dientes.position.set(0, 0.082, 0.194);
+  // separación sutil de los dientes del centro
+  const sepD = add(new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.032, 0.026), enciaMat), head);
+  sepD.position.set(0, 0.082, 0.195);
+
+  /**
+   * Mano con dedos: palma + 4 dedos + pulgar. `dir` = 1 si la mano mira hacia
+   * adelante (+z) o -1 si apunta hacia atrás. Evita el look de "esfera lisa".
+   */
+  function manoConDedos(parent, x, y, z, dir, mat) {
+    const palma = add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.09), mat), parent);
+    palma.position.set(x, y, z);
+    // 4 dedos alineados sobre la palma, apuntando en `dir`
+    for (let i = 0; i < 4; i++) {
+      const dedo = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.022, 0.06, 4, 8), mat), parent);
+      dedo.position.set(x - 0.05 + i * 0.033, y + 0.11, z + dir * 0.02);
+      dedo.rotation.x = dir * 0.5;
+    }
+    // pulgar al costado
+    const pulgar = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.024, 0.05, 4, 8), mat), parent);
+    pulgar.position.set(x + dir * 0.09, y + 0.02, z + dir * 0.03);
+    pulgar.rotation.z = dir * 1.1;
+  }
 
   return { group: root, mats, hoodieMat, parts: { armL, armR, head } };
 }

@@ -35,8 +35,8 @@ export function buildDomono() {
   const CAMO_KHAKI = 0x7a7440; // caqui verdoso
   const CAMO_LIMA = 0x6fa03c;  // verde lima oscuro (quinto tono)
 
-  const pielMat = mkMat(PIEL);
-  const pielOscMat = mkMat(PIEL_OSC);
+  const pielMat = mkMat(PIEL, { roughness: 0.5 });
+  const pielOscMat = mkMat(PIEL_OSC, { roughness: 0.55 });
   const cremaMat = mkMat(CREMA);
   const cremaOscMat = mkMat(CREMA_OSC);
   const grisMat = mkMat(GRIS, { roughness: 0.8 });
@@ -117,8 +117,7 @@ export function buildDomono() {
   const anteL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.22, 6, 10), pielMat), armL);
   anteL.position.set(0.06, -0.08, 0.24);
   anteL.rotation.set(-1.1, 0, -0.4);
-  const punoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), pielMat), armL);
-  punoL.position.set(0.09, 0.12, 0.36);
+  manoConDedos(armL, 0.09, 0.08, 0.36, 1, pielMat);
 
   // ======================== CONSOLA DJ PIONEER GIGANTE (la lleva adelante, protagonista del modelo) ========================
   // correa que la sostiene del cuello
@@ -310,6 +309,23 @@ export function buildDomono() {
   sonrisa.position.set(0, 0.07, 0.19);
   const diente = add(new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.045, 0.022), oroMat), head);
   diente.position.set(-0.032, 0.07, 0.192);
+
+  /**
+   * Mano con dedos: palma + 4 dedos + pulgar. `dir` = 1 si la mano mira hacia
+   * adelante (+z) o -1 si apunta hacia atrás. Evita el look de "esfera lisa".
+   */
+  function manoConDedos(parent, x, y, z, dir, mat) {
+    const palma = add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.15, 0.085), mat), parent);
+    palma.position.set(x, y, z);
+    for (let i = 0; i < 4; i++) {
+      const dedo = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.021, 0.055, 4, 8), mat), parent);
+      dedo.position.set(x - 0.047 + i * 0.031, y + 0.1, z + dir * 0.02);
+      dedo.rotation.x = dir * 0.5;
+    }
+    const pulgar = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.023, 0.048, 4, 8), mat), parent);
+    pulgar.position.set(x + dir * 0.085, y + 0.02, z + dir * 0.03);
+    pulgar.rotation.z = dir * 1.1;
+  }
 
   return { group: root, mats, hoodieMat: camoMat, parts: { armL, armR, head } };
 }

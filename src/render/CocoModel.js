@@ -37,8 +37,8 @@ export function buildCoco() {
   const CIG = 0xd8cfc0;        // cigarrillo
   const BRASA = 0xff7a2a;
 
-  const pielMat = mkMat(PIEL);
-  const pielOscMat = mkMat(PIEL_OSC);
+  const pielMat = mkMat(PIEL, { roughness: 0.5 });
+  const pielOscMat = mkMat(PIEL_OSC, { roughness: 0.55 });
   const grasaMat = mkMat(GRASA, { roughness: 0.95 });
   const tintaMat = mkMat(TINTA, { roughness: 0.9 });
   const cargoMat = mkMat(CARGO, { roughness: 0.85 });
@@ -219,9 +219,7 @@ export function buildCoco() {
   anteL.position.set(0.05, -0.08, 0.24);
   anteL.rotation.set(-1.1, 0, -0.4);
   tatuajeBrazo(anteL, 1);
-  const manoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), pielMat), armL);
-  manoL.position.set(0.08, 0.1, 0.36);
-  manoL.scale.set(0.8, 1.15, 0.8);
+  manoConDedos(armL, 0.08, 0.06, 0.36, 1, pielMat);
 
   // brazo derecho (sostiene la LLAVE en alto)
   const armR = new THREE.Group();
@@ -330,6 +328,23 @@ export function buildCoco() {
   const filtro = add(new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 0.02, 6), mkMat(0xd8a13a)), head);
   filtro.position.set(0.065, 0.042, 0.19);
   filtro.rotation.z = -1.1;
+
+  /**
+   * Mano con dedos: palma + 4 dedos + pulgar. `dir` = 1 si la mano mira hacia
+   * adelante (+z) o -1 si apunta hacia atrás. Evita el look de "esfera lisa".
+   */
+  function manoConDedos(parent, x, y, z, dir, mat) {
+    const palma = add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.15, 0.085), mat), parent);
+    palma.position.set(x, y, z);
+    for (let i = 0; i < 4; i++) {
+      const dedo = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.021, 0.06, 4, 8), mat), parent);
+      dedo.position.set(x - 0.047 + i * 0.031, y + 0.105, z + dir * 0.02);
+      dedo.rotation.x = dir * 0.5;
+    }
+    const pulgar = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.023, 0.05, 4, 8), mat), parent);
+    pulgar.position.set(x + dir * 0.085, y + 0.02, z + dir * 0.03);
+    pulgar.rotation.z = dir * 1.1;
+  }
 
   return { group: root, mats, hoodieMat: pielMat, parts: { armL, armR, head } };
 }

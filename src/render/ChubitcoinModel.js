@@ -39,8 +39,8 @@ export function buildChubitcoin() {
   const ZAPATO = 0x121216;     // zapatos negros
   const SUELA = 0xd8d2c4;      // suela clara
 
-  const pielMat = mkMat(PIEL, { roughness: 0.7 });
-  const pielOscMat = mkMat(PIEL_OSC, { roughness: 0.75 });
+  const pielMat = mkMat(PIEL, { roughness: 0.5 });
+  const pielOscMat = mkMat(PIEL_OSC, { roughness: 0.55 });
   const camisaMat = mkMat(NEGRO, { roughness: 0.85 });
   const camisaClMat = mkMat(NEGRO_CL, { roughness: 0.8 });
   const oroMat = mkMat(ORO, { metalness: 0.85, roughness: 0.28 });
@@ -54,6 +54,7 @@ export function buildChubitcoin() {
   const zapatoMat = mkMat(ZAPATO, { roughness: 0.5 });
   const suelaMat = mkMat(SUELA, { roughness: 0.45 });
   const ojoOscMat = mkMat(0x241a14, { roughness: 0.3 });
+  const brilloMat = mkMat(0xffffff, { roughness: 0.1, emissive: 0xffffff, emissiveIntensity: 0.25 });
 
   const root = new THREE.Group();
   const add = (mesh, parent = root) => {
@@ -111,13 +112,11 @@ export function buildChubitcoin() {
   const mangaL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 6, 10), camisaMat), armL);
   mangaL.position.set(0, -0.16, 0.04);
   mangaL.rotation.x = 0.35;
-  const manoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), pielMat), armL);
-  manoL.position.set(0.02, -0.36, 0.16);
-  manoL.scale.set(0.8, 1.15, 0.85);
+  manoConDedos(armL, 0.02, -0.4, 0.16, 1, pielMat);
   // RELOJ DORADO en la muñeca izquierda
   const reloj = add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 12), oroMat), armL);
   reloj.rotation.x = Math.PI / 2 - 0.35;
-  reloj.position.set(0.02, -0.3, 0.12);
+  reloj.position.set(0.02, -0.32, 0.13);
   const caraReloj = add(new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.012, 12), mkMat(0x1a1c22, { roughness: 0.2, metalness: 0.4 })), armL);
   caraReloj.rotation.x = Math.PI / 2 - 0.35;
   caraReloj.position.set(0.02, -0.29, 0.14);
@@ -128,12 +127,10 @@ export function buildChubitcoin() {
   const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 6, 10), camisaMat), armR);
   mangaR.position.set(0, -0.16, 0.05);
   mangaR.rotation.x = 0.45;
-  const manoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), pielMat), armR);
-  manoR.position.set(-0.02, -0.37, 0.19);
-  manoR.scale.set(0.8, 1.15, 0.85);
+  manoConDedos(armR, -0.02, -0.41, 0.19, -1, pielMat);
   // ANILLO DORADO en el dedo de la mano derecha
   const anillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.028, 0.02), oroMat), armR);
-  anillo.position.set(-0.03, -0.4, 0.24);
+  anillo.position.set(-0.02, -0.3, 0.23);
 
   // ======================== cadena + COLGANTE bitcoin ========================
   for (const side of [-1, 1]) {
@@ -203,8 +200,8 @@ export function buildChubitcoin() {
     iris.position.set(side * 0.075, 0.16, 0.192);
     const pupila = add(new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), mkMat(0x0c0a09)), head);
     pupila.position.set(side * 0.075, 0.16, 0.205);
-    const brillo = add(new THREE.Mesh(new THREE.SphereGeometry(0.006, 6, 5), blancoMat), head);
-    brillo.position.set(side * 0.067, 0.168, 0.21);
+    const brillo = add(new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 5), brilloMat), head);
+    brillo.position.set(side * 0.067, 0.168, 0.212);
   }
 
   const nariz = add(new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.075, 6), pielMat), head);
@@ -224,6 +221,23 @@ export function buildChubitcoin() {
     const comisura = add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.03, 0.02), bocaMat), head);
     comisura.position.set(side * 0.062, 0.05, 0.165);
     comisura.rotation.z = side * -0.5;
+  }
+
+  /**
+   * Mano con dedos: palma + 4 dedos + pulgar. `dir` = 1 si la mano mira hacia
+   * adelante (+z) o -1 si apunta hacia atrás. Evita el look de "esfera lisa".
+   */
+  function manoConDedos(parent, x, y, z, dir, mat) {
+    const palma = add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.15, 0.085), mat), parent);
+    palma.position.set(x, y, z);
+    for (let i = 0; i < 4; i++) {
+      const dedo = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.02, 0.055, 4, 8), mat), parent);
+      dedo.position.set(x - 0.047 + i * 0.031, y + 0.105, z + dir * 0.02);
+      dedo.rotation.x = dir * 0.5;
+    }
+    const pulgar = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.022, 0.05, 4, 8), mat), parent);
+    pulgar.position.set(x + dir * 0.085, y + 0.02, z + dir * 0.03);
+    pulgar.rotation.z = dir * 1.1;
   }
 
   return { group: root, mats, hoodieMat: camisaMat, parts: { armL, armR, head } };
