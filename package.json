@@ -18,6 +18,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "peerjs": "^1.5.5",
     "three": "^0.186.1",
     "vite": "^8.3.3"
   }

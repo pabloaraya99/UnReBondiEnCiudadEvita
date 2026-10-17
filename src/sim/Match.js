@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from '../config.js';
 import { Fighter } from './Fighter.js';
+import { sin, cos } from './math.js';
 
 const { physics: P, moves: MOVES, physicsStep: DT, match: M } = GAME_CONFIG;
 
@@ -34,6 +35,7 @@ export class Match {
     this.players = players;
     this.fighters = players.map((p, i) => {
       const f = new Fighter(i, p.character, stocks);
+      f.totalFighters = players.length;
       const s = this.stage.spawns[i % this.stage.spawns.length];
       f.place(s.x, s.y);
       f.facing = s.x < 0 ? 1 : -1;
@@ -266,8 +268,8 @@ export class Match {
     victim.percent += damage;
     const kb = (move.base + (move.growth * victim.percent) / 100) * (100 / victim.weight) * power; // el peso también cambia con el stance
     const rad = (move.angle * Math.PI) / 180;
-    victim.vx = Math.cos(rad) * kb * dir;
-    victim.vy = Math.sin(rad) * kb;
+    victim.vx = cos(rad) * kb * dir;
+    victim.vy = sin(rad) * kb;
     victim.hitstun = Math.floor(P.hitstunBase + kb * P.hitstunPerKb);
     victim.attack = null;
     victim.swordSlashPhase = null;

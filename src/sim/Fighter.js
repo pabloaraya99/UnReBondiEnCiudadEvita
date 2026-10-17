@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from '../config.js';
 import { IN, has } from './input.js';
+import { powInt } from './math.js';
 
 const { physics: P, moves: MOVES, characters: CHARACTERS, physicsStep: DT, shotCooldown: SHOT_COOLDOWN, match: M } = GAME_CONFIG;
 const EPS = 1e-4;
@@ -15,6 +16,7 @@ export class Fighter {
     this.characterId = characterId;
     this.spec = CHARACTERS[characterId];
     this.stocks = stocks;
+    this.totalFighters = 1; // lo pisa Match con el total de la partida (para el respawn)
     this.percent = 0;
     this.x = 0;
     this.y = 0;
@@ -263,7 +265,7 @@ export class Fighter {
         this.jump(this.jumpSpeed, ctx);
       } else if (this.jumpsLeft > 0) {
         this.jumpsLeft--;
-        this.jump(this.doubleJumpSpeed * Math.pow(this.jumpHeightMult, this.maxJumps - this.jumpsLeft), ctx, true);
+        this.jump(this.doubleJumpSpeed * powInt(this.jumpHeightMult, this.maxJumps - this.jumpsLeft), ctx, true);
       }
     }
 
@@ -665,7 +667,10 @@ export class Fighter {
   stepKo(stage, ctx) {
     if (--this.koTimer > 0) return;
     const r = stage.respawn;
-    this.place(r.x + (this.index - 1.5) * 1.2, r.y);
+    // Reparto simétrico alrededor del centro, válido para cualquier cantidad de luchadores
+    const n = Math.max(1, this.totalFighters);
+    const offset = n > 1 ? (this.index - (n - 1) / 2) * 1.2 : 0;
+    this.place(r.x + offset, r.y);
     this.state = 'air';
     this.grounded = false;
     this.facing = this.x < 0 ? 1 : -1;

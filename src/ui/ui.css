@@ -557,3 +557,125 @@
   .menu-slot-burst, .menu-star { display: none; }
   .menu-play { bottom: 16%; }
 }
+
+/* ============================================================
+   ONLINE: crear/unirse a sala + lobby de la sala
+   ============================================================ */
+.online-home-grid {
+  display: flex;
+  gap: 22px;
+  align-items: stretch;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.online-panel {
+  width: min(360px, 84vw);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+  text-align: center;
+}
+.online-panel .slot-tag {
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 5px 0;
+  border-radius: 6px;
+  background: #262a3a;
+}
+.online-panel-text {
+  opacity: 0.8;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+.online-code-input {
+  pointer-events: auto;
+  font: inherit;
+  font-size: 1.7rem;
+  font-weight: 900;
+  letter-spacing: 0.42em;
+  text-align: center;
+  text-transform: uppercase;
+  color: #e9c46a;
+  background: #161a26;
+  border: 2px solid #3a3f52;
+  border-radius: 8px;
+  padding: 12px 8px 12px calc(8px + 0.42em);
+  width: 100%;
+}
+.online-code-input:focus {
+  outline: none;
+  border-color: #e9c46a;
+  box-shadow: 0 0 18px rgba(233, 196, 106, 0.35);
+}
+.online-code-input::placeholder { color: #4a5168; }
+
+.lobby-opts {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.online-roster {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.online-chip {
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #262a3a;
+  border: 2px solid #3a3f52;
+}
+.online-chip:first-child {
+  border-color: #e9c46a;
+  color: #e9c46a;
+}
+.online-wait {
+  opacity: 0.7;
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+.add-slot {
+  min-height: 120px;
+  justify-content: center;
+  border-style: dashed;
+  opacity: 0.7;
+}
+.add-slot:hover { opacity: 1; border-color: #e9c46a; }
+.slot-remove {
+  pointer-events: auto;
+  font: inherit;
+  font-weight: 900;
+  color: #ff6b6b;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0 0;
+}
+.slot-remove:hover { color: #ff9f9f; }
+
+.ui-toast {
+  position: absolute;
+  bottom: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 26px;
+  border-radius: 10px;
+  background: rgba(16, 18, 26, 0.94);
+  border: 2px solid #e9c46a;
+  color: #f4f1e8;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  animation: toastIn 0.25s ease-out;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}

@@ -97,6 +97,9 @@ export class UI {
     const play = btn('¡A PELEAR!', () => this.actions.onPlay());
     play.classList.add('menu-play');
     s.append(play);
+    const online = btn('JUGAR EN LÍNEA', () => this.actions.onOnline?.());
+    online.classList.add('menu-play', 'secondary');
+    s.append(online);
     const help = el('div', 'controls-help menu-help',
       'P1: A/D mover · F saltar · G atacar · H especial');
     s.append(help);
@@ -166,6 +169,178 @@ export class UI {
     this.root.append(s);
   }
 
+  // ================================================================ ONLINE
+
+  /**
+   * Pantalla de inicio online: crear sala (con código) o unirse con código.
+   * @param ctx { onCreate, onJoin(código), onLeave, busy }
+   */
+  showOnlineHome(ctx = {}) {
+    this.clear();
+    const s = el('div', 'ui-screen lobby-screen');
+    s.append(el('div', 'ui-title', 'ONLINE'), el('div', 'ui-subtitle', 'Creá una sala o unite con el código de un amigo'));
+
+    const grid = el('div', 'online-home-grid');
+
+    const create = el('div', 'ui-panel online-panel');
+    create.append(el('div', 'slot-tag', 'CREAR SALA'), el('div', 'online-panel-text', 'Generás un código, se lo mandás a tus amigos y cuando se unen, arrancás la pelea.'));
+    const createBtn = btn('CREAR SALA', () => ctx.onCreate?.());
+    create.append(createBtn);
+    grid.append(create);
+
+    const join = el('div', 'ui-panel online-panel');
+    join.append(el('div', 'slot-tag', 'UNIRME'));
+    const input = document.createElement('input');
+    input.className = 'online-code-input';
+    input.maxLength = 6;
+    input.placeholder = 'CÓDIGO';
+    input.autocapitalize = 'characters';
+    input.spellcheck = false;
+    join.append(input, el('div', 'online-panel-text', 'Pegá el código de 6 letras que te pasó el anfitrión.'));
+    const joinBtn = btn('ENTRAR', () => ctx.onJoin?.(input.value.trim()));
+    joinBtn.disabled = ctx.busy;
+    join.append(joinBtn);
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter' && input.value.trim()) ctx.onJoin?.(input.value.trim());
+    });
+    grid.append(join);
+
+    s.append(grid);
+    const back = btn('VOLVER', () => ctx.onLeave?.());
+    back.classList.add('secondary');
+    s.append(back);
+    this.root.append(s);
+    setTimeout(() => input.focus(), 50);
+  }
+
+  /**
+   * Sala online: roster + configuración de la partida.
+   * El host edita todo; cada guest solo su propio personaje.
+   * @param ctx { room, selfId, isHost, onChar(i), onAddCpu, onRemoveCpu(i), onDiff(i), onStage(id), onStocks(n), onStart, onLeave }
+   */
+  showOnlineRoom(ctx) {
+    this.clear();
+    const { room, isHost } = ctx;
+    const s = el('div', 'ui-screen lobby-screen');
+    const code = room.code ?? '';
+    s.append(el('div', 'ui-title', `SALA ${code}`), el('div', 'ui-subtitle', isHost ? 'Invitá con el código · cuando estén listos, ¡a pelear!' : 'Esperando que el anfitrión arranque'));
+
+    // stage + stocks (solo el host los edita)
+    if (isHost) {
+      const opts = el('div', 'lobby-opts');
+      const stageSel = document.createElement('select');
+      stageSel.className = 'slot-btn';
+      for (const id of Object.keys(GAME_CONFIG.stages)) {
+        const o = document.createElement('option');
+        o.value = id;
+        o.textContent = GAME_CONFIG.stages[id].name;
+        o.selected = id === room.stageId;
+        stageSel.append(o);
+      }
+      stageSel.onchange = () => ctx.onStage?.(stageSel.value);
+      const stockSel = document.createElement('select');
+      stockSel.className = 'slot-btn';
+      for (const n of [1, 2, 3, 5]) {
+        const o = document.createElement('option');
+        o.value = String(n);
+        o.textContent = `${n} ${n === 1 ? 'vida' : 'vidas'}`;
+        o.selected = n === room.stocks;
+        stockSel.append(o);
+      }
+      stockSel.onchange = () => ctx.onStocks?.(Number(stockSel.value));
+      opts.append(stageSel, stockSel);
+      s.append(opts);
+    }
+
+    // filas de fighters (dueño humano / guest / cpu)
+    const rows = el('div', 'lobby-slots');
+    room.fighters.forEach((fg, i) => {
+      const card = el('div', 'lobby-slot ui-panel');
+      const member = room.members.find((m) => m.id === fg.owner);
+      const isMe = fg.owner === ctx.selfId;
+      const ownerLabel = fg.owner === 'cpu' ? 'CPU' : member ? member.name : fg.owner;
+      const slotTag = fg.owner === 'cpu'
+        ? `CPU ${i + 1}`
+        : `${isMe ? 'VOS' : ownerLabel}${isHost && fg.owner !== 'cpu' && !isMe ? '' : ''}`;
+      card.append(el('div', 'slot-tag', slotTag));
+
+      // personaje: host edita el de cualquiera; guest solo el suyo
+      const ch = GAME_CONFIG.characters[fg.character];
+      const canEditChar = isHost || isMe;
+      const charBtn = smallBtn('', () => canEditChar && ctx.onChar?.(i));
+      charBtn.disabled = !canEditChar;
+      charBtn.classList.add('slot-char');
+      const sw = el('div', 'slot-swatch');
+      sw.style.background = ch.color;
+      charBtn.append(sw, el('div', '', ch.name));
+      card.append(charBtn);
+
+      // dificultad (solo CPU, solo host)
+      if (fg.owner === 'cpu') {
+        const diffBtn = smallBtn(`CPU ${DIFFICULTY_LABEL[fg.difficulty] ?? fg.difficulty}`, () => isHost && ctx.onDiff?.(i));
+        diffBtn.disabled = !isHost;
+        card.append(diffBtn);
+      } else {
+        card.append(el('div', 'slot-btn', '—'));
+      }
+
+      // quitar CPU (solo host)
+      if (isHost && fg.owner === 'cpu') {
+        const del = smallBtn('✕', () => ctx.onRemoveCpu?.(i));
+        del.classList.add('slot-remove');
+        card.append(del);
+      }
+      rows.append(card);
+    });
+
+    // agregar CPU (solo host, hasta maxPlayers)
+    if (isHost && room.fighters.length < GAME_CONFIG.maxPlayers) {
+      const add = el('div', 'lobby-slot ui-panel add-slot');
+      const b = smallBtn('+ CPU', () => ctx.onAddCpu?.());
+      b.classList.add('slot-btn');
+      add.append(el('div', 'slot-tag', 'VACÍO'), b);
+      rows.append(add);
+    }
+    s.append(rows);
+
+    // miembros conectados (nombres)
+    const roster = el('div', 'online-roster');
+    for (const m of room.members) {
+      const chip = el('span', 'online-chip', m.id === ctx.selfId ? `${m.name} (vos)` : m.name);
+      roster.append(chip);
+    }
+    s.append(roster);
+
+    const bottom = el('div', 'lobby-bottom');
+    if (isHost) {
+      const active = room.fighters.length;
+      const start = btn(`¡A PELEAR! (${active} jugadores)`, () => ctx.onStart?.());
+      start.disabled = active < 2;
+      bottom.append(start);
+    } else {
+      bottom.append(el('div', 'online-wait', '… esperando al anfitrión …'));
+    }
+    const leave = btn('SALIR DE LA SALA', () => ctx.onLeave?.());
+    leave.classList.add('secondary');
+    bottom.append(leave);
+    s.append(bottom);
+    this.root.append(s);
+  }
+
+  /** Aviso flotante breve (toasts de conexión, resync, etc.). */
+  toast(msg, ms = 2600) {
+    let t = this.root.querySelector('.ui-toast');
+    if (!t) {
+      t = el('div', 'ui-toast');
+      this.root.append(t);
+    }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+  }
+
   // ================================================================ HUD
 
   /** Crea la barra inferior con una tarjeta por luchador. */
@@ -227,27 +402,42 @@ export class UI {
 
   // ================================================================ RESULTADOS
 
-  showResults(match) {
+  /**
+   * @param opts.online true si es una partida online
+   * @param opts.isHost true si este cliente es el anfitrión (único que puede dar revancha)
+   * @param opts.onLeaveOnline callback de "salir de la sala" (solo online)
+   */
+  showResults(match, opts = {}) {
     this.clear();
     const s = el('div', 'ui-screen');
     const w = match.winner;
+    const winnerSlot = w >= 0 ? GAME_CONFIG.players[match.fighters[w].index % GAME_CONFIG.players.length] : null;
     if (w >= 0) {
       const f = match.fighters[w];
-      const slot = GAME_CONFIG.players[f.index % GAME_CONFIG.players.length];
       s.append(
-        el('div', 'ui-title', `¡GANÓ ${slot.short}!`),
+        el('div', 'ui-title', `¡GANÓ ${winnerSlot.short}!`),
         el('div', 'ui-subtitle', `${f.spec.name} — quedó con ${f.stocks} ${f.stocks === 1 ? 'vida' : 'vidas'}`),
       );
     } else {
       s.append(el('div', 'ui-title', 'EMPATE'), el('div', 'ui-subtitle', 'Nadie quedó en pie'));
     }
 
-    const rematch = btn('REVANCHA', () => this.actions.onRematch());
-    const lobby = btn('LOBBY', () => this.actions.onLobby());
-    lobby.classList.add('secondary');
-    const menu = btn('MENÚ', () => this.actions.onMenu());
-    menu.classList.add('secondary');
-    s.append(rematch, lobby, menu);
+    if (opts.online) {
+      const rematch = btn('REVANCHA', () => this.actions.onRematch());
+      rematch.disabled = !opts.isHost;
+      if (!opts.isHost) rematch.title = 'Solo el anfitrión puede dar revancha';
+      const leave = btn('SALIR DE LA SALA', () => opts.onLeaveOnline?.());
+      leave.classList.add('secondary');
+      const note = el('div', 'controls-help', opts.isHost ? 'La revancha reinicia la sala para todos' : 'Esperando que el anfitrión decida');
+      s.append(rematch, leave, note);
+    } else {
+      const rematch = btn('REVANCHA', () => this.actions.onRematch());
+      const lobby = btn('LOBBY', () => this.actions.onLobby());
+      lobby.classList.add('secondary');
+      const menu = btn('MENÚ', () => this.actions.onMenu());
+      menu.classList.add('secondary');
+      s.append(rematch, lobby, menu);
+    }
     this.root.append(s);
   }
 }

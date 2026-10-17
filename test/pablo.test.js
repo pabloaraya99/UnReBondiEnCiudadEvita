@@ -216,3 +216,65 @@ test('Pablo CPU vs CPU: partida completa sin valores raros, con stances', async 
   }
   assert.equal(m.phase, 'finished', `terminó (${frames} cuadros)`);
 });
+
+test('FFA de 6 jugadores: termina sin valores raros y con respawn repartido', async () => {
+  const { AIController } = await import('../src/sim/index.js');
+  const chars = ['pablo', 'coco', 'domono', 'faxo', 'pablo', 'coco'];
+  const m = new Match({ players: chars.map((character) => ({ character })), stocks: 1 });
+  assert.equal(m.fighters.length, 6);
+  // el respawn reparte simétrico: 6 luchadores → offsets -3 .. +3
+  const offsets = m.fighters.map((f) => f.totalFighters === 6);
+  assert.ok(offsets.every(Boolean), 'todos los fighters conocen el total');
+  const cpus = m.fighters.map((f) => new AIController(f.index, 'hard', 3));
+  let frames = 0;
+  while (m.phase !== 'finished' && frames < 60 * 60 * 8) {
+    m.step(cpus.map((c) => c.decide(m)));
+    for (const f of m.fighters) {
+      for (const k of ['x', 'y', 'vx', 'vy', 'percent']) assert.ok(Number.isFinite(f[k]), `${k} finito (cuadro ${frames})`);
+    }
+    frames++;
+  }
+  assert.equal(m.phase, 'finished', `terminó (${frames} cuadros)`);
+});
+
+test('sin/cos deterministas: precisión suficiente y simétricos', async () => {
+  const { sin, cos, powInt } = await import('../src/sim/math.js');
+  // tolerancia de la tabla: ~5e-6 (mucho menos que cualquier diferencia de gameplay)
+  const TOL = 1e-5;
+  for (let deg = 0; deg < 360; deg++) {
+    const rad = (deg * Math.PI) / 180;
+    assert.ok(Math.abs(sin(rad) - Math.sin(rad)) < TOL, `sin(${deg}°)`);
+    assert.ok(Math.abs(cos(rad) - Math.cos(rad)) < TOL, `cos(${deg}°)`);
+  }
+  // simetrías exactas de la tabla
+  assert.ok(Math.abs(sin(0)) < 1e-12 && Math.abs(sin(Math.PI)) < 1e-5);
+  assert.ok(Math.abs(cos(0) - 1) < 1e-12);
+  assert.ok(Math.abs(sin(Math.PI / 2) - 1) < 1e-5);
+  // negativos y vueltas completas
+  assert.ok(Math.abs(sin(-Math.PI / 2) + 1) < 1e-5);
+  assert.ok(Math.abs(sin(Math.PI * 2 + 0.5) - sin(0.5)) < 1e-12, 'vuelta completa');
+  // powInt: potencias de 0.95 por multiplicación (bit-exacta en todo motor)
+  assert.equal(powInt(0.95, 0), 1);
+  assert.equal(powInt(0.95, 1), 0.95);
+  assert.equal(powInt(0.95, 3), 0.95 * 0.95 * 0.95);
+  assert.equal(powInt(0.95, 6), 0.95 * 0.95 * 0.95 * 0.95 * 0.95 * 0.95);
+});
+
+test('el respawn se reparte simétrico según el total de luchadores', async () => {
+  const m = new Match({ players: [{ character: 'coco' }, { character: 'coco' }, { character: 'coco' }, { character: 'coco' }, { character: 'coco' }, { character: 'coco' }], stocks: 2 });
+  // manda a todos al KO (queda 1 vida → estado 'ko' con respawn)
+  for (const f of m.fighters) f.knockOut();
+  const r = m.stage.respawn;
+  const seen = [];
+  for (let i = 0; i < GAME_CONFIG.match.respawnDelay + 2; i++) {
+    m.step(m.fighters.map(() => 0));
+  }
+  for (const f of m.fighters) {
+    if (f.state !== 'ko' && f.state !== 'dead') seen.push(f.x);
+  }
+  assert.equal(seen.length, 6, 'los 6 reaparecieron');
+  seen.sort((a, b) => a - b);
+  // offsets con n=6: (i - 2.5) * 1.2 → -3, -1.8, -0.6, 0.6, 1.8, 3
+  const expected = [-3, -1.8, -0.6, 0.6, 1.8, 3].map((o) => r.x + o);
+  seen.forEach((x, i) => assert.ok(Math.abs(x - expected[i]) < 1e-9, `spawn ${i}: ${x} ≈ ${expected[i]}`));
+});
