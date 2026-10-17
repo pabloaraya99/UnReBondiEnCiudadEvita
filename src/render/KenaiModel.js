@@ -112,7 +112,7 @@ export function buildKenai() {
   const armR = new THREE.Group();
   armR.position.set(0.4, 1.45, 0);
   root.add(armR);
-  const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.24, 6, 10), hoodieMat), armL);
+  const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.24, 6, 10), hoodieMat), armR);
   mangaR.position.set(0, -0.12, 0.08);
   mangaR.rotation.x = 0.7;
   const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.2, 6, 10), hoodieMat), armR);

@@ -116,7 +116,7 @@ export function buildFaxo() {
   const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.14, 6, 10), remeraMat), armR);
   mangaR.position.set(0, -0.07, 0.06);
   mangaR.rotation.x = 0.7;
-  const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.26, 6, 10), pielMat), armL);
+  const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.26, 6, 10), pielMat), armR);
   anteR.position.set(-0.02, -0.14, 0.24);
   anteR.rotation.x = 1.2;
   const manoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), pielMat), armR);
