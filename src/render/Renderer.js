@@ -4,6 +4,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { GAME_CONFIG } from '../config.js';
 import { CameraRig } from './CameraRig.js';
 import { buildKenai } from './KenaiModel.js';
@@ -105,6 +106,15 @@ export class Renderer {
     if (this.carModelPool) return;
     this.carModelPool = new Map();
     const loader = new GLTFLoader();
+    // los GLB de Vita Machines vienen con EXT_meshopt_compression: sin el
+    // decoder el loader tira error y TODOS los autos caen a las cajas del fallback
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    this.carsPending = CAR_MODEL_FILES.length;
+    const onSettled = () => {
+      if (--this.carsPending > 0) return;
+      // todos los GLB terminaron: re-crear los autos que salieron de fallback (cajas)
+      this.refreshFallbackCars();
+    };
     for (const def of CAR_MODEL_FILES) {
       loader.load(
         def.url,
@@ -137,10 +147,22 @@ export class Renderer {
           });
           this.carModelPool.set(def.id, model);
           console.log('[cars] GLB listo:', def.id, 'escala', escala.toFixed(2));
+          onSettled();
         },
         undefined,
-        (err) => { console.warn('[cars] fallo al cargar', def.url, err); },
+        (err) => { console.warn('[cars] fallo al cargar', def.url, err); onSettled(); },
       );
+    }
+  }
+
+  /** Destruye los autos del tráfico que quedaron en el fallback de cajas:
+   *  drawCars los recrea en el siguiente cuadro con los GLB ya cargados. */
+  refreshFallbackCars() {
+    for (const [id, mesh] of this.carMeshes) {
+      if (mesh.userData.fallback !== true) continue;
+      this.scene.remove(mesh);
+      mesh.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+      this.carMeshes.delete(id);
     }
   }
 
@@ -1524,6 +1546,11 @@ export class Renderer {
       const tint = new THREE.Color(carColors[id % carColors.length]);
       clone.traverse((o) => {
         if (!o.isMesh || !o.material) return;
+        // clone(true) comparte materiales con el pool: SIEMPRE clonar antes de
+        // teñir, si no el multiply contamina a todos los autos de la pista
+        o.material = Array.isArray(o.material)
+          ? o.material.map((m) => m.clone())
+          : o.material.clone();
         const mats = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of mats) {
           if (!m.color) continue;
@@ -1540,7 +1567,9 @@ export class Renderer {
       return holder;
     }
     // fallback mientras cargan los GLB
-    return this.makeCar(carColors[id % carColors.length]);
+    const caja = this.makeCar(carColors[id % carColors.length]);
+    caja.userData.fallback = true;
+    return caja;
   }
 
   /** Pájaros cruzando el cielo con aleteo; recicla al salir de cuadro. */
