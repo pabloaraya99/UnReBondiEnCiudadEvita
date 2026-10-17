@@ -22,13 +22,16 @@ const FIGHTER_BUILDERS = {
 };
 
 // Autos de Vita Machines (con créditos en README): se usan en el tráfico del escenario
-// rotY: corrección de orientación del modelo (si van de culata/de costado, se ajusta acá)
+// rotY: corrección de orientación del modelo (si van de culata/de costado, se ajusta acá).
+// Los 4 GLB vienen con el LARGO a lo largo de Z (frente de la escena) y el ancho en X,
+// pero el motor dibuja el frente hacia +X. Rotar +90° en Y manda Z→X y los pone de largo.
 const CAR_MODEL_FILES = [
   // size: largo objetivo al normalizar (sin eso, la moto quedaría del tamaño de un auto)
-  { id: 'corolla', url: '/assets/models/cars/corolla.glb', rotY: 0, size: 4.5 },
-  { id: 'clio', url: '/assets/models/cars/clio.glb', rotY: 0, size: 4.0 },
-  { id: 'peugeot', url: '/assets/models/cars/peugeot.glb', rotY: 0, size: 4.5 },
-  { id: 'moto', url: '/assets/models/cars/moto.glb', rotY: 0, size: 2.3 },
+  // color: color de carrocería fijo por modelo (se multiplica sobre el material base)
+  { id: 'corolla', url: '/assets/models/cars/corolla.glb', rotY: Math.PI / 2, size: 4.5, color: 0x1b2f6e }, // azul marino
+  { id: 'clio', url: '/assets/models/cars/clio.glb', rotY: Math.PI / 2, size: 4.0, color: 0x4a5340 }, // verde/gris oscuro
+  { id: 'peugeot', url: '/assets/models/cars/peugeot.glb', rotY: Math.PI / 2, size: 4.5, color: 0xf2f2f2 }, // blanco
+  { id: 'moto', url: '/assets/models/cars/moto.glb', rotY: Math.PI / 2, size: 2.3, color: 0x14161a }, // negra
 ];
 
 const MOVES = GAME_CONFIG.moves;
@@ -121,7 +124,7 @@ export class Renderer {
         def.url,
         (gltf) => {
           const model = gltf.scene;
-          // normalizar: escalar al largo objetivo del modelo y apoyar en y=0
+          // normalizar: escalar al largo objetivo del modelo
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
           const largo = Math.max(size.x, size.z);
@@ -1511,14 +1514,13 @@ export class Renderer {
    *  Usa los GLB de Vita Machines cuando ya cargaron; si no, el auto procedural. */
   drawCars(match, alpha) {
     const seen = new Set();
-    const carColors = [0xd8352a, 0xf4f1e8, 0x4d8bff, 0xf2c94c, 0x2dd4bf, 0xe5449d, 0x3fa34d];
     const poolIds = CAR_MODEL_FILES.map((d) => d.id);
     const floorTop = match.stage.solids[0]?.top ?? 0;
     for (const c of match.cars) {
       seen.add(c.id);
       let mesh = this.carMeshes.get(c.id);
       if (!mesh) {
-        mesh = this.makeTrafficCar(c.id, carColors, poolIds);
+        mesh = this.makeTrafficCar(c.id, poolIds);
         this.scene.add(mesh);
         this.carMeshes.set(c.id, mesh);
       }
@@ -1534,17 +1536,26 @@ export class Renderer {
   }
 
   /** Crea el mesh de un auto del tráfico: GLB de Vita Machines si está listo, si no el procedural.
-   *  Cada instancia clona materiales y aplica un tinte de color argentino variable. */
-  makeTrafficCar(id, carColors, poolIds) {
+   *  Cada modelo tiene un color de carrocería fijo. La rotación y el pivotaje vertical se
+   *  aplican SIEMPRE sobre el clone (no sobre el original del pool): el Peugeot tiene
+   *  esqueleto jerárquico y su offset en Y cambia al rotarlo, así que pivotar el original
+   *  sin rotar lo dejaba flotando "desde arriba". */
+  makeTrafficCar(id, poolIds) {
     const poolId = poolIds[id % poolIds.length];
     const def = CAR_MODEL_FILES.find((d) => d.id === poolId);
     const src = this.carModelPool?.get(poolId);
     if (src) {
       const clone = src.clone(true);
       if (def?.rotY) clone.rotation.y = def.rotY;
-      // tinte de color: recorrer meshes y multiplicar el color base del material
-      // por un color de carrocería (deja vidrios/metasles/neumáticos casi igual)
-      const tint = new THREE.Color(carColors[id % carColors.length]);
+      clone.updateMatrixWorld(true);
+      // pivotar el clone ya rotado: apoyar en el suelo (y=0) y centrar en x/z
+      const b = new THREE.Box3().setFromObject(clone);
+      const ctr = b.getCenter(new THREE.Vector3());
+      clone.position.x -= ctr.x;
+      clone.position.z -= ctr.z;
+      clone.position.y -= b.min.y;
+      // tinte de color del modelo (deja vidrios/metasles/neumáticos casi igual)
+      const tint = new THREE.Color(def?.color ?? 0xf4f1e8);
       clone.traverse((o) => {
         if (!o.isMesh || !o.material) return;
         // clone(true) comparte materiales con el pool: SIEMPRE clonar antes de
@@ -1568,7 +1579,7 @@ export class Renderer {
       return holder;
     }
     // fallback mientras cargan los GLB
-    const caja = this.makeCar(carColors[id % carColors.length]);
+    const caja = this.makeCar(tint);
     caja.userData.fallback = true;
     return caja;
   }
