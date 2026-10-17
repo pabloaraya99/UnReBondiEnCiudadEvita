@@ -167,6 +167,33 @@ export function buildFaxo() {
   const luz = add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.008), verdeLuzMat), cam);
   luz.position.set(0.02, 0.045, 0.055);
 
+  // ======================== POLAROIDS FLOTANDO (brillo verde, como el splash art) ========================
+  const polaroidMat = mkMat(0xf4f1e8, { roughness: 0.4 });
+  const polaroidGlowMat = mkMat(0x3fa34d, { emissive: 0x3fa34d, emissiveIntensity: 1.0, roughness: 0.3 });
+  const polaroidPositions = [
+    [-0.35, 1.35, 0.4, 0.3, 0.1],
+    [0.4, 1.2, 0.5, -0.2, 0.05],
+    [-0.2, 1.5, 0.6, 0.4, -0.15],
+    [0.25, 1.4, 0.35, -0.35, 0.2],
+  ];
+  for (const [x, y, z, rx, rz] of polaroidPositions) {
+    const polo = new THREE.Group();
+    polo.position.set(x, y, z);
+    polo.rotation.set(rx, 0, rz);
+    root.add(polo);
+    // cuerpo de la polaroid
+    const cuerpo = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.15, 0.012), polaroidMat), polo);
+    // borde blanco característico (marco inferior más grueso)
+    const marco = add(new THREE.Mesh(new THREE.BoxGeometry(0.124, 0.17, 0.014), polaroidMat), polo);
+    marco.position.y = -0.005;
+    // brillo verde en el marco
+    const glow = add(new THREE.Mesh(new THREE.BoxGeometry(0.126, 0.174, 0.016), polaroidGlowMat), polo);
+    glow.position.y = -0.007;
+    // "imagen" dentro (verde con variación)
+    const img = add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.01), mkMat(0x3fa34d, { emissive: 0x3fa34d, emissiveIntensity: 0.6, roughness: 0.3 })), polo);
+    img.position.y = 0.005;
+  }
+
   // ======================== auriculares in-ear con cable ========================
   // cables que bajan de las orejas al pecho
   for (const side of [-1, 1]) {
