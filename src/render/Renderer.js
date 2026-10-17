@@ -1510,7 +1510,18 @@ export class Renderer {
       model.group.position.set(x, 0, 1.6);
       model.group.rotation.y = Math.PI * 0.06 * (x < 0 ? 1 : -1);
       this.lineup.add(model.group);
-      this.lineupBobs.push({ group: model.group, baseY: 0, phase: Math.abs(x) * 0.9 });
+      // breathing: escala Y sutil del torso (aprox. primer capsule en y~1.25)
+      const torso = model.group.children.find(c =>
+        c.isMesh && c.geometry && c.geometry.type === 'CapsuleGeometry' && c.position.y > 1.1 && c.position.y < 1.4
+      );
+      this.lineupBobs.push({
+        group: model.group,
+        torso,
+        baseY: 0,
+        phase: Math.abs(x) * 0.9,
+        blinkTimer: Math.random() * 8,
+        blinkDur: 0,
+      });
     }
     this.scene.add(this.lineup);
     // VISTA LEJANA DEL MAPA en el lobby: la cámara se aleja mostrando todo el
@@ -1530,12 +1541,37 @@ export class Renderer {
     this.lineupBobs = [];
   }
 
-  /** Bob sutil de los personajes en el lobby (llamado cada frame desde main). */
+  /** Bob sutil + respiración + parpadeo en el lobby. */
   updateLineup(dt) {
     if (!this.lineupBobs) return;
     const t = performance.now() / 1000;
     for (const b of this.lineupBobs) {
+      // bob vertical
       b.group.position.y = b.baseY + Math.abs(Math.sin(t * 2.2 + b.phase)) * 0.12;
+      // respiración: escala Y sutil del torso (1.0 → 1.015)
+      if (b.torso) {
+        const breath = 1 + Math.abs(Math.sin(t * 1.8 + b.phase * 0.7)) * 0.015;
+        b.torso.scale.y = breath;
+      }
+      // parpadeo aleatorio
+      b.blinkTimer -= dt;
+      if (b.blinkDur > 0) {
+        b.blinkDur -= dt;
+        const eyeScale = 1 - Math.min(1, b.blinkDur / 0.12);
+        // buscar ojos en el head (esferas pequeñas en y ~0.15-0.2)
+        const head = b.group.children.find(c => c.isGroup && c.children.some(m => m.isMesh && m.geometry && m.geometry.type === 'SphereGeometry' && m.position.y > 0.12 && m.position.y < 0.25));
+        if (head) {
+          for (const eye of head.children) {
+            if (eye.isMesh && eye.geometry && eye.geometry.type === 'SphereGeometry' && eye.position.y > 0.12 && eye.position.y < 0.22) {
+              eye.scale.y = 1 - eyeScale;
+            }
+          }
+        }
+      } else if (b.blinkTimer <= 0) {
+        // iniciar parpadeo
+        b.blinkTimer = 4 + Math.random() * 6; // cada 4-10s
+        b.blinkDur = 0.15;
+      }
     }
   }
 
