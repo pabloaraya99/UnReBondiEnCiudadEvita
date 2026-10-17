@@ -48,11 +48,15 @@ export class Fighter {
     this.attack = null; // { id, frame, hit: [índices ya golpeados] }
     this.prevMask = 0;
     this.buf = { jump: 0, attack: 0, special: 0 };
+    // Bonus Fruit (Pac-Man): carga de fruta manteniendo el especial
+    this.fruitCharging = false;
+    this.fruitCharge = 0;
+    this.fruitTier = 0;
+    this.specialHeld = false;
 
     // --- Stance system (PabloQuemandoRuedas) ---
     this.stance = this.spec.stance ?? 'normal';
     this.stanceSwitchCd = 0;
-    this.stanceData = this.getStanceData();
     
     // --- Sword Slash state ---
     this.swordSlashPhase = null; // 'rise' | 'fall' | null
@@ -70,17 +74,6 @@ export class Fighter {
   getStanceData() {
     if (!this.spec.stances) return null;
     return this.spec.stances[this.stance] ?? this.spec.stances.normal ?? {};
-  }
-
-  /**
-   * Datos de un especial de personaje ('swordSlash' | 'blockForm'): lo definido en `moves` (única fuente de verdad)
-   * y, si la spec del personaje lo pisa, eso gana. Falla fuerte si falta un valor que se usa.
-   */
-  special(kind) {
-    const ref = this.spec[kind];
-    const move = MOVES[ref.moveId];
-    if (!move) throw new Error(`Falta el move "${ref.moveId}" en config.moves`);
-    return { ...move, ...ref };
   }
 
   getCurrentMoves() {
@@ -102,6 +95,11 @@ export class Fighter {
     if (!Number.isFinite(baseVal)) throw new Error(`Falta el valor base "${baseStat}" para ${this.characterId}`);
     const mult = this.getStanceData()?.[multKey] ?? 1.0;
     return baseVal * mult;
+  }
+
+  /** Multiplicador de caída por personaje (Ness/Domono cae más lento = floaty). */
+  get floatyMult() {
+    return this.spec.floaty ?? 1.0;
   }
 
   get width() {
@@ -129,10 +127,10 @@ export class Fighter {
     return this.getEffectiveStat('doubleJumpSpeed', 'jumpMult');
   }
   get fallSpeed() {
-    return this.getEffectiveStat('fallSpeed', 'fallMult');
+    return this.getEffectiveStat('fallSpeed', 'fallMult') * this.floatyMult;
   }
   get fastFallSpeed() {
-    return this.getEffectiveStat('fastFallSpeed', 'fallMult');
+    return this.getEffectiveStat('fastFallSpeed', 'fallMult') * this.floatyMult;
   }
   get alive() {
     return this.state !== 'ko' && this.state !== 'dead';
@@ -176,9 +174,11 @@ export class Fighter {
     if (pressed & IN.ATTACK) this.buf.attack = P.bufferFrames;
     if (pressed & IN.SPECIAL) this.buf.special = P.bufferFrames;
     const jumpHeld = has(mask, IN.JUMP);
+    const specialHeld = has(mask, IN.SPECIAL);
+    this.specialHeld = specialHeld; // se asigna ANTES de act(): la carga de Bonus Fruit lee este frame
 
-    if (this.state === 'dead') return;
-    if (this.state === 'ko') return this.stepKo(stage, ctx);
+    if (this.state === 'dead') { this.fruitCharging = false; return; }
+    if (this.state === 'ko') { this.fruitCharging = false; return this.stepKo(stage, ctx); }
 
     if (this.hitlag > 0) {
       this.hitlag--;
@@ -199,6 +199,7 @@ export class Fighter {
       this.hitstun--;
       this.attack = null;
       this.swordSlashPhase = null;
+      this.fruitCharging = false; // un golpe corta la carga de Bonus Fruit
       if (this.hitstun === 0) this.state = this.grounded ? 'idle' : 'air';
     } else {
       // Estado especial: Sword Slash
@@ -231,6 +232,25 @@ export class Fighter {
   // ============================================================ ACT (estado normal)
 
   act(x, up, down, pressed, jumpHeld, ctx) {
+    // --- Bonus Fruit (Pac-Man): carga manteniendo el especial, lanza al soltar ---
+    if (this.fruitCharging) {
+      if (this.attack) {
+        this.fruitCharging = false; // otro ataque interrumpe la carga
+      } else if (this.specialHeld) {
+        this.fruitCharge++;
+        const frames = MOVES[this._chargeMove]?.fruitFrames ?? 12;
+        const tier = Math.min(7, Math.floor(this.fruitCharge / frames));
+        if (tier !== this.fruitTier) {
+          this.fruitTier = tier;
+          ctx.events.push({ type: 'fruit-cycle', i: this.index, x: this.x, y: this.y + 1.5, tier });
+        }
+      } else {
+        // soltó el especial: lanza la fruta cargada (el tier escala el daño en Match)
+        this.fruitCharging = false;
+        this.shotCd = SHOT_COOLDOWN;
+        this.startAttack(this._chargeMove ?? this.spec.specials.neutral, ctx);
+      }
+    }
     const a = this.attack;
     if (a && !MOVES[a.id]) {
       console.error(`[Fighter ${this.index}] Move inválido en attack: "${a.id}"`);
@@ -248,7 +268,7 @@ export class Fighter {
           this.vy = P.upSpecialSpeed;
           this.vx = x * 4;
           this.upSpecialUsed = true;
-          ctx.events.push({ type: 'boost', i: this.index, x: this.x, y: this.y });
+          ctx.events.push({ type: 'boost', i: this.index, x: this.x, y: this.y, move: a.id });
         }
         if (m.lunge) this.vx = this.facing * m.lunge;
       }
@@ -287,23 +307,39 @@ export class Fighter {
         this.startAttack(this.getMoveId(id), ctx);
       } else if (this.buf.special > 0) {
         const neutral = !up && !down && x === 0;
+        const sp = this.spec.specials; // especiales estilo Smash por personaje
+
         if (neutral && this.spec.stances) {
           // Stance Switch: especial neutro de los personajes con stances (Pablo). El proyectil sale con ← / →.
           if (this.stanceSwitchCd === 0) {
             this.startStanceSwitch(ctx);
             this.buf.special = 0;
           }
-        } else if (up) {
-          if (this.spec.swordSlash && !this.upSpecialUsed) {
-            // Sword Slash: ↑ + Especial (reemplaza el upSpecial genérico)
-            this.buf.special = 0;
-            this.startSwordSlash(ctx);
-          } else if (!this.spec.swordSlash && !this.upSpecialUsed && MOVES.upSpecial) {
-            this.buf.special = 0;
-            this.startAttack('upSpecial', ctx);
-          }
+        } else if (up && sp?.up && !this.upSpecialUsed) {
+          // ↑ + Especial: recovery del personaje (swordSlash/uppercut/pkThunderUp)
+          this.startSpecial(sp.up, ctx);
+        } else if (down && sp?.down) {
+          // ↓ + Especial: stance del personaje (blockForm/counter/pkMagnet/axe)
+          this.startSpecial(sp.down, ctx);
+        } else if (x !== 0 && sp?.side) {
+          // ← / → + Especial: especial de costado del personaje
+          this.facing = x;
+          this.startSpecial(sp.side, ctx);
+        } else if (neutral && sp?.neutral && MOVES[sp.neutral]?.fruitCharge && this.shotCd === 0) {
+          // Bonus Fruit (Pac-Man): empieza a cargar (se lanza al soltar el especial)
+          this.startFruitCharge();
+        } else if (neutral && sp?.neutral && this.shotCd === 0) {
+          // Especial neutro del personaje (sin dirección)
+          this.startSpecial(sp.neutral, ctx);
+        } else if (up && this.spec.swordSlash && !this.upSpecialUsed) {
+          // legacy: swordSlash de Pablo
+          this.buf.special = 0;
+          this.startSwordSlash(ctx);
+        } else if (up && !this.spec.swordSlash && !sp?.up && !this.upSpecialUsed && MOVES.upSpecial) {
+          this.buf.special = 0;
+          this.startAttack('upSpecial', ctx);
         } else if (down && this.spec.blockForm) {
-          // Block Form: ↓ + Especial
+          // legacy: blockForm de Pablo
           this.buf.special = 0;
           this.startBlockForm(ctx);
         } else if (this.shotCd === 0) {
@@ -319,6 +355,59 @@ export class Fighter {
     // ---- salto corto
     if (!jumpHeld && this.airFrames > 0 && this.airFrames <= P.jumpCutWindow && this.vy > P.jumpCutSpeed) this.vy = P.jumpCutSpeed;
     if (this.airFrames > 0) this.airFrames++;
+  }
+
+  /**
+   * Rutea un especial por su tipo (estilo Smash): swordSlash-type (sube y baja),
+   * stance-type (blockForm/counter/magnet), proyectil, o ataque cuerpo a cuerpo.
+   */
+  startSpecial(id, ctx) {
+    const m = MOVES[id];
+    if (!m) {
+      console.error(`[Fighter ${this.index}] Especial "${id}" no existe en MOVES`);
+      this.buf.special = 0;
+      return;
+    }
+    // swordSlash-type: sube y baja (swordSlash, uppercut)
+    if (m.launchesUp) {
+      if (this.upSpecialUsed) return;
+      this.buf.special = 0;
+      this.startSwordSlash(ctx, id);
+      return;
+    }
+    // boost de recuperación (pkThunderUp): impulso hacia arriba + hitbox
+    if (m.boost) {
+      if (this.upSpecialUsed) return;
+      this.buf.special = 0;
+      this.startAttack(id, ctx);
+      return;
+    }
+    // stance-type: se mantiene activo (blockForm, counter, pkMagnet)
+    if (m.isStance) {
+      this.buf.special = 0;
+      this.startBlockForm(ctx, id);
+      return;
+    }
+    // proyectiles: eruption, pkFire, pkThunder, holyWater, axe
+    if (m.projectile) {
+      if (this.shotCd > 0) return;
+      this.buf.special = 0;
+      this.shotCd = SHOT_COOLDOWN;
+      this.startAttack(id, ctx);
+      return;
+    }
+    // ataques cuerpo a cuerpo: inhale, hammer, quickDraw, whip
+    this.buf.special = 0;
+    this.startAttack(id, ctx);
+  }
+
+  /** Bonus Fruit (Pac-Man): empieza a cargar la fruta manteniendo el especial. */
+  startFruitCharge() {
+    this.buf.special = 0;
+    this.fruitCharging = true;
+    this.fruitCharge = 0;
+    this.fruitTier = 0;
+    this._chargeMove = this.spec.specials.neutral;
   }
 
   startAttack(id, ctx) {
@@ -348,9 +437,16 @@ export class Fighter {
 
   // ============================================================ SWORD SLASH (Final Cutter)
 
-  startSwordSlash(ctx) {
-    const ss = this.special('swordSlash');
-    this.attack = { id: ss.moveId, frame: 0, hit: [] };
+  /** Datos de un movimiento por id. */
+  specialData(moveId) {
+    const move = MOVES[moveId];
+    if (!move) throw new Error(`Falta el move "${moveId}" en config.moves`);
+    return { ...move };
+  }
+
+  startSwordSlash(ctx, moveId = 'swordSlash') {
+    const ss = this.specialData(moveId);
+    this.attack = { id: moveId, frame: 0, hit: [] };
     this.swordSlashPhase = 'rise';
     this.swordSlashPeakY = this.y + ss.maxHeight;
     this.swordSlashHitLanded = false;
@@ -360,12 +456,12 @@ export class Fighter {
     this.standingOn = null;
     this.upSpecialUsed = true;
     this.state = 'swordSlashRise';
-    ctx.events.push({ type: 'swordSlashStart', i: this.index, x: this.x, y: this.y });
+    this._ssData = ss;
+    ctx.events.push({ type: 'swordSlashStart', i: this.index, x: this.x, y: this.y, move: moveId });
   }
 
   stepSwordSlash(x, up, down, pressed, jumpHeld, ctx) {
-    const ss = this.special('swordSlash');
-    const move = MOVES[ss.moveId];
+    const ss = this._ssData ?? this.specialData('swordSlash');
     const a = this.attack;
 
     if (this.swordSlashPhase === 'rise') {
@@ -377,12 +473,7 @@ export class Fighter {
         this.state = 'swordSlashFall';
       }
       // Avanzar frame de ataque (hitbox en subida)
-      if (a) {
-        a.frame++;
-        if (a.frame >= move.startup + move.active) {
-          // Hitbox de subida terminó
-        }
-      }
+      if (a) a.frame++;
     } else if (this.swordSlashPhase === 'fall') {
       // Cayendo rápido
       this.vy = -ss.fallSpeed;
@@ -431,26 +522,29 @@ export class Fighter {
 
   // ============================================================ BLOCK FORM (Stone)
 
-  startBlockForm(ctx) {
-    const bf = this.special('blockForm');
+  startBlockForm(ctx, moveId = 'blockForm') {
+    const bf = this.specialData(moveId);
     this.blockFormActive = true;
+    this._bfData = bf;
     this.blockFormTimer = bf.maxDuration;
     this.blockFormHitLanded = false;
     this.vx = 0;
     this.vy = 0;
-    this.fastFall = true;
+    this.fastFall = bf.fallMultiplier ? true : false;
     this.state = 'blockForm';
-    this.attack = { id: bf.moveId, frame: 0, hit: [] };
-    ctx.events.push({ type: 'blockFormStart', i: this.index, x: this.x, y: this.y });
+    this.attack = { id: moveId, frame: 0, hit: [] };
+    ctx.events.push({ type: 'blockFormStart', i: this.index, x: this.x, y: this.y, move: moveId });
   }
 
   stepBlockForm(x, up, down, pressed, jumpHeld, ctx) {
-    const bf = this.special('blockForm');
+    const bf = this._bfData ?? this.specialData('blockForm');
 
     this.blockFormTimer--;
 
-    // Caída ultra rápida
-    this.vy = -bf.fallMultiplier * P.fallSpeed;
+    // Caída ultra rápida (solo Stone/blockForm; counter y magnet no caen)
+    if (bf.fallMultiplier) {
+      this.vy = -bf.fallMultiplier * P.fallSpeed;
+    }
 
     // No control horizontal, pero se puede mover levemente
     if (x !== 0) {
@@ -460,7 +554,7 @@ export class Fighter {
     // Cancelar: soltar especial o saltar o tiempo agotado
     const specialHeld = has(this.prevMask, IN.SPECIAL);
     const jumpPressed = (pressed & IN.JUMP) || this.buf.jump > 0;
-    
+
     if (!specialHeld || jumpPressed || this.blockFormTimer <= 0) {
       this.endBlockForm(ctx);
       if (jumpPressed && this.jumpsLeft > 0) {
@@ -470,15 +564,15 @@ export class Fighter {
       return;
     }
 
-    // Detectar aterrizaje para shockwave
-    if (this.grounded && !this.blockFormHitLanded) {
+    // Detectar aterrizaje para shockwave (solo Stone/blockForm)
+    if (bf.landShockwave && this.grounded && !this.blockFormHitLanded) {
       this.blockFormHitLanded = true;
       this.createBlockFormShockwave(ctx, bf);
     }
   }
 
   endBlockForm(ctx) {
-    const bf = this.special('blockForm');
+    const bf = this._bfData ?? this.specialData('blockForm');
     this.blockFormActive = false;
     this.fastFall = false;
     this.attack = null;
@@ -486,6 +580,7 @@ export class Fighter {
     ctx.events.push({ type: 'blockFormEnd', i: this.index, x: this.x, y: this.y });
     // End lag
     this.hitstun = bf.endLag;
+    this._bfData = null;
   }
 
   createBlockFormShockwave(ctx, bf) {
@@ -509,7 +604,6 @@ export class Fighter {
     const currentIdx = stances.indexOf(this.stance);
     const nextIdx = (currentIdx + 1) % stances.length;
     this.stance = stances[nextIdx];
-    this.stanceData = this.getStanceData();
     this.stanceSwitchCd = 60; // 1 segundo cooldown
     
     this.attack = { id: 'stanceSwitch', frame: 0, hit: [] };
@@ -680,7 +774,6 @@ export class Fighter {
     this.airFrames = 0;
     this.invuln = M.respawnInvuln;
     this.stance = 'normal';
-    this.stanceData = this.getStanceData();
     ctx.events.push({ type: 'respawn', i: this.index, x: this.x, y: this.y });
   }
 
@@ -731,7 +824,6 @@ export class Fighter {
     this.prevX = s.x;
     this.prevY = s.y;
     this.spec = CHARACTERS[s.characterId];
-    this.stanceData = this.getStanceData();
     this.attack = s.attack ? { id: s.attack.id, frame: s.attack.frame, hit: [...s.attack.hit] } : null;
     this.buf = { ...s.buf };
   }

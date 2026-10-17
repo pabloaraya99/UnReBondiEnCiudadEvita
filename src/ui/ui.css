@@ -4,8 +4,8 @@
    después: acá solo importa que la interfaz funcione.
    ============================================================ */
 
-/* Fuentes graffiti (Google Fonts): Bungee para títulos sólidos, Spray para detalle */
-@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Rubik+Spray+Paint&display=swap');
+/* Fuentes graffiti: se cargan por <link> en index.html (NO por @import, que
+   bloquea TODO este stylesheet si Google Fonts va lento o está bloqueado) */
 
 #ui-root {
   position: fixed;
@@ -16,7 +16,6 @@
   z-index: 10;
   user-select: none;
 }
-#ui-root .clickable { pointer-events: auto; }
 
 /* ---------- genéricos ---------- */
 .ui-panel {
@@ -66,36 +65,151 @@
 }
 
 /* ---------- lobby ---------- */
-/* El lobby deja ver el escenario + el lineup de personajes (sin overlay pesado) */
+/* El lobby deja ver el escenario + el lineup de personajes (sin overlay pesado).
+   Layout compacto: con las tarjetas splash altas, usamos el alto disponible sin
+   que los botones de abajo queden fuera de pantalla */
 .lobby-screen {
   background: linear-gradient(rgba(12, 16, 30, 0.10), rgba(12, 16, 30, 0.35) 82%);
   justify-content: space-between !important;
-  padding: 2vh 0 3vh;
+  padding: 1.2vh 0 1.5vh;
+  gap: 10px;
+  overflow: hidden;
 }
 .lobby-screen .ui-title {
-  font-size: 2.4rem;
+  font-size: 2rem;
   text-shadow: 0 3px 0 #7a5c1e, 0 6px 18px rgba(0,0,0,0.75);
+  line-height: 1;
+  /* vibración sutil continua (micro-shake de pelea) */
+  animation: lobbyTitleShake 2.8s ease-in-out infinite;
+}
+@keyframes lobbyTitleShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(1px, -0.8px); }
+  40% { transform: translate(-1px, 0.8px); }
+  60% { transform: translate(0.8px, 1px); }
+  80% { transform: translate(-0.8px, -1px); }
 }
 .lobby-screen .ui-subtitle {
-  margin-top: -14px;
+  margin-top: -10px;
+  font-size: 0.85rem;
+}
+/* ---------- capas de movimiento del lobby (fx) ---------- */
+.lobby-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* el contenido del lobby se apila arriba del fx */
+.lobby-screen > *:not(.lobby-fx) {
+  position: relative;
+  z-index: 1;
+}
+.lobby-smoke {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+}
+.lobby-dust {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(244, 241, 232, 0.45);
+}
+.lobby-glint {
+  position: absolute;
+  will-change: transform, opacity;
+}
+.lobby-glint-core {
+  position: absolute;
+  inset: 25%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 250, 230, 0.95) 0%, rgba(255, 230, 150, 0.5) 50%, transparent 75%);
+}
+.lobby-glint-arm-h {
+  position: absolute;
+  top: 45%;
+  left: 0;
+  width: 100%;
+  height: 12%;
+  background: linear-gradient(90deg, transparent, rgba(255, 250, 230, 0.85), transparent);
+}
+.lobby-glint-arm-v {
+  position: absolute;
+  top: 0;
+  left: 45%;
+  width: 12%;
+  height: 100%;
+  background: linear-gradient(180deg, transparent, rgba(255, 250, 230, 0.85), transparent);
+}
+@keyframes lobbySmokeDrift {
+  0% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(55vw) translateY(-2%); }
+  100% { transform: translateX(110vw) translateY(-5%); }
+}
+@keyframes lobbyDustDrift {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: 0.5; }
+  88% { opacity: 0.35; }
+  100% { transform: translate(-5vw, 3vh); opacity: 0; }
+}
+@keyframes lobbyGlintTwinkle {
+  0%, 100% { transform: scale(0.4) rotate(0deg); opacity: 0; }
+  40% { transform: scale(1) rotate(12deg); opacity: 1; }
+  70% { transform: scale(0.7) rotate(20deg); opacity: 0.5; }
+}
+/* botón de pelea: glow que respira (llamativo sin ser molesto) */
+.lobby-fight-btn:not(:disabled) {
+  animation: lobbyFightGlow 2.2s ease-in-out infinite;
+}
+@keyframes lobbyFightGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(233, 196, 106, 0); }
+  50% { box-shadow: 0 0 22px 3px rgba(233, 196, 106, 0.55), 0 0 48px 8px rgba(233, 196, 106, 0.18); }
+}
+/* selector de mapa: pulso de borde sutil */
+.lobby-stage-btn {
+  animation: lobbyStagePulse 3.4s ease-in-out infinite;
+}
+@keyframes lobbyStagePulse {
+  0%, 100% { border-color: #3a3f52; }
+  50% { border-color: #6a7392; }
+}
+
+/* indicador de joystick conectado en el lobby */
+.lobby-gamepad-ind {
+  font-family: 'Bungee', 'Arial Black', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: #7fd0a0;
+  background: rgba(20, 30, 22, 0.75);
+  border: 2px solid #3fa34d;
+  border-radius: 8px;
+  padding: 6px 16px;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 .lobby-bottom {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .lobby-slots {
   display: flex;
-  gap: 16px;
+  gap: 14px;
+  flex: 0 1 auto;
+  min-height: 0;
+  align-items: center;
 }
 .lobby-slot {
-  width: 190px;
+  width: 180px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
   align-items: stretch;
   text-align: center;
+  min-height: 0;
 }
 .lobby-slot .slot-tag {
   font-weight: 900;
@@ -124,12 +238,6 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-}
-.slot-swatch {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 3px solid rgba(255,255,255,0.75);
 }
 
 /* ---------- HUD ---------- */
@@ -193,369 +301,106 @@
   to   { transform: scale(1);   opacity: 1; }
 }
 
-/* ---------- ayuda de controles ---------- */
-.controls-help {
-  font-size: 0.85rem;
-  opacity: 0.65;
-  text-align: center;
-  line-height: 1.5;
-}
 
 /* ============================================================
-   MENÚ PRINCIPAL — estilo Smash: escenario 3D vivo de fondo,
-   logo flotante con rayos, Kenai con bob de boxeador, hojas.
+   LOBBY: retratos recortados como en el title screen
    ============================================================ */
-.menu-screen {
-  /* deja ver el escenario 3D del juego (nubes, autos, templo, pájaros) */
-  background: linear-gradient(rgba(12, 16, 30, 0.06), rgba(12, 16, 30, 0.30) 85%);
-  /* viñeta sutil para que la lineup y el logo "floten" */
-  box-shadow: inset 0 0 120px 40px rgba(5, 8, 16, 0.5);
-  overflow: hidden;
-}
-
-/* rayos de luz girando detrás del logo (anime/smash) */
-.menu-rays {
-  position: absolute;
-  top: -42%;
-  left: 50%;
-  width: 110vmin;
-  aspect-ratio: 1;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: repeating-conic-gradient(
-    from 0deg,
-    rgba(255, 244, 200, 0.14) 0deg 14deg,
-    transparent 14deg 34deg
-  );
-  animation: menuSpin 46s linear infinite;
-  pointer-events: none;
-}
-@keyframes menuSpin { to { transform: translateX(-50%) rotate(360deg); } }
-
-/* glow cálido detrás del logo */
-.menu-glow {
-  position: absolute;
-  top: -6%;
-  left: 50%;
-  width: 74%;
-  height: 52%;
-  transform: translateX(-50%);
-  background: radial-gradient(ellipse at center, rgba(255, 236, 170, 0.34), rgba(255, 236, 170, 0.10) 55%, transparent 75%);
-  animation: glowPulse 3.2s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes glowPulse {
-  0%, 100% { opacity: 0.75; }
-  50%      { opacity: 1; }
-}
-
-/* logo: stack con texto 3D + nube animada */
-.menu-logo-stack {
-  position: absolute;
-  top: 3%;
-  left: 50%;
-  transform: translateX(-50%);
+.lobby-slot .slot-char {
   display: flex;
   flex-direction: column;
   align-items: center;
-  pointer-events: none;
-  animation: logoIn 0.5s ease-out, stackFloat 3.6s 0.5s ease-in-out infinite;
+  justify-content: center;
+  gap: 8px;
+  min-height: 80px;
 }
-@keyframes stackFloat {
-  0%, 100% { transform: translateX(-50%) translateY(0) rotate(-0.3deg); }
-  50%      { transform: translateX(-50%) translateY(-10px) rotate(0.4deg); }
-}
-
-/* título principal: fuente graffiti con extrusión 3D + sombra magenta gangster */
-.t-main {
-  font-family: 'Bungee', 'Arial Black', sans-serif;
-  font-size: clamp(2.6rem, 7.5vw, 5.8rem);
-  letter-spacing: 0.04em;
-  color: #4CC458;
-  -webkit-text-stroke: 3px #14161a;
-  paint-order: stroke fill;
-  text-shadow:
-    0 1px 0 #1E5B2E, 0 2px 0 #1E5B2E, 0 3px 0 #1E5B2E,
-    0 4px 0 #1E5B2E, 0 5px 0 #1E5B2E, 0 6px 0 #1E5B2E,
-    0 9px 16px rgba(0, 0, 0, 0.55),
-    -7px 7px 0 rgba(229, 69, 157, 0.8);
-  white-space: nowrap;
-}
-
-/* subtítulo: spray dibujado a mano */
-.t-sub {
-  font-family: 'Rubik Spray Paint', 'Bungee', Impact, sans-serif;
-  font-size: clamp(1.5rem, 3.6vw, 2.7rem);
-  letter-spacing: 0.14em;
-  color: #F2C94C;
-  -webkit-text-stroke: 2px #14161a;
-  paint-order: stroke fill;
-  text-shadow:
-    0 2px 0 #B8860B, 0 3px 0 #B8860B,
-    0 6px 12px rgba(0, 0, 0, 0.6),
-    -4px 4px 0 rgba(229, 69, 157, 0.65);
-  margin-top: -8px;
-  white-space: nowrap;
-}
-
-/* nube de pelea entre los textos */
-.menu-cloud {
-  width: clamp(300px, 34vw, 460px);
-  margin: -14px 0 -6px;
-  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.45));
-}
-.menu-cloud svg { width: 100%; height: auto; display: block; }
-
-/* ---- animaciones internas de la nube ---- */
-.cloud-body {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: cloudShake 0.36s steps(2) infinite;
-}
-@keyframes cloudShake {
-  0%   { transform: translate(0, 0); }
-  25%  { transform: translate(2.5px, -2px); }
-  50%  { transform: translate(-2.5px, 1.5px); }
-  75%  { transform: translate(2px, 2px); }
-  100% { transform: translate(0, 0); }
-}
-.glove {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: glovePop 2.6s ease-in-out infinite;
-}
-.g2 { animation-delay: 0.55s; }
-.g3 { animation-delay: 1.1s; }
-.g4 { animation-delay: 1.65s; }
-@keyframes glovePop {
-  0%, 100% { transform: scale(1); }
-  10%      { transform: scale(1.22); }
-  22%      { transform: scale(1); }
-}
-.pow {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: powShake 0.42s steps(2) infinite;
-}
-.p2 { animation-delay: 0.2s; }
-@keyframes powShake {
-  0%   { transform: rotate(0deg) scale(1); }
-  50%  { transform: rotate(-3deg) scale(1.06); }
-  100% { transform: rotate(0deg) scale(1); }
-}
-.est {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: twinkle 1.3s ease-in-out infinite;
-}
-.e2 { animation-delay: 0.25s; }
-.e3 { animation-delay: 0.5s; }
-.e4 { animation-delay: 0.75s; }
-.e5 { animation-delay: 1s; }
-@keyframes twinkle {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50%      { transform: scale(1.4) rotate(18deg); opacity: 0.75; }
-}
-.speedlines {
-  animation: speedPulse 0.36s steps(2) infinite;
-}
-@keyframes speedPulse {
-  0%, 100% { opacity: 0.9; }
-  50%      { opacity: 0.45; }
-}
-@keyframes logoFloat {
-  0%, 100% { transform: translateX(-50%) translateY(0) rotate(-0.4deg); }
-  50%      { transform: translateX(-50%) translateY(-13px) rotate(0.5deg); }
-}
-
-/* lineup tipo champion select: los 4 personajes como siluetas recortadas,
-   igual que Kenai (sin recuadros), flotando con bob de boxeador */
-.menu-lineup {
-  position: absolute;
-  left: 50%;
-  bottom: 23.5%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: clamp(6px, 1.6vw, 22px);
-  align-items: flex-end;
-  pointer-events: none;
-}
-.menu-lineup-slot {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  animation: champDrop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards, champBob 1.15s 0.5s ease-in-out infinite;
-}
-.menu-lineup-slot:nth-child(2) { animation-delay: 0.1s, 0.62s; }
-.menu-lineup-slot:nth-child(3) { animation-delay: 0.2s, 0.74s; }
-.menu-lineup-slot:nth-child(4) { animation-delay: 0.3s, 0.86s; }
-@keyframes champDrop {
-  from { transform: translateY(-26px) scale(0.72); opacity: 0; }
-}
-@keyframes champBob {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50%      { transform: translateY(-9px) rotate(0.8deg); }
-}
-/* estallido de caricatura detrás de cada persona (estilo emblema de CSS Smash) */
-.menu-slot-burst {
-  position: absolute;
-  left: 50%;
-  top: 40%;
-  transform: translate(-50%, -50%);
-  width: clamp(150px, 18vw, 262px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: repeating-conic-gradient(
-    from 12deg,
-    var(--ch-burst, #f2c94c) 0 17deg,
-    var(--ch-burst-dark, #b8860b) 17deg 34deg
-  );
-  -webkit-mask-image: radial-gradient(circle at center, transparent 27%, #000 28%);
-  mask-image: radial-gradient(circle at center, transparent 27%, #000 28%);
-  pointer-events: none;
-  z-index: -2;
-  animation: burstSpin 34s linear infinite, burstIn 0.6s ease-out backwards;
-}
-@keyframes burstSpin {
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-@keyframes burstIn {
-  from { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
-}
-/* glow de color por personaje (a lo "challenger" Smash, sin recuadro) */
-.menu-slot-glow {
-  position: absolute;
-  left: 50%;
-  bottom: 6%;
-  width: 140%;
-  aspect-ratio: 1.5;
-  transform: translateX(-50%);
-  background: radial-gradient(ellipse at center, var(--ch-glow, rgba(255, 255, 255, 0.25)), transparent 70%);
-  filter: blur(3px);
-  opacity: 0.5;
-  pointer-events: none;
-  z-index: -1;
-}
-/* sombra de contacto (el personaje "apoya los pies") */
-.menu-lineup-slot::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: -7px;
-  width: 86%;
-  height: 13px;
-  transform: translateX(-50%);
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), transparent 68%);
-  opacity: 0.55;
-  pointer-events: none;
-}
-.menu-lineup-slot img {
+.lobby-slot .slot-char img {
   width: auto;
-  height: clamp(120px, 15vw, 200px);
+  height: clamp(70px, 12vw, 110px);
   object-fit: contain;
-  /* contorno de cómic grueso alrededor de la silueta + sombra flotante */
+  /* contorno de cómic grueso + sombra flotante */
   filter:
     drop-shadow(2px 0 0 #14161a) drop-shadow(-2px 0 0 #14161a)
     drop-shadow(0 2px 0 #14161a) drop-shadow(0 -2px 0 #14161a)
     drop-shadow(2px 2px 0 #14161a) drop-shadow(-2px -2px 0 #14161a)
     drop-shadow(2px -2px 0 #14161a) drop-shadow(-2px 2px 0 #14161a)
-    drop-shadow(10px 14px 22px rgba(0, 0, 0, 0.5));
+    drop-shadow(8px 10px 16px rgba(0, 0, 0, 0.5));
+  transition: transform 0.15s ease;
 }
-.menu-lineup-name {
+.lobby-slot .slot-char:hover img {
+  transform: scale(1.08) translateY(-4px);
+}
+
+/* ============================================================
+   CHAMPION SELECT: tarjetas splash art de los personajes
+   ============================================================ */
+.lobby-slot .slot-char-card {
+  gap: 0;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 3px solid #3a3f52;
+  background: #14161a;
+  padding: 0;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+/* glow interior que "respira" — en pseudo-elemento para no pisar el hover del borde */
+.lobby-slot .slot-char-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  pointer-events: none;
+  animation: cardGlowPulse 4s ease-in-out infinite;
+}
+@keyframes cardGlowPulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px rgba(90, 96, 120, 0.25); }
+  50% { box-shadow: inset 0 0 0 2px rgba(120, 130, 170, 0.55), inset 0 0 18px rgba(120, 130, 170, 0.12); }
+}
+.lobby-slot .slot-char-card:hover {
+  border-color: #e9c46a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transform: translateY(-4px);
+}
+.lobby-slot .slot-char-card img {
+  width: 100%;
+  height: clamp(130px, 26vh, 210px);
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  filter: none;
+  transition: transform 0.2s ease;
+  /* zoom sutil tipo Ken Burns continuo (el delay se setea en UI.js por tarjeta) */
+  animation: cardZoom 6s ease-in-out infinite;
+}
+@keyframes cardZoom {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.07; }
+}
+.lobby-slot .slot-char-card:hover img {
+  transform: scale(1.04);
+}
+/* nombre del personaje sobre la tarjeta (cinta de color) */
+.lobby-slot .slot-char-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 10px;
   font-family: 'Bungee', 'Arial Black', sans-serif;
-  font-size: clamp(0.6rem, 1.15vw, 0.85rem);
-  letter-spacing: 0.05em;
+  font-size: clamp(0.7rem, 1.1vw, 0.95rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #14161a;
-  background: var(--ch-ribbon, #e9c46a);
-  border: 2px solid #14161a;
-  border-radius: 5px;
-  padding: 3px 12px 2px;
-  transform: rotate(-2deg) translateY(-3px);
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
-  white-space: nowrap;
-}
-
-/* chispas de caricatura a los costados de la lineup */
-.menu-star {
-  position: absolute;
-  bottom: 33%;
-  width: 36px;
-  height: 36px;
-  background: #F2C94C;
-  filter: drop-shadow(2px 2px 0 #14161a);
-  clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
-  animation: starTwinkle 1.6s ease-in-out infinite;
-  pointer-events: none;
-}
-.star-l { left: 13%; }
-.star-r { right: 13%; animation-delay: 0.4s; }
-@keyframes starTwinkle {
-  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
-  50%      { transform: scale(1.3) rotate(22deg); opacity: 0.55; }
-}
-
-/* hojas flotando (lore verde) */
-.menu-leaves { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.menu-leaf {
-  position: absolute;
-  top: -6%;
-  width: 22px;
-  height: 22px;
-  background: #3FA34D;
-  border-radius: 0 60% 0 60%;
-  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.18);
-  opacity: 0.85;
-  animation: leafFall linear infinite;
-}
-@keyframes leafFall {
-  0%   { transform: translateY(-8vh) translateX(0) rotate(0deg); opacity: 0; }
-  10%  { opacity: 0.85; }
-  50%  { transform: translateY(50vh) translateX(4vw) rotate(220deg); }
-  100% { transform: translateY(108vh) translateX(-3vw) rotate(460deg); opacity: 0.2; }
-}
-
-/* botón pulsante PRESS START */
-.menu-play {
-  position: absolute;
-  bottom: 13%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 1.55rem;
-  letter-spacing: 0.06em;
-  padding: 18px 66px;
-  border-radius: 14px;
-  animation: kenaiIn 0.55s 0.2s ease-out backwards, playPulse 1.5s 0.8s ease-in-out infinite;
-}
-@keyframes playPulse {
-  0%, 100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 rgba(233, 196, 106, 0); }
-  50%      { transform: translateX(-50%) scale(1.07); box-shadow: 0 0 34px rgba(233, 196, 106, 0.65); }
-}
-
-.menu-help {
-  position: absolute;
-  bottom: 6.5%;
-  left: 50%;
-  transform: translateX(-50%);
   text-align: center;
-  opacity: 0.85;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
-  animation: kenaiIn 0.55s 0.35s ease-out backwards;
+  border-top: 3px solid #14161a;
 }
-
-/* pantallas chicas: Kenai tenue de fondo, todo centrado */
-@media (max-width: 900px) {
-  .t-main { font-size: clamp(2rem, 9vw, 3.4rem); }
-  .t-sub { font-size: clamp(1.1rem, 5vw, 1.8rem); }
-  .menu-cloud { width: min(78vw, 340px); }
-  .menu-lineup { bottom: 27.5%; gap: 1px; }
-  .menu-lineup-slot img { height: clamp(46px, 12vw, 78px); }
-  .menu-lineup-slot { animation: none; }
-  .menu-lineup-name { font-size: 0.42rem; }
-  .menu-slot-burst, .menu-star { display: none; }
-  .menu-play { bottom: 16%; }
+/* el slot cerrado atenúa la tarjeta */
+.lobby-slot.off .slot-char-card {
+  filter: grayscale(0.7) brightness(0.6);
+}
+.lobby-slot.off .slot-char-card:hover {
+  filter: grayscale(0.7) brightness(0.7);
 }
 
 /* ============================================================

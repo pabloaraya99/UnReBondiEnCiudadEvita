@@ -2,10 +2,15 @@ import * as THREE from 'three';
 
 /**
  * Dr Faxo — modelado con primitivas (sin assets externos).
- * De Vita Machines: el más manejable (Renault Clio gris topo). El doctor del barrio:
- * bata gris abierta sobre camiseta de fútbol, short, OJOTAS CON MEDIAS, anteojos,
- * pelo canoso con entradas y CÁMARA de fotos en la mano (cro­nista del barrio).
- * Más FLACO y petiso. Origen en los pies (y=0), altura ≈ 1.8.
+ * Basado en el splash art oficial (pilots/faxo.webp):
+ * - FLACO y ALTO: cuello largo, contextura delgada
+ * - RULOS RUBIOS/castaño claro (rizos abundantes arriba)
+ * - Remera NEGRA lisa
+ * - CÁMARA PROFESIONAL colgada del cuello: correa, cuerpo negro,
+ *   lente grande, flash con pantalla VERDE brillante
+ * - Auriculares in-ear con cable negro colgando
+ * - Ojos grandes castaños, cejas finas, sonrisa leve
+ * Origen en los pies (y=0), altura ≈ 1.9 (el más alto).
  *
  * Devuelve { group, mats, hoodieMat, parts } — misma interfaz que KenaiModel.
  */
@@ -18,30 +23,41 @@ export function buildFaxo() {
     return m;
   };
 
-  // paleta
-  const PIEL = 0xaa847a;       // piel (del retrato, más oscura que la anterior)
-  const BATA = 0x9aa0a6;       // gris topo (su color)
-  const BATA_OSC = 0x7d838d;
-  const FUTBOL = 0x3b6fd4;     // camiseta de fútbol (rayas)
-  const FUTBOL_B = 0xf4f1e8;
-  const SHORT = 0x2b2f38;
-  const PELO = 0xb9bec6;       // canoso
-  const MEDIA = 0xf4f1e8;      // medias blancas con las ojotas
-  const MATE = 0x6b4a2f;       // calabaza del mate
-  const NEGRO = 0x14161a;
+  // paleta BEIGE (a pedido del usuario: tonos crema/arena/marrón claro)
+  const PIEL = 0xc29a7c;       // piel clara cálida
+  const BEIGE = 0xd9c8a9;      // remera beige claro
+  const BEIGE_OSC = 0xbfa88a;  // beige sombra / costuras
+  const MARRON = 0x8a6f52;     // pantalón marrón claro
+  const MARRON_OSC = 0x6f5942;
+  const PELO = 0x8a6a42;       // rulos rubios/castaño claro
+  const PELO_OSC = 0x6b5133;
+  const CREMA = 0xe8e0cf;      // suelas y detalles
+  const CAM = 0x3a3730;        // cámara negra cálida
+  const CAM_OSC = 0x4a463e;
+  const LENTE = 0x1c1a16;
+  const CORREA = 0x5d5344;     // correa marrón
+  const CABLE = 0x3a3730;      // cable oscuro cálido
+  const METAL = 0x9aa0a6;
 
   const pielMat = mkMat(PIEL);
-  const bataMat = mkMat(BATA);
-  const bataOscMat = mkMat(BATA_OSC);
-  const futbolMat = mkMat(FUTBOL);
-  const futbolBMat = mkMat(FUTBOL_B, { roughness: 0.4 });
-  const shortMat = mkMat(SHORT, { roughness: 0.8 });
-  const peloMat = mkMat(PELO, { roughness: 0.85 });
-  const mediaMat = mkMat(MEDIA, { roughness: 0.5 });
-  const mateMat = mkMat(MATE, { roughness: 0.7 });
-  const negroMat = mkMat(NEGRO, { roughness: 0.5 });
+  const remeraMat = mkMat(BEIGE, { roughness: 0.85 });
+  const remeraOscMat = mkMat(BEIGE_OSC, { roughness: 0.9 });
+  const jeanMat = mkMat(MARRON, { roughness: 0.8 });
+  const peloMat = mkMat(PELO, { roughness: 0.9 });
+  const peloOscMat = mkMat(PELO_OSC, { roughness: 0.9 });
+  const zapaMat = mkMat(MARRON_OSC, { roughness: 0.5 });
+  const suelaMat = mkMat(CREMA, { roughness: 0.4 });
+  const camMat = mkMat(CAM, { roughness: 0.35, metalness: 0.3 });
+  const camOscMat = mkMat(CAM_OSC, { roughness: 0.45, metalness: 0.3 });
+  const lenteMat = mkMat(LENTE, { roughness: 0.15, metalness: 0.5 });
+  const cristalMat = mkMat(0x4a6a4f, { transparent: true, opacity: 0.8, roughness: 0.1, metalness: 0.3 });
+  const correaMat = mkMat(CORREA, { roughness: 0.9 });
+  const cableMat = mkMat(CABLE, { roughness: 0.6 });
+  const metalMat = mkMat(METAL, { metalness: 0.8, roughness: 0.3 });
+  const negroMat = mkMat(0x14161a, { roughness: 0.5 });
   const blancoMat = mkMat(0xffffff, { roughness: 0.3 });
-  const metalMat = mkMat(0x9aa0a6, { metalness: 0.8, roughness: 0.3 });
+  const screenMat = mkMat(0x9be86e, { emissive: 0x7fd44c, emissiveIntensity: 0.9, roughness: 0.2 });
+  const verdeLuzMat = mkMat(0x3fa34d, { emissive: 0x3fa34d, emissiveIntensity: 1.2, roughness: 0.3 });
 
   const root = new THREE.Group();
   const add = (mesh, parent = root) => {
@@ -50,163 +66,179 @@ export function buildFaxo() {
     return mesh;
   };
 
-  // ======================== OJOTAS CON MEDIAS (detalle cómico) ========================
+  // ======================== zapatillas oscuras ========================
   for (const side of [-1, 1]) {
-    const x = side * 0.15;
-    // media blanca
-    const media = add(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.2, 10), mediaMat));
-    media.position.set(x, 0.12, 0);
-    // ojota (suela marrón + tira)
-    const suela = add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.045, 0.52), mateMat));
-    suela.position.set(x, 0.025, 0.03);
-    const tira = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.16), mateMat));
-    tira.position.set(x, 0.16, 0.12);
-    tira.rotation.x = -0.5;
+    const x = side * 0.14;
+    const suela = add(new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.05, 0.5), suelaMat));
+    suela.position.set(x, 0.025, 0.02);
+    const zapa = add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.12, 0.46), zapaMat));
+    zapa.position.set(x, 0.11, 0.0);
   }
 
-  // ======================== piernas flacas + short de fútbol ========================
+  // ======================== pantalón oscuro flaco ========================
   for (const side of [-1, 1]) {
-    const x = side * 0.15;
-    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.5, 6, 10), pielMat));
-    pierna.position.set(x, 0.5, 0);
+    const x = side * 0.14;
+    const pierna = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.6, 6, 12), jeanMat));
+    pierna.position.set(x, 0.55, 0);
   }
-  const short = add(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.3, 0.3), shortMat));
-  short.position.set(0, 0.92, 0);
-  // franja del short
-  const franjaShort = add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.31), futbolBMat));
-  franjaShort.position.set(-0.19, 0.92, 0);
+  const cadera = add(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.26), jeanMat));
+  cadera.position.set(0, 0.95, 0);
 
-  // ======================== camiseta de fútbol + bata abierta (flaco) ========================
-  // camiseta (con 2 rayas blancas)
-  const camiseta = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.21, 0.38, 8, 14), futbolMat));
-  camiseta.position.set(0, 1.24, 0);
-  for (const dy of [1.12, 1.3]) {
-    const raya = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, 0.02), futbolBMat));
-    raya.position.set(0, dy, 0.26);
+  // ======================== remera NEGRA lisa (flaco) ========================
+  const torso = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.44, 8, 16), remeraMat));
+  torso.position.set(0, 1.26, 0);
+  // costuras sutiles de la remera
+  for (const side of [-1, 1]) {
+    const costura = add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.4, 0.02), remeraOscMat));
+    costura.position.set(side * 0.18, 1.26, 0.2);
   }
-  // bata gris abierta (dos paneles que no se cierran al frente)
-  const bataL = add(new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.62, 0.08), bataMat));
-  bataL.position.set(-0.2, 1.26, 0.1);
-  bataL.rotation.y = 0.15;
-  const bataR = add(new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.62, 0.08), bataMat));
-  bataR.position.set(0.2, 1.26, 0.1);
-  bataR.rotation.y = -0.15;
-  const bataEspalda = add(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, 0.06), bataMat));
-  bataEspalda.position.set(0, 1.26, -0.16);
-  // bolsillo de la bata con lapicera verde
-  const bolsillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.03), bataOscMat));
-  bolsillo.position.set(-0.22, 1.16, 0.18);
-  const lapicera = add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 6), mkMat(0x3fa34d)));
-  lapicera.position.set(-0.22, 1.24, 0.18);
+  // dobladillo inferior
+  const dobladillo = add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 0.28), remeraOscMat));
+  dobladillo.position.set(0, 1.02, 0);
 
   // ======================== brazos flacos ========================
   const armL = new THREE.Group();
-  armL.position.set(-0.34, 1.5, 0);
+  armL.position.set(-0.3, 1.52, 0);
   root.add(armL);
-  // manga de bata izquierda
-  const mangaL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.22, 6, 10), bataMat), armL);
-  mangaL.position.set(0, -0.13, 0.05);
-  mangaL.rotation.x = 0.4;
-  const anteL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.18, 6, 10), pielMat), armL);
-  anteL.position.set(0.04, -0.1, 0.2);
-  anteL.rotation.set(-1.0, 0, -0.3);
-  const punoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), pielMat), armL);
-  punoL.position.set(0.07, 0.08, 0.3);
+  const mangaL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.14, 6, 10), remeraMat), armL);
+  mangaL.position.set(0, -0.07, 0.04);
+  mangaL.rotation.x = 0.5;
+  const anteL = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.26, 6, 10), pielMat), armL);
+  anteL.position.set(0.05, -0.1, 0.22);
+  anteL.rotation.set(-1.1, 0, -0.4);
+  const manoL = add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), pielMat), armL);
+  manoL.position.set(0.08, 0.08, 0.34);
+  manoL.scale.set(0.75, 1.2, 0.75);
 
   const armR = new THREE.Group();
-  armR.position.set(0.34, 1.5, 0);
+  armR.position.set(0.3, 1.52, 0);
   root.add(armR);
-  const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.22, 6, 10), bataMat), armR);
-  mangaR.position.set(0, -0.13, 0.06);
-  mangaR.rotation.x = 0.5;
-  const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.18, 6, 10), pielMat), armR);
-  anteR.position.set(-0.02, -0.1, 0.22);
-  anteR.rotation.x = 0.9;
-  const punoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), pielMat), armR);
-  punoR.position.set(-0.03, -0.12, 0.38);
+  const mangaR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.14, 6, 10), remeraMat), armR);
+  mangaR.position.set(0, -0.07, 0.06);
+  mangaR.rotation.x = 0.7;
+  const anteR = add(new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.26, 6, 10), pielMat), armL);
+  anteR.position.set(-0.02, -0.14, 0.24);
+  anteR.rotation.x = 1.2;
+  const manoR = add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), pielMat), armR);
+  manoR.position.set(-0.03, -0.18, 0.4);
+  manoR.scale.set(0.75, 1.2, 0.75);
 
-  // CÁMARA en la mano derecha (el doctor inmortaliza el barrio)
-  const cam = new THREE.Group();
-  cam.position.set(-0.03, -0.08, 0.5);
-  cam.rotation.z = 0.18;
-  armR.add(cam);
-  const cuerpo = add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.11, 0.08), negroMat), cam);
-  const lente = add(new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.038, 0.07, 12), metalMat), cam);
-  lente.rotation.x = Math.PI / 2;
-  lente.position.z = 0.06;
-  const cristal = add(new THREE.Mesh(
-    new THREE.CylinderGeometry(0.026, 0.026, 0.01, 14),
-    mkMat(0x9fc6e8, { transparent: true, opacity: 0.75, roughness: 0.1, metalness: 0.2 }),
-  ), cam);
-  cristal.rotation.x = Math.PI / 2;
-  cristal.position.z = 0.095;
-  const visor = add(new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.04, 0.05), negroMat), cam);
-  visor.position.set(0, 0.085, 0);
-  const flash = add(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.015), mkMat(0xffffff, { emissive: 0xffffff, emissiveIntensity: 1.6, roughness: 0.3 })), cam);
-  flash.position.set(0.05, 0.02, 0.045);
-  // correa de la cámara
+  // ======================== CÁMARA PROFESIONAL colgada del cuello ========================
+  // correa: dos tiras que bajan del cuello al pecho
   for (const side of [-1, 1]) {
-    const correa = add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.02, 0.02), mkMat(0x3a3f47)), cam);
-    correa.position.set(0, side * 0.02, -0.04);
-    correa.rotation.x = side * 0.06;
+    const tira = add(new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.5, 0.015), correaMat));
+    tira.position.set(side * 0.13, 1.42, 0.22);
+    tira.rotation.x = 0.12;
+    tira.rotation.z = side * -0.12;
+  }
+  // cuerpo de la cámara (colgando en el pecho)
+  const cam = new THREE.Group();
+  cam.position.set(0, 1.16, 0.28);
+  cam.rotation.x = -0.12;
+  root.add(cam);
+  const cuerpo = add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.15, 0.1), camMat), cam);
+  // empuñadura lateral
+  const grip = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.15, 0.11), camOscMat), cam);
+  grip.position.set(-0.13, 0, 0.01);
+  // lente grande sobresaliendo
+  const lente = add(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.14, 14), lenteMat), cam);
+  lente.rotation.x = Math.PI / 2;
+  lente.position.set(0.02, -0.01, 0.1);
+  // anillo del lente (metal)
+  const anilloLente = add(new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.02, 14), metalMat), cam);
+  anilloLente.rotation.x = Math.PI / 2;
+  anilloLente.position.set(0.02, -0.01, 0.06);
+  // cristal frontal verdoso
+  const cristal = add(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.012, 14), cristalMat), cam);
+  cristal.rotation.x = Math.PI / 2;
+  cristal.position.set(0.02, -0.01, 0.175);
+  // visor superior
+  const visor = add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.06), camOscMat), cam);
+  visor.position.set(0.02, 0.1, 0);
+  // FLASH arriba con pantalla VERDE brillante (lo más vistoso)
+  const flash = add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 0.04), camMat), cam);
+  flash.position.set(0.02, 0.14, 0.02);
+  const pantalla = add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.012), screenMat), cam);
+  pantalla.position.set(0.02, 0.14, 0.045);
+  // dial de modos + botón rojo de disparo
+  const dial = add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 10), metalMat), cam);
+  dial.position.set(-0.08, 0.085, 0);
+  const botonRojo = add(new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.012, 8), mkMat(0xd8352a)), cam);
+  botonRojo.position.set(0.1, 0.082, 0.02);
+  // luz verde de encendido
+  const luz = add(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.008), verdeLuzMat), cam);
+  luz.position.set(0.02, 0.045, 0.055);
+
+  // ======================== auriculares in-ear con cable ========================
+  // cables que bajan de las orejas al pecho
+  for (const side of [-1, 1]) {
+    const cable = add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.3, 5), cableMat));
+    cable.position.set(side * 0.19, 1.52, 0.02);
+    cable.rotation.x = 0.08;
+    // auricular (botoncito en la oreja)
+    const bud = add(new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.03, 8), cableMat));
+    bud.position.set(side * 0.19, 1.66, 0.03);
+    bud.rotation.z = Math.PI / 2;
   }
 
-  // ======================== cabeza canosa con anteojos ========================
+  // ======================== cabeza: RULOS RUBIOS, ojos grandes ========================
   const head = new THREE.Group();
-  head.position.set(0, 1.58, 0);
+  head.position.set(0, 1.62, 0);
   root.add(head);
-  const cuello = add(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.08, 10), pielMat), head);
-  cuello.position.y = -0.02;
-  const craneo = add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 18, 14), pielMat), head);
-  craneo.position.y = 0.16;
+  // cuello LARGO (es alto y flaco)
+  const cuello = add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.14, 10), pielMat), head);
+  cuello.position.y = -0.05;
+  const craneo = add(new THREE.Mesh(new THREE.SphereGeometry(0.19, 18, 14), pielMat), head);
+  craneo.position.y = 0.14;
+  craneo.scale.set(0.92, 1.05, 0.95);
   for (const side of [-1, 1]) {
     const oreja = add(new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), pielMat), head);
-    oreja.position.set(side * 0.2, 0.16, 0);
+    oreja.position.set(side * 0.175, 0.14, 0);
+    oreja.scale.set(0.6, 1.15, 0.8);
   }
-  // pelo canoso con entradas (solo costados y atrás)
-  const peloL = add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), peloMat), head);
-  peloL.position.set(-0.14, 0.26, -0.02);
-  const peloR = add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), peloMat), head);
-  peloR.position.set(0.14, 0.26, -0.02);
-  const peloAtras = add(new THREE.Mesh(
-    new THREE.SphereGeometry(0.19, 14, 10, 0, Math.PI * 2, Math.PI * 0.3, Math.PI * 0.35),
-    peloMat,
-  ), head);
-  peloAtras.position.y = 0.2;
+  // RULOS abundantes: esferitas rizadas por toda la parte superior
+  const rulos = [
+    // fila superior
+    [0, 0.34, 0, 0.075], [-0.08, 0.32, 0.05, 0.07], [0.08, 0.32, 0.05, 0.07],
+    [-0.06, 0.33, -0.07, 0.07], [0.06, 0.33, -0.07, 0.07], [0, 0.3, 0.12, 0.065],
+    // costados y atrás
+    [-0.13, 0.28, 0.02, 0.065], [0.13, 0.28, 0.02, 0.065],
+    [-0.12, 0.27, -0.08, 0.06], [0.12, 0.27, -0.08, 0.06],
+    [0, 0.29, -0.13, 0.07],
+    // fila baja (flequillo rizado)
+    [-0.09, 0.26, 0.1, 0.055], [0.09, 0.26, 0.1, 0.055],
+    [-0.04, 0.27, 0.13, 0.05], [0.04, 0.27, 0.13, 0.05],
+  ];
+  for (const [rx, ry, rz, rr] of rulos) {
+    const rulo = add(new THREE.Mesh(new THREE.SphereGeometry(rr, 9, 7), peloMat), head);
+    rulo.position.set(rx, ry, rz);
+    // mechón oscuro dentro de cada rulo para dar textura de rizo
+    const sombra = add(new THREE.Mesh(new THREE.SphereGeometry(rr * 0.55, 7, 5), peloOscMat), head);
+    sombra.position.set(rx * 1.02, ry - rr * 0.3, rz + rr * 0.25);
+  }
 
-  // ANTEOJOS (el rasgo del doctor): 2 círculos + puente + patillas
-  const anteojoMat = mkMat(0x2b2f38, { metalness: 0.6, roughness: 0.3 });
+  // ojos grandes castaños (mirada amable del splash art)
   for (const side of [-1, 1]) {
-    const aro = add(new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.008, 8, 18), anteojoMat), head);
-    aro.position.set(side * 0.075, 0.17, 0.2);
-    const cristal = add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.006, 16), mkMat(0x9fc6e8, { transparent: true, opacity: 0.5, roughness: 0.1, metalness: 0.2 })), head);
-    cristal.position.set(side * 0.075, 0.17, 0.2);
-    cristal.rotation.x = Math.PI / 2;
-    const patilla = add(new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.012, 0.14), anteojoMat), head);
-    patilla.position.set(side * 0.13, 0.175, 0.13);
-    patilla.rotation.y = side * -0.35;
+    const ojo = add(new THREE.Mesh(new THREE.SphereGeometry(0.042, 12, 10), blancoMat), head);
+    ojo.position.set(side * 0.07, 0.15, 0.16);
+    const iris = add(new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), mkMat(0x5d3d24)), head);
+    iris.position.set(side * 0.07, 0.15, 0.19);
+    const pupila = add(new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), negroMat), head);
+    pupila.position.set(side * 0.07, 0.15, 0.205);
+    const brillo = add(new THREE.Mesh(new THREE.SphereGeometry(0.007, 6, 5), blancoMat), head);
+    brillo.position.set(side * 0.062, 0.158, 0.2);
+    // cejas finas arqueadas
+    const ceja = add(new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.014, 0.012), peloOscMat), head);
+    ceja.position.set(side * 0.075, 0.215, 0.165);
+    ceja.rotation.z = side * -0.12;
   }
-  const puente = add(new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.012, 0.012), anteojoMat), head);
-  puente.position.set(0, 0.17, 0.2);
+  const nariz = add(new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.07, 6), pielMat), head);
+  nariz.position.set(0, 0.1, 0.19);
+  nariz.rotation.x = Math.PI / 2.5;
+  // sonrisa leve (gesto tranquilo)
+  const sonrisa = add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.02, 0.015), mkMat(0x8f6350)), head);
+  sonrisa.position.set(0, 0.045, 0.17);
+  sonrisa.rotation.x = 0.1;
 
-  // ojos detrás de los cristales
-  for (const side of [-1, 1]) {
-    const ojo = add(new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), blancoMat), head);
-    ojo.position.set(side * 0.075, 0.165, 0.185);
-    const pupila = add(new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 6), negroMat), head);
-    pupila.position.set(side * 0.075, 0.165, 0.21);
-  }
-  // cejas canosas
-  for (const side of [-1, 1]) {
-    const ceja = add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.022, 0.02), peloMat), head);
-    ceja.position.set(side * 0.075, 0.23, 0.19);
-    ceja.rotation.z = side * -0.1;
-  }
-  const nariz = add(new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), pielMat), head);
-  nariz.position.set(0, 0.12, 0.2);
-  // sonrisa sabia
-  const sonrisa = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.035, 0.02), blancoMat), head);
-  sonrisa.position.set(0, 0.06, 0.19);
-
-  return { group: root, mats, hoodieMat: bataMat, parts: { armL, armR, head } };
+  return { group: root, mats, hoodieMat: remeraMat, parts: { armL, armR, head } };
 }

@@ -21,9 +21,35 @@ const keys = {};
 window.addEventListener('keydown', (e) => { keys[e.code] = true; });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
+// ---- JOYSTICK / GAMEPAD (Gamepad API): cada joystick controla un jugador ----
+// Mapeo estándar (Xbox/PS): stick izq. o d-pad = moverse · A/Cross = saltar ·
+// X/Square = atacar · B/Circle o Y/Triangle = especial · LB/RB = especial también
+const DEADZONE = 0.35;
+function readGamepad(playerIndex) {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = pads[playerIndex];
+  if (!gp || !gp.connected) return 0;
+  let mask = 0;
+  const ax0 = gp.axes[0] ?? 0; // stick izquierdo X
+  const ax1 = gp.axes[1] ?? 0; // stick izquierdo Y
+  const btn = (i) => gp.buttons[i]?.pressed;
+  // movimiento: stick izquierdo o d-pad
+  if (ax0 < -DEADZONE || btn(14)) mask |= IN.LEFT;
+  if (ax0 > DEADZONE || btn(15)) mask |= IN.RIGHT;
+  if (ax1 < -DEADZONE || btn(12)) mask |= IN.UP;
+  if (ax1 > DEADZONE || btn(13)) mask |= IN.DOWN;
+  // saltar: A / Cross (botón 0)
+  if (btn(0)) mask |= IN.JUMP;
+  // atacar: X / Square (botón 2)
+  if (btn(2)) mask |= IN.ATTACK;
+  // especial: B / Circle (1), Y / Triangle (3), o gatillos LB/RB
+  if (btn(1) || btn(3) || btn(4) || btn(5)) mask |= IN.SPECIAL;
+  return mask;
+}
+
 function readMask(playerIndex) {
   const p = GAME_CONFIG.players[playerIndex];
-  if (!p || !p.controls) return 0;
+  if (!p || !p.controls) return readGamepad(playerIndex);
   const c = p.controls;
   let mask = 0;
   if (keys[c.left]) mask |= IN.LEFT;
@@ -33,6 +59,8 @@ function readMask(playerIndex) {
   if (keys[c.jump]) mask |= IN.JUMP;
   if (keys[c.attack]) mask |= IN.ATTACK;
   if (keys[c.special]) mask |= IN.SPECIAL;
+  // joystick: se suma al teclado (cualquiera de los dos controla al jugador)
+  mask |= readGamepad(playerIndex);
   return mask;
 }
 
@@ -51,7 +79,7 @@ function defaultSlots() {
   return [
     { type: 'human', character: 'pablo', difficulty: 'normal' },
     { type: 'cpu', character: 'coco', difficulty: 'normal' },
-    { type: 'cpu', character: 'faxo', difficulty: 'normal' },
+    { type: 'cpu', character: 'chubit', difficulty: 'normal' },
     { type: 'cpu', character: 'domono', difficulty: 'normal' },
     { type: 'off', character: 'pablo', difficulty: 'normal' },
     { type: 'off', character: 'coco', difficulty: 'normal' },
@@ -68,38 +96,57 @@ const emptyMatch = new Match({ players: [] });
 const ui = new UI(document.body, {
   onPlay: () => setState('lobby'),
   onOnline: () => setState('online-home'),
-  onFight: (slots) => startMatch(slots),
+  onFight: (slots, stageId) => startMatch(slots, stageId),
   onRematch: () => {
     if (app.onlineRematch && app.online) {
       if (app.online.isHost) app.online.room.start(); // manda start a todos
       else ui.toast('Esperando que el anfitrión dé la revancha');
     } else {
-      startMatch(app.slots);
+      startMatch(app.slots, app.stageId);
     }
   },
   onLobby: () => setState('lobby'),
   onMenu: () => leaveOnline(() => setState('menu')),
+  // al ciclar el mapa en el lobby: reconstruir el escenario 3D de fondo
+  onStageChange: (stageId) => {
+    renderer.setStage(GAME_CONFIG.stages[stageId]);
+    // re-mostrar el lineup sobre el escenario nuevo
+    if (app.state === 'lobby') renderer.showLineup();
+  },
 });
 
 function setState(s) {
   app.state = s;
-  if (s === 'menu') { renderer.clearLineup(); ui.showMenu(); }
-  else if (s === 'lobby') { renderer.showLineup(); ui.showLobby(app.slots); }
-  else if (s === 'online-home') { renderer.showLineup(); showOnlineHome(); }
-  else if (s === 'online-room') { renderer.showLineup(); showOnlineRoom(); }
+  // el canvas 3D se oculta en el menú (title screen estático = solo la imagen)
+  // y se muestra en el resto (lobby usa el lineup 3D, playing usa el escenario)
+  const canvas = renderer.renderer.domElement;
+  if (s === 'menu') {
+    canvas.style.display = 'none';
+    renderer.clearLineup();
+    ui.showMenu();
+  } else {
+    canvas.style.display = '';
+    if (s === 'lobby') { renderer.showLineup(); ui.showLobby(app.slots); }
+    else if (s === 'online-home') { renderer.showLineup(); showOnlineHome(); }
+    else if (s === 'online-room') { renderer.showLineup(); showOnlineRoom(); }
+  }
 }
 
 /** Crea una partida local con los slots activos del lobby.
  *  Humanos primero: así quien juega con teclado siempre cae en P1 (WASD+F/G/H). */
-function startMatch(slots) {
+function startMatch(slots, stageId = GAME_CONFIG.defaultStage) {
   const active = slots
     .filter((s) => s.type !== 'off')
     .sort((a, b) => (b.type === 'human') - (a.type === 'human'));
   if (active.length < 2) return;
   app.slots = slots;
   app.onlineRematch = false;
+  app.stageId = stageId;
   renderer.clearLineup();
+  // el escenario cambia según el mapa elegido en el lobby
+  renderer.setStage(GAME_CONFIG.stages[stageId]);
   app.match = new Match({
+    stageId,
     players: active.map((s) => ({
       character: s.character,
       ai: s.type === 'cpu' ? s.difficulty : null,
@@ -504,6 +551,11 @@ function loop(now) {
         setState('lobby');
       }
     }
+    // F1 → mostrar/ocultar hitboxes de debug
+    if (keys['F1']) {
+      keys['F1'] = false;
+      renderer.toggleDebug();
+    }
   } else {
     // menú / lobby / resultados: solo el escenario de fondo + lineup si estamos en lobby
     accumulator = 0;
@@ -518,3 +570,5 @@ setState('menu');
 requestAnimationFrame(loop);
 
 console.log('Un Re Bondi En Ciudad Evita - iniciado');
+// avisar al boot del index.html que la UI ya montó (saca el indicador de carga)
+window.__bootDone?.();

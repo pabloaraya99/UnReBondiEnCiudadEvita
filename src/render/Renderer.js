@@ -10,12 +10,14 @@ import { buildKenai } from './KenaiModel.js';
 import { buildCoco } from './CocoModel.js';
 import { buildDomono } from './DomonoModel.js';
 import { buildFaxo } from './FaxoModel.js';
+import { buildChubitcoin } from './ChubitcoinModel.js';
 
 const FIGHTER_BUILDERS = {
   pablo: buildKenai,
   coco: buildCoco,
   domono: buildDomono,
   faxo: buildFaxo,
+  chubit: buildChubitcoin,
 };
 
 // Autos de Vita Machines (con créditos en README): se usan en el tráfico del escenario
@@ -61,7 +63,41 @@ export class Renderer {
     this.setupLights();
     this.setupPostFX(container);
     this.loadCarModels();
+    this.loadStageTextures();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  /** Carga las texturas PBR del escenario (Poly Haven, CC0) en background.
+   *  Cuando llegan todas, reconstruye el escenario actual para usarlas. */
+  loadStageTextures() {
+    if (this._stageTexLoading) return;
+    this._stageTexLoading = true;
+    this.stageTex = {};
+    const loader = new THREE.TextureLoader();
+    const defs = [
+      ['asphalt', '/assets/textures/asphalt_diff.jpg'],
+      ['asphaltRough', '/assets/textures/asphalt_rough.jpg'],
+      ['concrete', '/assets/textures/concrete_diff.jpg'],
+      ['grass', '/assets/textures/grass_diff.jpg'],
+      ['marble', '/assets/textures/marble_diff.jpg'],
+      ['dirt', '/assets/textures/dirt_diff.jpg'],
+      ['metal', '/assets/textures/metal_diff.jpg'],
+      ['wood', '/assets/textures/wood_diff.jpg'],
+    ];
+    let pending = defs.length;
+    for (const [key, url] of defs) {
+      loader.load(url, (tex) => {
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.colorSpace = key.endsWith('Rough') ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+        tex.anisotropy = 8;
+        this.stageTex[key] = tex;
+        if (--pending === 0 && this.stage) {
+          // llegaron todas: reconstruir el escenario con las texturas reales
+          const st = this.stage;
+          this.setStage(st);
+        }
+      }, undefined, () => { pending--; });
+    }
   }
 
   /** Carga los GLB de los autos de Vita Machines (una sola vez, en background). */
@@ -74,11 +110,11 @@ export class Renderer {
         def.url,
         (gltf) => {
           const model = gltf.scene;
-          // normalizar: escalar para que el largo sea ~4.2 y apoyar en y=0
+          // normalizar: escalar para que el largo sea ~4.6 y apoyar en y=0
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
           const largo = Math.max(size.x, size.z);
-          const escala = 4.2 / (largo || 1);
+          const escala = 4.6 / (largo || 1);
           model.scale.setScalar(escala);
           // recentrar tras escalar
           const box2 = new THREE.Box3().setFromObject(model);
@@ -86,11 +122,24 @@ export class Renderer {
           model.position.x -= c.x;
           model.position.z -= c.z;
           model.position.y -= box2.min.y;
-          model.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
+          // preparar materiales para tinte posterior (clonar y marcar)
+          model.traverse((o) => {
+            if (o.isMesh) {
+              o.castShadow = true;
+              o.receiveShadow = true;
+              // clonar material para poder teñir cada instancia sin afectar al original
+              if (Array.isArray(o.material)) {
+                o.material = o.material.map((m) => m.clone());
+              } else if (o.material) {
+                o.material = o.material.clone();
+              }
+            }
+          });
           this.carModelPool.set(def.id, model);
+          console.log('[cars] GLB listo:', def.id, 'escala', escala.toFixed(2));
         },
         undefined,
-        () => { /* si falla, drawCars usa el auto procedural de fallback */ },
+        (err) => { console.warn('[cars] fallo al cargar', def.url, err); },
       );
     }
   }
@@ -154,6 +203,11 @@ export class Renderer {
       });
     }
     this.stage = stage;
+    // Escenario "El Escritorio" (inspirado en el mapa desk de vita-machines)
+    if (stage.name === 'El Escritorio') {
+      this.buildDeskStage(stage);
+      return;
+    }
     const g = new THREE.Group();
 
     // ---- cielo con degradado (celeste arriba, casi blanco en el horizonte) ----
@@ -177,19 +231,27 @@ export class Renderer {
     const crnd = () => ((cseed = (cseed * 16807) % 2147483647) / 2147483647);
 
     // ================================================================ CAPA JUEGO (sin parallax)
-    // ---- EL PISO ES LA CALLE: asfalto texturizado con líneas, de borde a borde ----
-    const asphaltTex = this.makeAsphaltTexture();
-    const grassTex = this.makeGrassTexture();
+    // ---- EL PISO ES LA CALLE: asfalto PBR real (Poly Haven) o procedural de fallback ----
+    const asphaltTex = this.stageTex?.asphalt ?? this.makeAsphaltTexture();
+    const asphaltRough = this.stageTex?.asphaltRough ?? null;
+    const grassTex = this.stageTex?.grass ?? this.makeGrassTexture();
     for (const s of stage.solids) {
       const w = s.r - s.l;
       const h = s.top - s.bottom;
       const cx = (s.l + s.r) / 2;
-      // losa de asfalto con textura procedural (grietas, manchas)
+      // losa de asfalto con textura PBR real (grietas, manchas) o procedural
       const slabTex = asphaltTex.clone();
       slabTex.repeat.set(Math.max(1, w / 10), Math.max(1, h / 4));
+      const slabMatOpts = { map: slabTex, roughness: 0.95, metalness: 0 };
+      if (asphaltRough) {
+        const roughTex = asphaltRough.clone();
+        roughTex.repeat.copy(slabTex.repeat);
+        slabMatOpts.roughnessMap = roughTex;
+        slabMatOpts.roughness = 1;
+      }
       const slab = new THREE.Mesh(
         new THREE.BoxGeometry(w, h, 9),
-        new THREE.MeshStandardMaterial({ map: slabTex, roughness: 0.95, metalness: 0 }),
+        new THREE.MeshStandardMaterial(slabMatOpts),
       );
       slab.position.set(cx, (s.top + s.bottom) / 2, 0);
       slab.castShadow = true;
@@ -202,9 +264,19 @@ export class Renderer {
       // bordes amarillos
       box(w, 0.1, 0.4, 0xf2c94c, cx, s.top + 0.05, 4.2, { shadow: false });
       box(w, 0.1, 0.4, 0xf2c94c, cx, s.top + 0.05, -4.2, { shadow: false });
-      // hombros de pasto por fuera del asfalto (visual, sin colisión extra)
-      box(4, h, 9, 0x58c24e, s.l - 2, (s.top + s.bottom) / 2, 0, { shadow: false });
-      box(4, h, 9, 0x58c24e, s.r + 2, (s.top + s.bottom) / 2, 0, { shadow: false });
+      // hombros de pasto por fuera del asfalto (visual, sin colisión extra): pasto real si hay textura
+      const grassShoulder = grassTex.clone();
+      grassShoulder.repeat.set(Math.max(1, 4 / 3), Math.max(1, h / 3));
+      const shoulderMat = this.stageTex?.grass
+        ? new THREE.MeshStandardMaterial({ map: grassShoulder, color: 0x8ef06e, roughness: 1, metalness: 0 })
+        : new THREE.MeshStandardMaterial({ color: 0x4ad83e, roughness: 0.85, metalness: 0 });
+      const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(4, h, 9), shoulderMat);
+      shoulderL.position.set(s.l - 2, (s.top + s.bottom) / 2, 0);
+      shoulderL.receiveShadow = true;
+      g.add(shoulderL);
+      const shoulderR = shoulderL.clone();
+      shoulderR.position.set(s.r + 2, (s.top + s.bottom) / 2, 0);
+      g.add(shoulderR);
     }
 
     // ---- terraplén de pasto (plataforma de spawn, losa fina para ver abajo) ----
@@ -216,21 +288,68 @@ export class Renderer {
       topTex.repeat.set(Math.max(1, w / 6), 1);
       const topSlab = new THREE.Mesh(
         new THREE.BoxGeometry(w, 0.4, 6),
-        new THREE.MeshStandardMaterial({ map: topTex, roughness: 0.9, metalness: 0 }),
+        new THREE.MeshStandardMaterial({ map: topTex, color: 0x8ef06e, roughness: 0.9, metalness: 0 }),
       );
       topSlab.position.set(cx, spawn.top - 0.2, 0);
       topSlab.castShadow = true;
       topSlab.receiveShadow = true;
       g.add(topSlab);
-      box(w - 0.3, 0.8, 5.7, 0x8a5a33, cx, spawn.top - 0.8, 0, { roughness: 0.95 }); // tierra
+      // tierra bajo la plataforma: textura PBR de tierra si está, si no color plano
+      if (this.stageTex?.dirt) {
+        const dirtTex = this.stageTex.dirt.clone();
+        dirtTex.repeat.set(Math.max(1, w / 4), 1);
+        const dirtSlab = new THREE.Mesh(
+          new THREE.BoxGeometry(w - 0.3, 0.8, 5.7),
+          new THREE.MeshStandardMaterial({ map: dirtTex, roughness: 1, metalness: 0 }),
+        );
+        dirtSlab.position.set(cx, spawn.top - 0.8, 0);
+        dirtSlab.receiveShadow = true;
+        g.add(dirtSlab);
+      } else {
+        box(w - 0.3, 0.8, 5.7, 0x8a5a33, cx, spawn.top - 0.8, 0, { roughness: 0.95 }); // tierra
+      }
     }
 
-    // ---- plataformas flotantes: guardarraíles ----
+    // ---- plataformas flotantes: guardarraíl de cemento + cartel verde fluor ----
     for (const o of stage.oneWays.slice(1)) {
       const cx = (o.l + o.r) / 2;
       const w = o.r - o.l;
-      box(w, 0.26, 0.34, 0xc9ced4, cx, o.top - 0.13, 0, { metalness: 0.75, roughness: 0.3 });
-      box(w, 0.26, 0.34, 0x9aa0a6, cx, o.top - 0.4, 0, { metalness: 0.75, roughness: 0.3 });
+      // ---- GUARDARRAÍL DE AUTOPISTA DE CEMENTO (barrera tipo la Richeri) +
+      // CARTEL VERDE FLUOR de autopista arriba (estilo cartel de ruta real) ----
+      const cementTex = this.stageTex?.concrete
+        ? (() => { const t = this.stageTex.concrete.clone(); t.repeat.set(Math.max(1, w / 4), 1); return new THREE.MeshStandardMaterial({ map: t, color: 0xd4d0c8, roughness: 0.85, metalness: 0 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0xb8b4ac, roughness: 0.85, metalness: 0 });
+      // base de cemento (la barrera de autopista, más ancha abajo = perfil Jersey)
+      const base = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.5), cementTex);
+      base.position.set(cx, o.top - 0.4, 0);
+      base.castShadow = true;
+      base.receiveShadow = true;
+      g.add(base);
+      const perfil = new THREE.Mesh(new THREE.BoxGeometry(w, 0.34, 0.3), cementTex);
+      perfil.position.set(cx, o.top - 0.06, 0);
+      perfil.castShadow = true;
+      g.add(perfil);
+      // CARTEL VERDE FLUOR de autopista sobre el guardarraíl (plataforma vistosa)
+      const cartel = new THREE.Mesh(
+        new THREE.BoxGeometry(w * 0.92, 0.5, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x0a7a3c, roughness: 0.5, metalness: 0.1, emissive: 0x0a5a2c, emissiveIntensity: 0.25 }),
+      );
+      cartel.position.set(cx, o.top + 0.32, 0);
+      cartel.castShadow = true;
+      g.add(cartel);
+      // borde blanco del cartel (estilo cartel de autopista)
+      const bordeCartel = new THREE.Mesh(
+        new THREE.BoxGeometry(w * 0.92, 0.06, 0.11),
+        new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.5 }),
+      );
+      bordeCartel.position.set(cx, o.top + 0.55, 0);
+      g.add(bordeCartel);
+      const bordeCartelInf = bordeCartel.clone();
+      bordeCartelInf.position.set(cx, o.top + 0.09, 0);
+      g.add(bordeCartelInf);
+      // postes del cartel (2, grises, bajando al guardarraíl de cemento)
+      box(0.16, 0.5, 0.16, 0x8a8f96, cx - w / 4, o.top - 0.1, 0.06, { metalness: 0.5, roughness: 0.5 });
+      box(0.16, 0.5, 0.16, 0x8a8f96, cx + w / 4, o.top - 0.1, 0.06, { metalness: 0.5, roughness: 0.5 });
       box(0.18, 1.0, 0.18, 0x7a7f85, cx - w / 2 + 0.45, o.top - 0.95, 0, { metalness: 0.6, roughness: 0.4 });
       box(0.18, 1.0, 0.18, 0x7a7f85, cx + w / 2 - 0.45, o.top - 0.95, 0, { metalness: 0.6, roughness: 0.4 });
     }
@@ -246,29 +365,120 @@ export class Renderer {
     box(0.35, 8.5, 0.35, 0x6b5637, -26.6, -3.3, -10.4, { shadow: false });
     box(0.35, 8.5, 0.35, 0x6b5637, -21.6, -3.3, -10.4, { shadow: false });
 
+    // ================================================================ LA VEREDA (fiel a Ciudad Evita)
+    // Vereda de hormigón que acompaña la calle de punta a punta, detrás del
+    // borde amarillo (z≈-7), con su cordón y textura de hormigón real
+    {
+      const s = stage.solids[0];
+      if (s) {
+        const vx = (s.l + s.r) / 2;
+        const vw = (s.r - s.l) + 14; // un poco más larga que la calle
+        // cordón (el borde elevado que separa vereda de calle)
+        const cordon = new THREE.Mesh(
+          new THREE.BoxGeometry(vw, 0.22, 0.5),
+          new THREE.MeshStandardMaterial({ color: 0xb8b4ac, roughness: 0.9, metalness: 0 }),
+        );
+        cordon.position.set(vx, s.top + 0.08, -5.6);
+        cordon.castShadow = true;
+        cordon.receiveShadow = true;
+        g.add(cordon);
+        // la vereda misma: losa de hormigón con textura, apenas más baja que la calle
+        const veredaTex = this.stageTex?.concrete
+          ? (() => { const t = this.stageTex.concrete.clone(); t.repeat.set(Math.max(1, vw / 8), 1); return new THREE.MeshStandardMaterial({ map: t, color: 0xcfcbc2, roughness: 0.95, metalness: 0 }); })()
+          : new THREE.MeshStandardMaterial({ color: 0xb8b4ac, roughness: 0.9, metalness: 0 });
+        const vereda = new THREE.Mesh(new THREE.BoxGeometry(vw, 0.3, 2.6), veredaTex);
+        vereda.position.set(vx, s.top + 0.1, -7.2);
+        vereda.castShadow = true;
+        vereda.receiveShadow = true;
+        g.add(vereda);
+      }
+    }
+
     // ================================================================ CAPA MEDIA (bgMid, parallax 0.7)
     this.bgMid = new THREE.Group();
     const mid = this.makeGrouper(this.bgMid);
 
-    // pradera entre la calle de juego y el templo
-    mid(360, 2, 90, 0x4a9e42, 0, -8.2, -34, { shadow: false });
+    // pradera entre la calle de juego y el templo — con textura de pasto real
+    {
+      const praderaMat = this.stageTex?.grass
+        ? (() => { const t = this.stageTex.grass.clone(); t.repeat.set(50, 12); return new THREE.MeshStandardMaterial({ map: t, color: 0x8ef06e, roughness: 1 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x3fbf38, roughness: 1 });
+      const pradera = new THREE.Mesh(new THREE.BoxGeometry(360, 2, 90), praderaMat);
+      pradera.position.set(0, -8.2, -34);
+      pradera.receiveShadow = true;
+      this.bgMid.add(pradera);
+    }
+
+    // ---- POSTES DE LUZ del barrio (con textura de metal) a lo largo de la calle ----
+    {
+      const posteMat = this.stageTex?.metal
+        ? (() => { const t = this.stageTex.metal.clone(); t.repeat.set(1, 2); return new THREE.MeshStandardMaterial({ map: t, color: 0x8a8f96, metalness: 0.6, roughness: 0.45 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x5a5e64, metalness: 0.6, roughness: 0.45 });
+      const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffd98a, emissiveIntensity: 1.6, roughness: 0.3 });
+      for (const px of [-30, -10, 10, 30]) {
+        const poste = new THREE.Group();
+        // columna del poste
+        const columna = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 6.5, 8), posteMat);
+        columna.position.y = 3.25;
+        columna.castShadow = true;
+        poste.add(columna);
+        // brazo hacia la calle
+        const brazo = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.12), posteMat);
+        brazo.position.set(0.8, 6.3, 0);
+        poste.add(brazo);
+        // lámpara (brilla con el bloom)
+        const lampara = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), lampMat);
+        lampara.position.set(1.55, 6.2, 0);
+        poste.add(lampara);
+        poste.position.set(px, -6.5, -5.5);
+        g.add(poste);
+      }
+    }
+
+    // ---- CONTENEDORES DE BASURA del barrio (verde/gris, junto a la calle) ----
+    {
+      const contMat = new THREE.MeshStandardMaterial({ color: 0x2e7a3e, roughness: 0.7, metalness: 0.2 });
+      const contOscMat = new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.7, metalness: 0.2 });
+      for (const [cx, mat] of [[-26, contMat], [-24.2, contOscMat], [24, contMat]]) {
+        const cont = new THREE.Group();
+        const cuerpo = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.0, 1.1), mat);
+        cuerpo.position.y = 1.0;
+        cuerpo.castShadow = true;
+        cont.add(cuerpo);
+        const tapa = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.2, 1.2), mat);
+        tapa.position.y = 2.05;
+        tapa.rotation.z = 0.03;
+        cont.add(tapa);
+        // rueditas
+        for (const wx of [-0.6, 0.6]) {
+          const rueda = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 10), new THREE.MeshStandardMaterial({ color: 0x14161a }));
+          rueda.rotation.z = Math.PI / 2;
+          rueda.position.set(wx, 0.16, 0.5);
+          cont.add(rueda);
+        }
+        cont.position.set(cx, -6.5, 5.2);
+        g.add(cont);
+      }
+    }
+
     g.add(this.bgMid);
 
     // ================================================================ CAPA LEJANA (bgFar, parallax 0.88)
     this.bgFar = new THREE.Group();
     const far = this.makeGrouper(this.bgFar);
 
-    // colinas verdes azuladas (perspectiva atmosférica)
-    const hillMat = new THREE.MeshStandardMaterial({ color: 0x6fbf73, roughness: 1 });
-    for (let i = 0; i < 4; i++) {
-      const hill = new THREE.Mesh(new THREE.SphereGeometry(22 + i * 7, 16, 12), hillMat);
-      hill.scale.set(1.7, 0.32, 0.6);
-      hill.position.set(-55 + i * 38, -7.5, -70 - i * 4);
-      this.bgFar.add(hill);
-    }
+    // (colinas removidas a pedido: no eran correctas para el fondo del templo)
 
-    // pasto lejano bajo el templo
-    far(360, 2, 60, 0x55ab4e, 0, -7.8, -52, { shadow: false });
+    // pasto lejano bajo el templo — con textura de pasto real
+    {
+      const pastoTemploMat = this.stageTex?.grass
+        ? (() => { const t = this.stageTex.grass.clone(); t.repeat.set(50, 8); return new THREE.MeshStandardMaterial({ map: t, color: 0x8ef06e, roughness: 1 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0x48c440, roughness: 1 });
+      const pastoTemplo = new THREE.Mesh(new THREE.BoxGeometry(360, 2, 60), pastoTemploMat);
+      pastoTemplo.position.set(0, -7.8, -52);
+      pastoTemplo.receiveShadow = true;
+      this.bgFar.add(pastoTemplo);
+    }
 
     // ---- EL TEMPLO: centrado, imponente, visible sobre el horizonte ----
     const temple = this.makeTemple();
@@ -276,6 +486,191 @@ export class Renderer {
     // bajado un toque para que se vea la estatua dorada de la punta (ángel)
     temple.position.set(0, -8.2, -56);
     this.bgFar.add(temple);
+
+    // ---- LA CALLE COLECTORA (Cam. de La Virgen María, fiel a la referencia
+    // satelital): bordea el predio del templo curvando alrededor de él — NO es
+    // paralela a la Richeri. Capa intermedia entre el templo y la autopista,
+    // más chica y vista de lejos ----
+    {
+      // vereda/pavimento: textura de concrete si está, si no color plano claro
+      const colectoraMat = this.stageTex?.concrete
+        ? (() => { const t = this.stageTex.concrete.clone(); t.repeat.set(8, 2); return new THREE.MeshStandardMaterial({ map: t, color: 0xc8c4bc, roughness: 0.92 }); })()
+        : new THREE.MeshStandardMaterial({ color: 0xb0aca4, roughness: 0.92 });
+      const lineaMat = new THREE.MeshStandardMaterial({ color: 0x8a8680, roughness: 0.9 });
+      // arco que bordea el predio del templo: semicírculo/óvalo alrededor del
+      // templo (centro z=-56), radio ~28 en X y ~14 en Z, abierto al frente (hacia la calle)
+      const colectora = new THREE.Group();
+      const cxC = 0;              // centro X del arco
+      const czC = -56;            // centro Z del arco (templo)
+      const rx = 30;              // radio horizontal del arco
+      const rz = 15;              // radio de profundidad del arco
+      const roadW = 3.6;          // ancho de la calzada
+      const nSegs = 22;           // tramos del arco
+      // ángulos del arco: bordea costados y fondo del predio, ABIERTO al frente
+      // (hacia la calle de juego). Fracciones de 2π: 0.375 (frente-izq) → 1.125 (frente-der)
+      // pasando por izquierda (0.5), fondo (0.75), derecha (1.0).
+      const t0 = 0.375;
+      const t1 = 1.125;
+      for (let i = 0; i < nSegs; i++) {
+        const f0 = t0 + (t1 - t0) * (i / nSegs);
+        const f1 = t0 + (t1 - t0) * ((i + 1) / nSegs);
+        const a0 = f0 * Math.PI * 2;
+        const a1 = f1 * Math.PI * 2;
+        const x0 = cxC + rx * Math.cos(a0);
+        const z0 = czC + rz * Math.sin(a0);
+        const x1 = cxC + rx * Math.cos(a1);
+        const z1 = czC + rz * Math.sin(a1);
+        const mx = (x0 + x1) / 2;
+        const mz = (z0 + z1) / 2;
+        const dx = x1 - x0;
+        const dz = z1 - z0;
+        const len = Math.hypot(dx, dz) * 1.08; // solape leve para uniones
+        const ang = Math.atan2(dx, dz);        // rotación del segmento
+        const seg = new THREE.Mesh(new THREE.BoxGeometry(roadW, 0.16, len), colectoraMat);
+        seg.position.set(mx, -8.35, mz);
+        seg.rotation.y = ang;
+        seg.receiveShadow = true;
+        colectora.add(seg);
+        // línea central tenue por tramo (apenas sugiere camino)
+        if (i % 2 === 0) {
+          const linea = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, len * 0.55), lineaMat);
+          linea.position.set(0, 0.1, 0);
+          seg.add(linea);
+        }
+      }
+      this.bgFar.add(colectora);
+    }
+
+    // ---- LAS REJAS DEL TEMPLO (fiel a Los Mormones): cerco de ~2m que recorre
+    // el predio, blanco como el templo, delante del edificio hacia la calle ----
+    // El templo real tiene rejas bajas alrededor del terreno, no murallas altas.
+    {
+      const fenceZ = -53.5; // delante del templo, hacia la calle
+      const fenceY = -8.2;  // base al nivel del terreno del templo
+      const fenceH = 2.0;   // ~2 metros (los personajes miden ~1.8)
+      const fenceLen = 120; // recorre todo el ancho del predio
+      // postes cada ~2.4 unidades + 2 barras horizontales, blancos como el templo
+      const fence = this.makeFence(fenceLen, fenceH, 0xf4f2ec);
+      fence.position.set(0, fenceY, fenceZ);
+      this.bgFar.add(fence);
+      // portón central (entrada al templo, un toque más alto y con marco)
+      const porton = this.makeFence(10, fenceH * 1.2, 0xeceae4);
+      porton.position.set(0, fenceY, fenceZ);
+      this.bgFar.add(porton);
+    }
+
+    // ---- PREDIO DEL TEMPLO BIEN DECORADO (fiel a la referencia): césped,
+    // canteros de flores violetas y naranjas, arbustos redondeados, árboles y
+    // una plaza con fuente delante de la entrada ----
+    {
+      const groundY = -8.2;
+      // camino de hormigón que lleva a la entrada del templo
+      const camino = new THREE.Mesh(
+        new THREE.BoxGeometry(6, 0.25, 12),
+        new THREE.MeshStandardMaterial({ color: 0xd8d5ce, roughness: 0.95 }),
+      );
+      camino.position.set(0, groundY + 0.05, -50.5);
+      this.bgFar.add(camino);
+
+      // FUENTE circular de la plaza (como la referencia): base clara + agua
+      const fuenteBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.6, 2.9, 0.7, 20),
+        new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 0.7 }),
+      );
+      fuenteBase.position.set(0, groundY + 0.35, -51);
+      this.bgFar.add(fuenteBase);
+      const agua = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.2, 2.2, 0.2, 20),
+        new THREE.MeshStandardMaterial({ color: 0x6fc3e8, roughness: 0.15, metalness: 0.3 }),
+      );
+      agua.position.set(0, groundY + 0.72, -51);
+      this.bgFar.add(agua);
+      // chorrito del centro
+      const chorro = new THREE.Mesh(
+        new THREE.ConeGeometry(0.25, 1.2, 8),
+        new THREE.MeshStandardMaterial({ color: 0xbfe4fb, transparent: true, opacity: 0.8, roughness: 0.2 }),
+      );
+      chorro.position.set(0, groundY + 1.4, -51);
+      this.bgFar.add(chorro);
+
+      // CANTEROS DE FLORES (violetas y naranjas, como la referencia): alrededor
+      // de la fuente y bordeando los caminos del predio
+      const flores = [
+        // alrededor de la fuente (curvas de color)
+        [ -4.5, -51.5, 0x8a5fc0 ], [ 4.5, -51.5, 0x8a5fc0 ],
+        [ -4.5, -50.3, 0xe8963c ], [ 4.5, -50.3, 0xe8963c ],
+        // canteros a los costados del camino
+        [ -5.5, -47.5, 0x8a5fc0 ], [ 5.5, -47.5, 0xe8963c ],
+        [ -5.5, -46, 0xe8963c ], [ 5.5, -46, 0x8a5fc0 ],
+        // canteros grandes lejanos a los costados del predio
+        [ -18, -49, 0x8a5fc0 ], [ 18, -49, 0xe8963c ],
+      ];
+      for (const [fx, fz, fcol] of flores) {
+        const cantero = new THREE.Group();
+        // borde blanco del cantero
+        const borde = new THREE.Mesh(
+          new THREE.BoxGeometry(2.6, 0.35, 1.4),
+          new THREE.MeshStandardMaterial({ color: 0xf4f2ec, roughness: 0.8 }),
+        );
+        borde.position.y = 0.18;
+        cantero.add(borde);
+        // las flores: varios puntitos de color encima
+        for (let f = 0; f < 7; f++) {
+          const flor = new THREE.Mesh(
+            new THREE.SphereGeometry(0.22, 6, 5),
+            new THREE.MeshStandardMaterial({ color: fcol, roughness: 0.8 }),
+          );
+          flor.position.set(-1 + (f % 4) * 0.66, 0.42, -0.4 + Math.floor(f / 4) * 0.7);
+          cantero.add(flor);
+        }
+        cantero.position.set(fx, groundY, fz);
+        this.bgFar.add(cantero);
+      }
+
+      // ARBUSTOS REDONDEADOS (borduras verdes prolijas) alrededor del predio
+      const arbustoMat = new THREE.MeshStandardMaterial({ color: 0x35a830, roughness: 0.9 });
+      const arbustoOscMat = new THREE.MeshStandardMaterial({ color: 0x289828, roughness: 0.9 });
+      const arbustosSpots = [
+        [-10, -48], [-14, -50], [10, -48], [14, -50],
+        [-24, -47], [24, -47], [-30, -51], [30, -51], [-8, -45.5], [8, -45.5],
+      ];
+      for (const [ax, az] of arbustosSpots) {
+        const a = new THREE.Group();
+        const bola = new THREE.Mesh(new THREE.SphereGeometry(0.9 + crnd() * 0.5, 10, 8), crnd() > 0.5 ? arbustoMat : arbustoOscMat);
+        bola.scale.y = 0.8;
+        bola.position.y = 0.6;
+        bola.castShadow = true;
+        a.add(bola);
+        const bola2 = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 6), arbustoMat);
+        bola2.position.set(0.6, 0.45, 0.3);
+        a.add(bola2);
+        a.position.set(ax, groundY, az);
+        this.bgFar.add(a);
+      }
+
+      // ÁRBOLES del predio (tronco + copa redonda, estilo prolijo de la referencia)
+      const arbolSpots = [[-16, -46], [16, -46], [-22, -52], [22, -52], [-6, -44.5], [6, -44.5]];
+      for (const [tx, tz] of arbolSpots) {
+        const arbol = new THREE.Group();
+        const tronco = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.16, 0.22, 1.6, 7),
+          new THREE.MeshStandardMaterial({ color: 0x7a5c3a, roughness: 0.9 }),
+        );
+        tronco.position.y = 0.8;
+        tronco.castShadow = true;
+        arbol.add(tronco);
+        const copa = new THREE.Mesh(
+          new THREE.SphereGeometry(1.3 + crnd() * 0.4, 12, 10),
+          new THREE.MeshStandardMaterial({ color: 0x3fbf38, roughness: 0.85 }),
+        );
+        copa.position.y = 2.2;
+        copa.scale.y = 1.15;
+        copa.castShadow = true;
+        arbol.add(copa);
+        arbol.position.set(tx, groundY, tz);
+        this.bgFar.add(arbol);
+      }
+    }
 
     // palmeras junto al templo
     for (const [px, pz] of [[-20, -50], [-14, -54], [22, -51], [28, -55], [32, -50]]) {
@@ -285,20 +680,32 @@ export class Renderer {
     }
     g.add(this.bgFar);
 
-    // ---- nubes en dos profundidades (más parallax natural) ----
+    // ---- nubes suaves (billboards con textura de nube puffy, en dos profundidades) ----
+    if (!this._cloudTex) this._cloudTex = this.makeCloudTexture();
     this.clouds = [];
     for (let i = 0; i < 11; i++) {
       const cloud = new THREE.Group();
-      const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const puffs = 3 + Math.floor(crnd() * 3);
-      for (let p = 0; p < puffs; p++) {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(1.6 + crnd() * 1.3, 12, 10), mat);
-        s.position.set(p * 2.1 - puffs, crnd() * 0.8, crnd() * 0.5);
-        s.scale.y = 0.62;
-        cloud.add(s);
+      const mat = new THREE.MeshBasicMaterial({
+        map: this._cloudTex,
+        transparent: true,
+        depthWrite: false,
+        opacity: 0.95,
+        color: 0xffffff,
+      });
+      // cada nube: 1-2 planos grandes con la textura puffy (mucho más real que esferas)
+      const w = 10 + crnd() * 9;
+      const h = w * (0.42 + crnd() * 0.14);
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      cloud.add(plane);
+      if (crnd() > 0.5) {
+        const plane2 = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.7, h * 0.7), mat);
+        plane2.position.set(w * 0.25, h * 0.18, 0.1);
+        cloud.add(plane2);
       }
       const lejos = i % 2 === 0;
       cloud.position.set(-70 + crnd() * 140, 10 + crnd() * 18, lejos ? -55 - crnd() * 20 : -20 - crnd() * 15);
+      // las nubes lejanas un poco más tenues: material propio clonado para no afectar las demás
+      if (lejos) cloud.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.opacity = 0.55; } });
       g.add(cloud);
       this.clouds.push({ group: cloud, speed: lejos ? 0.4 + crnd() * 0.5 : 0.9 + crnd() * 0.9 });
     }
@@ -311,6 +718,275 @@ export class Renderer {
       g.add(bird.group);
       this.birds.push({ ...bird, speed: 5 + crnd() * 3, phase: crnd() * 6 });
     }
+
+    // zona de KO (solo en modo debug)
+    const b = stage.blast;
+    const blast = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(b.right - b.left, b.top - b.bottom, 0.1)),
+      new THREE.LineBasicMaterial({ color: 0xff3b3b }),
+    );
+    blast.position.set((b.left + b.right) / 2, (b.top + b.bottom) / 2, 0);
+    blast.visible = this.debug;
+    blast.name = 'blast';
+    g.add(blast);
+
+    this.stageGroup = g;
+    this.scene.add(g);
+  }
+
+  /**
+   * Escenario "El Escritorio" (inspirado en el mapa desk de vita-machines):
+   * los personajes pelean SOBRE un escritorio gigante de madera barnizada; muy abajo
+   * está el piso de la habitación (visual de la caída). Props: taza gigante, pilas de
+   * libros (plataformas), lápices, goma, bloques de juguete, pelota y una planta.
+   */
+  buildDeskStage(stage) {
+    const g = new THREE.Group();
+    const box = this.makeGrouper(g);
+
+    // ---- atmósfera de interior cálido (lámpara) con ventana fría de fondo ----
+    this.scene.background = new THREE.Color(0x2a2118);
+    this.scene.fog = new THREE.Fog(0x2a2118, 90, 260);
+    // pared de fondo cálida (el cuarto)
+    box(140, 70, 2, 0x6b5444, 0, 16, -26, { shadow: false });
+    // ventana con luz azul de noche (como el ventanal del living de vita-machines)
+    const ventana = new THREE.Mesh(
+      new THREE.PlaneGeometry(26, 20),
+      new THREE.MeshStandardMaterial({ color: 0x35507a, emissive: 0x2a4a80, emissiveIntensity: 0.7, roughness: 0.3 }),
+    );
+    ventana.position.set(-30, 14, -24.9);
+    g.add(ventana);
+    // marco de la ventana
+    box(27.5, 1.4, 0.6, 0xeceae4, -30, 24.6, -24.8, { shadow: false });
+    box(27.5, 1.4, 0.6, 0xeceae4, -30, 3.4, -24.8, { shadow: false });
+    box(1.4, 22, 0.6, 0xeceae4, -43.6, 14, -24.8, { shadow: false });
+    box(1.4, 22, 0.6, 0xeceae4, -16.4, 14, -24.8, { shadow: false });
+    box(1.2, 20, 0.5, 0xeceae4, -30, 14, -24.8, { shadow: false });
+    // repisa con plantita
+    box(28, 0.8, 2.4, 0xa8764a, -30, 2.8, -23.6, { shadow: false });
+
+    // ---- LA MESA (plataforma principal de pelea): madera barnizada PBR si está ----
+    const woodTex = this.stageTex?.wood;
+    const madera = woodTex
+      ? (() => { const t = woodTex.clone(); t.repeat.set(3, 1); return new THREE.MeshStandardMaterial({ map: t, color: 0xb98a5e, roughness: 0.4, metalness: 0.05 }); })()
+      : new THREE.MeshStandardMaterial({ color: 0x9c6b43, roughness: 0.42, metalness: 0.08 });
+    const maderaOsc = new THREE.MeshStandardMaterial({ color: 0x7a5233, roughness: 0.5, metalness: 0.05 });
+    const mesa = new THREE.Mesh(new THREE.BoxGeometry(52.5, 3.5, 12), madera);
+    mesa.position.set(0, -8.25, 0);
+    mesa.castShadow = true;
+    mesa.receiveShadow = true;
+    g.add(mesa);
+    // vetas de la madera (líneas claras longitudinales)
+    for (const [z, tone] of [[-4.4, 0xb08258], [-2.2, 0x8a5f3c], [0, 0xb08258], [2.2, 0x8a5f3c], [4.4, 0xb08258]]) {
+      box(52.5, 0.06, 0.5, tone, 0, -6.47, z, { shadow: false });
+    }
+    // borde biselado de la mesa (frente)
+    box(52.5, 0.7, 0.5, 0x8a5f3c, 0, -6.85, 6.1, { shadow: false });
+    box(52.5, 0.7, 0.5, 0x8a5f3c, 0, -6.85, -6.1, { shadow: false });
+
+    // ---- EL PISO DE LA HABITACIÓN (muy abajo: visual de la caída) ----
+    const piso = new THREE.Mesh(
+      new THREE.PlaneGeometry(160, 90),
+      new THREE.MeshStandardMaterial({ color: 0x8a6a45, roughness: 0.9 }),
+    );
+    piso.rotation.x = -Math.PI / 2;
+    piso.position.set(0, -19.5, 10);
+    piso.receiveShadow = true;
+    g.add(piso);
+    // parquet: tablones alternados (como la referencia)
+    for (let i = -10; i <= 10; i++) {
+      box(160, 0.02, 1.6, i % 2 ? 0x9c7a50 : 0x7c5c3a, 0, -19.48, 10 + i * 3.2, { shadow: false });
+    }
+    // alfombra circular bajo la mesa (como la rug del escritorio de vita-machines)
+    const rug = new THREE.Mesh(
+      new THREE.CircleGeometry(14, 40),
+      new THREE.MeshStandardMaterial({ color: 0x9c3d3d, roughness: 1 }),
+    );
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.set(6, -19.44, 4);
+    g.add(rug);
+    // patrón de la alfombra: anillos concéntricos
+    for (const [r, c] of [[11, 0xd8b86a], [8, 0x9c3d3d], [5, 0xd8b86a]]) {
+      const anillo = new THREE.Mesh(
+        new THREE.RingGeometry(r - 0.8, r, 40),
+        new THREE.MeshStandardMaterial({ color: c, roughness: 1 }),
+      );
+      anillo.rotation.x = -Math.PI / 2;
+      anillo.position.set(6, -19.42, 4);
+      g.add(anillo);
+    }
+    // patas de la mesa (bajan al piso, visibles desde los bordes)
+    for (const x of [-23, 23]) {
+      box(2.6, 9.5, 2.6, 0x7a5233, x, -14.2, 0);
+    }
+
+    // ======================= PROPS DE LA MESA (escala gigante, estilo vita-machines) =======================
+    // ---- PILA DE LIBROS CENTRAL (la plataforma de spawn, top = 0) ----
+    const libros = [
+      { w: 21, h: 1.7, d: 8.6, color: 0x8a3d3d, x: 0, y: -1.7, z: 0 },    // rojo (abajo)
+      { w: 19, h: 1.6, d: 8, color: 0x3d5a8a, x: 0.3, y: -3.35, z: 0.2 }, // azul (medio)
+      { w: 17, h: 1.5, d: 7.4, color: 0x4a7a4a, x: -0.3, y: -4.9, z: -0.15 }, // verde (arriba, top≈0)
+    ];
+    // (apilados de arriba hacia abajo: el de arriba tiene top en y=0 = plataforma)
+    for (const l of libros) {
+      box(l.w, l.h, l.d, l.color, l.x, l.y + l.h / 2, l.z);
+      // páginas claras del costado
+      box(l.w * 0.96, l.h * 0.6, 0.25, 0xe8e0cf, l.x, l.y + l.h / 2, l.z + l.d / 2 + 0.01, { shadow: false });
+      // lomo con título (franja dorada)
+      box(l.w * 0.4, 0.18, 0.1, 0xf2c94c, l.x, l.y + l.h / 2 + l.h * 0.2, l.z - l.d / 2 - 0.01, { shadow: false });
+    }
+
+    // ---- LIBROS INDIVIDUALES (plataformas laterales, top = 2.6) ----
+    for (const [cx, color, ry] of [[-16, 0x6a4a8a, 0.06], [16, 0xb0823d, -0.06]]) {
+      const libro = new THREE.Group();
+      const tapa = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.5, 9), new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+      tapa.position.y = 0.25;
+      const paginas = new THREE.Mesh(new THREE.BoxGeometry(5.9, 1.6, 8.6), new THREE.MeshStandardMaterial({ color: 0xe8e0cf, roughness: 0.9 }));
+      paginas.position.y = 1.3;
+      const tapaSup = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.5, 9), new THREE.MeshStandardMaterial({ color, roughness: 0.6 }));
+      tapaSup.position.y = 2.35;
+      libro.add(tapa, paginas, tapaSup);
+      libro.position.set(cx, 0, 0);
+      libro.rotation.y = ry;
+      libro.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+      g.add(libro);
+    }
+
+    // ---- LA TAZA GIGANTE (plataforma alta central, top = 5.2) ----
+    const taza = new THREE.Group();
+    const cuerpo = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.6, 2.2, 3.4, 24),
+      new THREE.MeshStandardMaterial({ color: 0xe8e0cf, roughness: 0.5 }),
+    );
+    cuerpo.position.y = 3.4;
+    // franja terracota (como la mug de vita-machines)
+    const banda = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.63, 2.63, 0.7, 24),
+      new THREE.MeshStandardMaterial({ color: 0xc46a4a, roughness: 0.6 }),
+    );
+    banda.position.y = 4.3;
+    // café adentro (superficie oscura arriba)
+    const cafe = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.3, 2.3, 0.15, 24),
+      new THREE.MeshStandardMaterial({ color: 0x4a2c1a, roughness: 0.3 }),
+    );
+    cafe.position.y = 5.05;
+    // asa
+    const asa = new THREE.Mesh(
+      new THREE.TorusGeometry(1.1, 0.28, 10, 20, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0xe8e0cf, roughness: 0.5 }),
+    );
+    asa.position.set(2.9, 3.7, 0);
+    asa.rotation.z = -Math.PI / 2;
+    taza.add(cuerpo, banda, cafe, asa);
+    taza.position.set(0, 0.05, -1.2);
+    taza.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+    g.add(taza);
+    // vaporcito del café (3 esferas transparentes subiendo)
+    const vaporMat = new THREE.MeshStandardMaterial({ color: 0xd8d5ce, transparent: true, opacity: 0.35, roughness: 1 });
+    for (let i = 0; i < 3; i++) {
+      const vapor = new THREE.Mesh(new THREE.SphereGeometry(0.3 + i * 0.12, 8, 6), vaporMat);
+      vapor.position.set((i % 2 ? 0.3 : -0.3), 5.6 + i * 0.55, -1.2);
+      vapor.castShadow = false;
+      g.add(vapor);
+    }
+
+    // ---- LÁPIZ gigante (decorativo, a la izquierda) ----
+    const lapiz = new THREE.Group();
+    const cuerpoLap = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 14, 8), new THREE.MeshStandardMaterial({ color: 0xf2c94c, roughness: 0.6 }));
+    cuerpoLap.rotation.z = Math.PI / 2;
+    const mina = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.8, 8), new THREE.MeshStandardMaterial({ color: 0xd8b08a, roughness: 0.7 }));
+    mina.rotation.z = -Math.PI / 2;
+    mina.position.x = 7.9;
+    const puntaMina = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.7, 8), new THREE.MeshStandardMaterial({ color: 0x2b2f38, roughness: 0.5 }));
+    puntaMina.rotation.z = -Math.PI / 2;
+    puntaMina.position.x = 8.6;
+    const goma = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.9, 8), new THREE.MeshStandardMaterial({ color: 0xd88a9c, roughness: 0.7 }));
+    goma.rotation.z = Math.PI / 2;
+    goma.position.x = -7.4;
+    const ferreula = new THREE.Mesh(new THREE.CylinderGeometry(0.54, 0.54, 0.6, 8), new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.8, roughness: 0.3 }));
+    ferreula.rotation.z = Math.PI / 2;
+    ferreula.position.x = -6.6;
+    lapiz.add(cuerpoLap, mina, puntaMina, goma, ferreula);
+    lapiz.position.set(-20, -5.4, 2.5);
+    lapiz.rotation.y = 0.35;
+    lapiz.rotation.z = 0.08;
+    lapiz.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+    g.add(lapiz);
+
+    // ---- BLOQUES DE JUGUETE (decorativos, derecha) ----
+    for (const [bx, bz, color, letra] of [[22, -3, 0xd8352a, 0.2], [21, 3.5, 0x3b6fd4, -0.25], [24, 0.5, 0xf2c94c, 0.5]]) {
+      const bloque = new THREE.Group();
+      const cubo = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.2, 2.2), new THREE.MeshStandardMaterial({ color, roughness: 0.5 }));
+      cubo.position.y = 1.1;
+      // letra del bloque (cara frontal clara)
+      const cara = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 0.06), new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.6 }));
+      cara.position.set(0, 1.1, 1.12);
+      bloque.add(cubo, cara);
+      bloque.position.set(bx, -6.5, bz);
+      bloque.rotation.y = letra;
+      bloque.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+      g.add(bloque);
+    }
+
+    // ---- PLANTA en maceta (fondo izquierdo, como la de vita-machines) ----
+    const maceta = new THREE.Group();
+    const tiesto = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.2, 2.2, 14), new THREE.MeshStandardMaterial({ color: 0xb0684a, roughness: 0.8 }));
+    tiesto.position.y = 1.1;
+    const tierra = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.3, 14), new THREE.MeshStandardMaterial({ color: 0x3d2c1a, roughness: 1 }));
+    tierra.position.y = 2.2;
+    maceta.add(tiesto, tierra);
+    // hojas (conos verdes apuntando a lados)
+    const hojaMat = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.8 });
+    for (let i = 0; i < 7; i++) {
+      const hoja = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3 + (i % 3), 5), hojaMat);
+      const a = (i / 7) * Math.PI * 2;
+      hoja.position.set(Math.cos(a) * 0.7, 2.4 + (i % 2) * 0.4, Math.sin(a) * 0.7);
+      hoja.rotation.set(Math.sin(a) * 1.2, 0, -Math.cos(a) * 1.2);
+      maceta.add(hoja);
+    }
+    maceta.position.set(-23, -6.5, -3);
+    maceta.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+    g.add(maceta);
+
+    // ---- HOJAS DE PAPEL (detalle, fondo derecho) ----
+    for (const [px, ry] of [[20, 0.3], [21.5, -0.2]]) {
+      const hojaP = new THREE.Mesh(new THREE.PlaneGeometry(3, 4), new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.9, side: THREE.DoubleSide }));
+      hojaP.rotation.x = -Math.PI / 2;
+      hojaP.rotation.z = ry;
+      hojaP.position.set(px, -6.44, -4);
+      g.add(hojaP);
+      // renglones escritos
+      for (let l = 0; l < 4; l++) {
+        box(2.2 - l * 0.2, 0.02, 0.06, 0x8a8f96, px, -6.42, -5 + l * 0.7, { shadow: false });
+      }
+    }
+
+    // ---- LÁMPARA colgante (luz cálida de interior, como el living de vita-machines) ----
+    const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 8, 6), new THREE.MeshStandardMaterial({ color: 0x1b1d22 }));
+    cable.position.set(8, 26, -6);
+    g.add(cable);
+    const campana = new THREE.Mesh(
+      new THREE.ConeGeometry(2.6, 2.2, 18, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0x2b6e5c, roughness: 0.5, side: THREE.DoubleSide }),
+    );
+    campana.position.set(8, 21.5, -6);
+    g.add(campana);
+    // bombilla cálida brillante (brilla con el bloom)
+    const bombilla = new THREE.Mesh(
+      new THREE.SphereGeometry(0.7, 12, 10),
+      new THREE.MeshStandardMaterial({ color: 0xfff1c9, emissive: 0xffd98a, emissiveIntensity: 2.2, roughness: 0.3 }),
+    );
+    bombilla.position.set(8, 20.8, -6);
+    g.add(bombilla);
+    // halo de luz cálida bajo la lámpara (disco suave sobre la mesa)
+    const halo = new THREE.Mesh(
+      new THREE.CircleGeometry(9, 32),
+      new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.1 }),
+    );
+    halo.rotation.x = -Math.PI / 2;
+    halo.position.set(8, -6.42, -4);
+    g.add(halo);
 
     // zona de KO (solo en modo debug)
     const b = stage.blast;
@@ -381,16 +1057,56 @@ export class Renderer {
     return tex;
   }
 
-  /** Pasto procedural: verde base con pinceladas de tonos (claro/oscuro). */
+  /** Tejas de piedra procedural: filas de rectángulos grises con sombreado y juntas. */
+  makeRoofTileTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    // base: piedra clara
+    ctx.fillStyle = '#b8b2a8';
+    ctx.fillRect(0, 0, 256, 256);
+    let s = 71;
+    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const tones = ['#b0aa9e', '#c2bcb0', '#a8a296', '#beb8ac', '#b6b0a4', '#cac4b8'];
+    const tileW = 42;
+    const tileH = 28;
+    const rows = Math.ceil(256 / tileH) + 1;
+    for (let r = 0; r < rows; r++) {
+      const y = r * tileH;
+      const offset = (r % 2) * (tileW / 2); // escalera tipo teja
+      for (let x = -tileW; x < 256 + tileW; x += tileW) {
+        const tx = x + offset;
+        const tone = tones[(rnd() * tones.length) | 0];
+        ctx.fillStyle = tone;
+        ctx.fillRect(tx + 1, y + 1, tileW - 2, tileH - 2);
+        // brillo arriba de la teja (luz)
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fillRect(tx + 1, y + 1, tileW - 2, 3);
+        // sombra abajo (volumen)
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillRect(tx + 1, y + tileH - 4, tileW - 2, 3);
+        // junta vertical tenue
+        ctx.strokeStyle = 'rgba(60,55,50,0.35)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(tx + 0.5, y + 0.5, tileW - 1, tileH - 1);
+      }
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** Pasto procedural: verde vivo con pinceladas de tonos (claro/oscuro). */
   makeGrassTexture() {
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const ctx = c.getContext('2d');
-    ctx.fillStyle = '#58c24e';
+    ctx.fillStyle = '#3ecc32';
     ctx.fillRect(0, 0, 256, 256);
     let s = 29;
     const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-    const tones = ['#4fb345', '#63d35a', '#55bd4a', '#6adb60', '#49a83f'];
+    const tones = ['#48d83a', '#5fe84a', '#3ec832', '#6af055', '#35b82c', '#7af560'];
     for (let i = 0; i < 900; i++) {
       ctx.strokeStyle = tones[(rnd() * tones.length) | 0];
       ctx.lineWidth = 1.6;
@@ -427,11 +1143,42 @@ export class Renderer {
     c.width = 1; c.height = 256;
     const ctx = c.getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, 256);
-    grad.addColorStop(0, '#3d9be9');   // celeste intenso arriba
-    grad.addColorStop(0.55, '#7ec8f7');
-    grad.addColorStop(1, '#d9f0ff');   // casi blanco en el horizonte
+    grad.addColorStop(0, '#2f8fdd');   // celeste más profundo arriba
+    grad.addColorStop(0.45, '#6cc0f5');
+    grad.addColorStop(0.8, '#bfe4fb');
+    grad.addColorStop(1, '#eaf7ff');   // casi blanco cálido en el horizonte
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 1, 256);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  /** Textura de nube suave (puffy) dibujada en canvas: varios círculos con
+   *  gradiente radial que se funden — mucho más real que esferas duras. */
+  makeCloudTexture() {
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, 256, 128);
+    const puff = (x, y, r, a) => {
+      const g = ctx.createRadialGradient(x, y, r * 0.15, x, y, r);
+      g.addColorStop(0, `rgba(255,255,255,${a})`);
+      g.addColorStop(0.75, `rgba(250,252,255,${a * 0.7})`);
+      g.addColorStop(1, 'rgba(245,250,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    // forma de nube clásica: base ancha + bultos arriba
+    puff(72, 92, 40, 0.95);
+    puff(112, 74, 46, 1);
+    puff(156, 70, 42, 1);
+    puff(190, 88, 36, 0.95);
+    puff(128, 96, 50, 0.9);
+    puff(96, 100, 36, 0.85);
+    puff(160, 100, 38, 0.85);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     return tex;
@@ -449,12 +1196,53 @@ export class Renderer {
     return { group, wingL, wingR };
   }
 
+  /** Reja/cerco bajo estilo predio (postes + barras horizontales), fiel a Los
+   *  Mormones: ~2m de alto, blanco como el templo, recorre el ancho del terreno. */
+  makeFence(length, height, color) {
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.35 });
+    // postes verticales cada ~2.4 unidades
+    const step = 2.4;
+    const count = Math.max(2, Math.floor(length / step));
+    for (let i = 0; i <= count; i++) {
+      const x = -length / 2 + (i * length) / count;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, height, 0.16), mat);
+      post.position.set(x, height / 2, 0);
+      post.castShadow = true;
+      group.add(post);
+      // capitel simple arriba de cada poste (detalle)
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.1, 0.26), mat);
+      cap.position.set(x, height + 0.05, 0);
+      group.add(cap);
+    }
+    // 2 barras horizontales (abajo y arriba del cerco)
+    for (const y of [height * 0.35, height * 0.9]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(length, 0.09, 0.09), mat);
+      rail.position.set(0, y, 0);
+      group.add(rail);
+    }
+    return group;
+  }
+
   /** Templo de Buenos Aires: cuerpo blanco, frontón, agujas con ventanales, ángel dorado. */
   makeTemple() {
     const t = new THREE.Group();
-    const blanco = new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 0.7, metalness: 0.05 });
+    // mármol blanco PBR para el templo (como el templo real de Los Mormones)
+    const marbleTex = this.stageTex?.marble;
+    const blanco = marbleTex
+      ? new THREE.MeshStandardMaterial({ map: marbleTex.clone(), roughness: 0.45, metalness: 0.05, color: 0xf4f2ec })
+      : new THREE.MeshStandardMaterial({ color: 0xeceae4, roughness: 0.7, metalness: 0.05 });
+    if (blanco.map) blanco.map.repeat.set(2, 2);
     const gris = new THREE.MeshStandardMaterial({ color: 0xd8d5ce, roughness: 0.8, metalness: 0.05 });
     const vidrio = new THREE.MeshStandardMaterial({ color: 0x2e3d54, roughness: 0.25, metalness: 0.4 });
+    // techo con TEJAS DE PIEDRA (procedural si no hay textura externa)
+    const tileTex = this.makeRoofTileTexture();
+    tileTex.repeat.set(6, 3);
+    const techoMat = new THREE.MeshStandardMaterial({ map: tileTex, color: 0xd8d2c8, roughness: 0.88, metalness: 0.02 });
+    // textura de tejas para las puntas cónicas de las agujas (una sola, reutilizada)
+    const tileTipTex = this.makeRoofTileTexture();
+    tileTipTex.repeat.set(1, 2);
+    const tipMat = new THREE.MeshStandardMaterial({ map: tileTipTex, color: 0xd0cac0, roughness: 0.85 });
 
     const add = (geo, mat, x, y, z) => {
       const m = new THREE.Mesh(geo, mat);
@@ -480,10 +1268,10 @@ export class Renderer {
     // puerta central
     add(new THREE.BoxGeometry(2.3, 4, 0.3), vidrio, 0, 3, 3.58);
 
-    // techo a dos aguas (prisma triangular) con ventana circular
+    // techo a dos aguas (prisma triangular) con tejas de piedra y ventana circular
     const tri = new THREE.Shape();
     tri.moveTo(-12.4, 0); tri.lineTo(0, 4.2); tri.lineTo(12.4, 0); tri.closePath();
-    const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 7, bevelEnabled: false }), gris);
+    const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 7, bevelEnabled: false }), techoMat);
     roof.position.set(0, 7, -3.5);
     roof.castShadow = true;
     t.add(roof);
@@ -492,33 +1280,39 @@ export class Renderer {
     round.position.set(0, 8.4, 3.6);
     t.add(round);
 
-    // anexo lateral derecho (más bajo)
+    // anexo lateral derecho (más bajo) con techo de tejas
     add(new THREE.BoxGeometry(10, 4.5, 6), blanco, 16, 2.25, 0);
-    add(new THREE.BoxGeometry(10.6, 0.8, 6.6), gris, 16, 4.8, 0);
+    add(new THREE.BoxGeometry(10.6, 0.8, 6.6), techoMat, 16, 4.8, 0);
     for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(0.8, 2.4, 0.25), vidrio, 13.5 + i * 2.5, 2.4, 3.06);
 
-    // agujas: base + tramo medio + ventanal + punta cónica
-    const spire = (x, z, base, mid, tip) => {
-      add(new THREE.BoxGeometry(1.9, base, 1.9), blanco, x, 7 + base / 2, z);
-      add(new THREE.BoxGeometry(1.1, mid, 1.1), blanco, x, 7 + base + mid / 2, z);
-      add(new THREE.BoxGeometry(0.6, mid * 0.7, 0.15), vidrio, x, 7 + base + mid / 2, z + 0.6);
-      add(new THREE.ConeGeometry(0.65, tip, 4), gris, x, 7 + base + mid + tip / 2, z);
-      return 7 + base + mid + tip;
+    // agujas: base + tramo medio + ventanal + punta cónica.
+    // baseY = altura de la superficie donde se APOYA la aguja (antes era fijo y=7
+    // del cuerpo principal, y las agujas del anexo quedaban FLOTANDO 2.2 unidades)
+    const spire = (x, z, base, mid, tip, baseY) => {
+      // la base se entierra 0.6 en el techo para que nunca quede flotando
+      const sunk = 0.6;
+      add(new THREE.BoxGeometry(1.9, base + sunk, 1.9), blanco, x, baseY + (base + sunk) / 2 - sunk, z);
+      add(new THREE.BoxGeometry(1.1, mid, 1.1), blanco, x, baseY + base + mid / 2, z);
+      add(new THREE.BoxGeometry(0.6, mid * 0.7, 0.15), vidrio, x, baseY + base + mid / 2, z + 0.6);
+      // punta cónica con techo de tejas (misma textura que el techo principal)
+      add(new THREE.ConeGeometry(0.65, tip, 4), tipMat, x, baseY + base + mid + tip / 2, z);
+      return baseY + base + mid + tip;
     };
-    // torre central (la más alta) con ángel Moroni dorado
-    const topY = spire(0, 0, 7, 5.5, 5);
+    // torre central (la más alta) con ángel Moroni dorado — apoyada en y=7 (cuerpo)
+    const topY = spire(0, 0, 7, 5.5, 5, 7);
     const angel = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.28, 0.9, 4, 8),
       new THREE.MeshStandardMaterial({ color: 0xf2c94c, metalness: 0.85, roughness: 0.25 }),
     );
     angel.position.set(0, topY + 0.8, 0);
     t.add(angel);
-    // torres laterales sobre el cuerpo
-    spire(-8.5, 0, 4.5, 3.5, 3.5);
-    spire(8.5, 0, 4.5, 3.5, 3.5);
-    // agujas chicas del anexo
-    spire(13.5, 0, 3, 2.5, 2.5);
-    spire(18.5, 0, 3, 2.5, 2.5);
+    // torres laterales sobre el cuerpo — apoyadas en y=7 (techo del cuerpo principal)
+    spire(-8.5, 0, 4.5, 3.5, 3.5, 7);
+    spire(8.5, 0, 4.5, 3.5, 3.5, 7);
+    // agujas chicas del anexo — apoyadas en y=4.8 (techo del anexo, NO en y=7:
+    // ese era el bug que las dejaba flotando)
+    spire(13.5, 0, 3, 2.5, 2.5, 4.8);
+    spire(18.5, 0, 3, 2.5, 2.5, 4.8);
 
     return t;
   }
@@ -664,9 +1458,12 @@ export class Renderer {
       this.lineupBobs.push({ group: model.group, baseY: 0, phase: Math.abs(x) * 0.9 });
     }
     this.scene.add(this.lineup);
-    // enfocar la cámara hacia los personajes para que el lobby los muestre
+    // VISTA LEJANA DEL MAPA en el lobby: la cámara se aleja mostrando todo el
+    // escenario (estilo "establishing shot"); al empezar la pelea se acerca sola
+    this.cinematicView = { focus: new THREE.Vector3(0, 0.5, 0), distance: 44, elevation: 9 };
+    // posición inicial ya lejos (el render suaviza hacia este punto)
     this.rig.focus.set(0, 1.2, 0);
-    this.rig.distance = Math.max(this.rig.distance, 18);
+    this.rig.distance = Math.max(this.rig.distance, 44);
   }
 
   /** Saca el lineup (al arrancar la partida). */
@@ -713,7 +1510,8 @@ export class Renderer {
     }
   }
 
-  /** Crea el mesh de un auto del tráfico: GLB de Vita Machines si está listo, si no el procedural. */
+  /** Crea el mesh de un auto del tráfico: GLB de Vita Machines si está listo, si no el procedural.
+   *  Cada instancia clona materiales y aplica un tinte de color argentino variable. */
   makeTrafficCar(id, carColors, poolIds) {
     const poolId = poolIds[id % poolIds.length];
     const def = CAR_MODEL_FILES.find((d) => d.id === poolId);
@@ -721,6 +1519,22 @@ export class Renderer {
     if (src) {
       const clone = src.clone(true);
       if (def?.rotY) clone.rotation.y = def.rotY;
+      // tinte de color: recorrer meshes y multiplicar el color base del material
+      // por un color de carrocería (deja vidrios/metasles/neumáticos casi igual)
+      const tint = new THREE.Color(carColors[id % carColors.length]);
+      clone.traverse((o) => {
+        if (!o.isMesh || !o.material) return;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) {
+          if (!m.color) continue;
+          // si el material es muy oscuro (neumáticos, plásticos) o muy claro (vidrios), no teñir
+          const hsl = { h: 0, s: 0, l: 0 };
+          m.color.getHSL(hsl);
+          if (hsl.l < 0.15 || hsl.l > 0.85 || hsl.s > 0.6) continue;
+          // multiplicar para obtener el tinte deseado preservando variación del modelo
+          m.color.multiply(tint);
+        }
+      });
       const holder = new THREE.Group();
       holder.add(clone);
       return holder;
@@ -749,6 +1563,10 @@ export class Renderer {
   // ------------------------------------------------------------------ peleadores
 
   setPlayers(match) {
+    this._lastMatch = match;
+    // al empezar la pelea se apaga la vista lejana del lobby: la cámara vuelve al
+    // encuadre automático de los peleadores (efecto de acercarse al ring)
+    this.cinematicView = null;
     for (const v of this.views) this.scene.remove(v.group);
     for (const v of this.views) this.scene.remove(v.debugHurt, v.debugHit);
     this.views = match.fighters.map((f) => this.makeView(f));
@@ -792,12 +1610,12 @@ export class Renderer {
     return ring;
   }
 
-  /** Vista de personaje con modelo detallado (Kenai, Coco, Domono, Faxo). */
+  /** Vista de personaje con modelo detallado (Kenai, Coco, Domono, Faxo, Chubit). */
   makeFighterView(f, builder) {
     const spec = f.spec;
-    const group = new THREE.Group();
     const color = new THREE.Color(spec.color);
     const model = builder();
+    const group = new THREE.Group();
     const pivot = new THREE.Group();
     pivot.add(model.group);
     const ring = this.makeSlotRing(f);
@@ -814,11 +1632,6 @@ export class Renderer {
       debugHurt: this.makeEdges(0x44ff77),
       debugHit: this.makeEdges(0xff4444),
     };
-  }
-
-  /** Compatibilidad con el nombre anterior. */
-  makeKenaiView(f) {
-    return this.makeFighterView(f, buildKenai);
   }
 
   /** Vista cápsula provisoria para el resto de los personajes. */
@@ -970,7 +1783,19 @@ export class Renderer {
     this.updateParticles(dt);
     this.updateClouds(dt);
     this.updateBirds(dt);
-    this.rig.update(dt, targets, match.stage, false);
+    // Vista cinematográfica (lobby): la cámara queda LEJOS mostrando todo el mapa,
+    // ignorando el encuadre automático de los peleadores hasta que empiece la pelea
+    if (this.cinematicView) {
+      const cv = this.cinematicView;
+      const k = 1 - Math.exp(-2.2 * dt);
+      this.rig.focus.x += (cv.focus.x - this.rig.focus.x) * k;
+      this.rig.focus.y += (cv.focus.y - this.rig.focus.y) * k;
+      this.rig.distance += (cv.distance - this.rig.distance) * k;
+      this.rig.camera.position.set(this.rig.focus.x, this.rig.focus.y + cv.elevation, this.rig.distance);
+      this.rig.camera.lookAt(this.rig.focus.x, this.rig.focus.y + cv.elevation * 0.4, 0);
+    } else {
+      this.rig.update(dt, targets, match.stage, false);
+    }
 
     // ---- parallax de fondo (estilo Smash: el fondo sigue apenas a la cámara) ----
     const fx = this.rig.focus.x;
@@ -988,20 +1813,170 @@ export class Renderer {
       seen.add(p.id);
       let mesh = this.projectileMeshes.get(p.id);
       if (!mesh) {
-        const r = MOVES[p.move].projectile.radius;
-        mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffd23c }));
+        mesh = this.makeProjectileMesh(p);
         this.scene.add(mesh);
         this.projectileMeshes.set(p.id, mesh);
       }
       mesh.position.set(p.prevX + (p.x - p.prevX) * alpha, p.y, 0);
+      // la manguera tiembla apenas al disparar
+      if (mesh.userData.hydrant) {
+        const t = performance.now() / 1000;
+        mesh.rotation.z = Math.sin(t * 30) * 0.04;
+      }
     }
     for (const [id, mesh] of this.projectileMeshes) {
       if (seen.has(id)) continue;
       this.scene.remove(mesh);
-      mesh.geometry.dispose();
-      mesh.material.dispose();
+      this.disposeObject(mesh);
       this.projectileMeshes.delete(id);
     }
+    // ---- llamas persistentes en el suelo (Holy Water / PK Fire) ----
+    this.drawFlames(match);
+    // ---- trampolines del Pac-Jump ----
+    this.updateTrampolines();
+  }
+
+  /** Color de un proyectil (las frutas de Bonus Fruit cambian por tier). */
+  projectileColor(move, p) {
+    if (move.hydrant || move.projectile?.water) return 0x6fc3e8; // agua
+    if (move.tiered && p) {
+      // ciclo de frutas: cereza → fresa → naranja → manzana → melón → Galaxian → campana → llave
+      const FRUTAS = [0xe84040, 0xff5a7a, 0xff9a3c, 0xd94f30, 0x6fc34f, 0x4fd0e8, 0xffd23c, 0xffe08a];
+      return FRUTAS[p.tier ?? 0] ?? 0xffd23c;
+    }
+    if (move.projectile?.fire) return 0xff7a2a;      // fuego (Eruption, PK Fire)
+    if (move.projectile?.electric) return 0x7fd0ff;  // eléctrico (PK Thunder)
+    if (move.projectile?.holy) return 0x6fc3e8;      // agua bendita (Holy Water)
+    if (move.projectile?.arc) return 0xd8cfc0;       // hacha
+    return 0xffd23c;                                  // genérico
+  }
+
+  /** Mesh de proyectil: manguera (Fire Hydrant) o esfera genérica. */
+  makeProjectileMesh(p) {
+    const move = MOVES[p.move];
+    const r = move.projectile.radius;
+    if (move.hydrant) return this.makeHydrantMesh();
+    return new THREE.Mesh(
+      new THREE.SphereGeometry(r, 14, 10),
+      new THREE.MeshBasicMaterial({ color: this.projectileColor(move, p) }),
+    );
+  }
+
+  /** Fire Hydrant estilo clásico: cuerpo rojo, tapa, tapas laterales y base. */
+  makeHydrantMesh() {
+    const g = new THREE.Group();
+    g.userData.hydrant = true;
+    const rojo = new THREE.MeshStandardMaterial({ color: 0xd8352a, roughness: 0.5, metalness: 0.25 });
+    const rojoOsc = new THREE.MeshStandardMaterial({ color: 0x9c241c, roughness: 0.6, metalness: 0.2 });
+    const agua = new THREE.MeshBasicMaterial({ color: 0x6fc3e8 });
+    const cuerpo = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.62, 14), rojo);
+    cuerpo.position.y = 0.32;
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.42, 0.1, 14), rojoOsc);
+    base.position.y = 0.05;
+    const tapa = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), rojo);
+    tapa.position.y = 0.63;
+    const pico = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.12, 8), rojoOsc);
+    pico.position.y = 0.78;
+    // tapas laterales (donde sale el agua)
+    for (const side of [-1, 1]) {
+      const tapaLateral = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 10), rojoOsc);
+      tapaLateral.rotation.z = Math.PI / 2;
+      tapaLateral.position.set(side * 0.33, 0.42, 0);
+      const gota = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), agua);
+      gota.position.set(side * 0.4, 0.42, 0);
+      g.add(tapaLateral, gota);
+    }
+    g.add(cuerpo, base, tapa, pico);
+    g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    return g;
+  }
+
+  /** Libera geometrías/materiales de un mesh o grupo (proyectiles, etc.). */
+  disposeObject(obj) {
+    if (obj.isGroup) {
+      obj.traverse((o) => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) o.material.dispose();
+      });
+    } else {
+      if (obj.geometry) obj.geometry.dispose();
+      if (obj.material) obj.material.dispose();
+    }
+  }
+
+  // ---- trampolines del Pac-Jump (visual que dura unos frames) ----
+  addTrampoline(x, y) {
+    if (!this.trampolines) this.trampolines = [];
+    const g = new THREE.Group();
+    const aro = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.55, 0.5, 0.1, 16),
+      new THREE.MeshBasicMaterial({ color: 0x4fd0e8, transparent: true, opacity: 0.9 }),
+    );
+    const piso = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42, 0.42, 0.06, 16),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75 }),
+    );
+    piso.position.y = 0.05;
+    g.add(aro, piso);
+    g.position.set(x, y, 0.4);
+    this.scene.add(g);
+    this.trampolines.push({ g, life: 45 });
+  }
+
+  updateTrampolines() {
+    if (!this.trampolines) return;
+    const keep = [];
+    for (const tr of this.trampolines) {
+      tr.life--;
+      if (tr.life <= 0) {
+        this.scene.remove(tr.g);
+        this.disposeObject(tr.g);
+        continue;
+      }
+      const t = tr.life / 45;
+      tr.g.scale.set(1 + (1 - t) * 0.4, 1, 1 + (1 - t) * 0.4);
+      tr.g.children.forEach((c) => { c.material.opacity = 0.9 * t; });
+      keep.push(tr);
+    }
+    this.trampolines = keep;
+  }
+
+  /** Dibuja las llamas persistentes (Holy Water azul, PK Fire naranja). */
+  drawFlames(match) {
+    if (!this._flameMeshes) this._flameMeshes = [];
+    const flames = match.flames ?? [];
+    // ajustar la cantidad de meshes
+    while (this._flameMeshes.length < flames.length) {
+      const g = new THREE.Group();
+      const base = new THREE.Mesh(
+        new THREE.ConeGeometry(0.5, 1.2, 8),
+        new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0.9 }),
+      );
+      base.position.y = 0.6;
+      const inner = new THREE.Mesh(
+        new THREE.ConeGeometry(0.28, 0.8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.9 }),
+      );
+      inner.position.y = 0.5;
+      g.add(base, inner);
+      this.scene.add(g);
+      this._flameMeshes.push(g);
+    }
+    while (this._flameMeshes.length > flames.length) {
+      const g = this._flameMeshes.pop();
+      this.scene.remove(g);
+    }
+    const t = performance.now() / 1000;
+    flames.forEach((f, i) => {
+      const g = this._flameMeshes[i];
+      const isHoly = MOVES[f.move]?.groundFlame;
+      g.position.set(f.x, f.y, 0.5);
+      const flick = 1 + Math.sin(t * 18 + i * 2) * 0.18;
+      g.scale.set(flick, 1 + Math.sin(t * 22 + i) * 0.22, 1);
+      const col = isHoly ? 0x6fc3e8 : 0xff7a2a;
+      g.children[0].material.color.setHex(col);
+      g.children[0].material.opacity = 0.55 + Math.sin(t * 14 + i) * 0.2;
+    });
   }
 
   // ------------------------------------------------------------------ efectos (se disparan con los eventos de la simulación)
@@ -1026,8 +2001,35 @@ export class Renderer {
         this.burst(e.x, e.y + 0.9, 18, 0x9fe8ff, 6, 0.6, 0.14);
       } else if (e.type === 'shot-end') {
         this.burst(e.x, e.y, 6, 0xffd23c, 5, 0.25, 0.1);
+      } else if (e.type === 'burst') {
+        // explosión: fuego (Eruption/PK Fire) o agua (Fire Hydrant)
+        const mv = MOVES[e.move];
+        const esAgua = !!(mv?.water || mv?.projectile?.water || mv?.hydrant);
+        const c1 = esAgua ? 0x6fc3e8 : 0xff7a2a;
+        const c2 = esAgua ? 0xd8f4ff : 0xffd23c;
+        const c3 = esAgua ? 0x3fa8cc : 0xff5a36;
+        this.burst(e.x, e.y, 22, c1, 12, 0.6, 0.22);
+        this.burst(e.x, e.y, 14, c2, 8, 0.45, 0.16);
+        this.burst(e.x, e.y, 8, c3, 6, 0.35, 0.14);
+        this.rig.addShake(CAM.shake.hit * 1.4);
+      } else if (e.type === 'fruit-cycle') {
+        // Bonus Fruit: destello con el color de la fruta del tier actual
+        const FRUTAS = [0xe84040, 0xff5a7a, 0xff9a3c, 0xd94f30, 0x6fc34f, 0x4fd0e8, 0xffd23c, 0xffe08a];
+        this.burst(e.x, e.y, 7, FRUTAS[e.tier] ?? 0xffd23c, 4.5, 0.3, 0.13);
+      } else if (e.type === 'counter') {
+        // contraataque de Ike: flash dorado fuerte
+        this.burst(e.x, e.y, 20, 0xf2c94c, 14, 0.6, 0.2);
+        this.burst(e.x, e.y, 12, 0xffffff, 10, 0.5, 0.16);
+      } else if (e.type === 'magnet') {
+        // absorción de Ness: flash celeste suave
+        this.burst(e.x, e.y, 10, 0x7fd0ff, 6, 0.4, 0.14);
+      } else if (e.type === 'inhale') {
+        // succión de Kirby: espiral blanca
+        this.burst(e.x, e.y, 10, 0xffffff, 5, 0.4, 0.13);
       } else if (e.type === 'boost') {
         this.burst(e.x, e.y, 10, 0xffffff, 6, 0.35, 0.12);
+        // Pac-Jump de Pac-Man: deja un trampolín visible
+        if (e.move === 'pacJump') this.addTrampoline(e.x, e.y);
       } else if (e.type === 'car-spawn') {
         // bocina de advertencia: flash amarillo en el borde por donde viene el auto
         const warnX = -e.dir * 22;
@@ -1074,16 +2076,6 @@ export class Renderer {
   }
 
   // ------------------------------------------------------------------ utilidades
-
-  /** Posición en pantalla de un punto del mundo: { x, y } en píxeles y si está dentro del cuadro. */
-  project(x, y) {
-    this.tmp.set(x, y, 0).project(this.rig.camera);
-    return {
-      x: (this.tmp.x * 0.5 + 0.5) * window.innerWidth,
-      y: (-this.tmp.y * 0.5 + 0.5) * window.innerHeight,
-      inside: Math.abs(this.tmp.x) <= 1 && Math.abs(this.tmp.y) <= 1,
-    };
-  }
 
   snapCamera(match) {
     const targets = match.fighters.filter((f) => f.alive).map((f) => ({ x: f.x, y: f.y + f.height / 2 }));

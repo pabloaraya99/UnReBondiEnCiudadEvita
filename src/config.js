@@ -7,8 +7,6 @@
  */
 
 export const GAME_CONFIG = {
-  title: 'Un re bondi en Ciudad Evita',
-
   /** Paso fijo de la simulación (60 Hz). Todo lo que pasa en el juego ocurre en múltiplos de este paso. */
   physicsStep: 1 / 60,
 
@@ -99,7 +97,6 @@ export const GAME_CONFIG = {
       // Custom
       isStance: true,        // es un stance, no un ataque
       maxDuration: 180,      // 3 segundos máx (frames)
-      armorFrames: 999,      // superarmor mientras dura
       fallMultiplier: 3.5,   // cae rapidísimo
       landShockwave: true,   // onda al aterrizar
       landDamage: 22,
@@ -138,17 +135,211 @@ export const GAME_CONFIG = {
     flaco_down: { startup: 4, active: 3, recovery: 8, box: { x: 1.1, y: 0.3, w: 2.0, h: 0.5 }, damage: 4, base: 3, growth: 6, angle: 20 },
     flaco_shot: { startup: 8, active: 0, recovery: 14, projectile: { speed: 22, life: 40, radius: 0.25, y: 1.3 }, damage: 4, base: 2, growth: 5, angle: 15 },
     flaco_airDash: { startup: 3, active: 8, recovery: 10, box: { x: 0.5, y: 0.0, w: 2.5, h: 0.8 }, damage: 6, base: 3, growth: 6, angle: 0 }, // dash aéreo horizontal
+
+    // ================================================================
+    // ESPECIALES ESTILO SMASH (por personaje, para testear variables)
+    // ================================================================
+
+    // --- KENAI (Kirby): Inhale (especial neutro) ---
+    // Succiona al rival hacia adentro y lo escupe con daño (como el Inhale de Kirby)
+    inhale: {
+      startup: 10, active: 14, recovery: 16,
+      box: { x: 1.2, y: 1.0, w: 2.2, h: 1.4 },   // área de succión delante
+      damage: 8, base: 6, growth: 12, angle: 45,
+      vortex: true,          // atrae al rival durante active
+      vortexPull: 0.35,      // fuerza de succión (arrastra hacia Kenai)
+    },
+    // --- KENAI (Kirby): Hammer (especial de costado) ---
+    // Martillazo lento pero muy fuerte (el Hammer de Kirby)
+    hammer: {
+      startup: 18, active: 5, recovery: 24,
+      box: { x: 1.3, y: 1.1, w: 1.7, h: 1.3 },
+      damage: 20, base: 12, growth: 22, angle: 40, lunge: 2,
+    },
+
+    // --- COCO (Ike): Eruption (especial neutro) ---
+    // Carga de espada de fuego que estalla delante (el Eruption de Ike)
+    eruption: {
+      startup: 16, active: 0, recovery: 22,
+      projectile: { speed: 9, life: 30, radius: 0.5, y: 0.9, fire: true },
+      damage: 14, base: 9, growth: 16, angle: 32,
+      burst: true,           // estalla en llamas al impacto
+      burstRadius: 1.6, burstDamage: 8, burstBase: 6, burstGrowth: 14, burstAngle: 60,
+    },
+    // --- COCO (Ike): Quick Draw (especial de costado) ---
+    // Embestida rápida con la espada (el Quick Draw de Ike)
+    quickDraw: {
+      startup: 8, active: 4, recovery: 18,
+      box: { x: 1.2, y: 1.0, w: 1.9, h: 1.1 },
+      damage: 15, base: 9, growth: 15, angle: 36, lunge: 9,
+    },
+    // --- COCO (Ike): Counter (especial hacia abajo) ---
+    // Postura de contraataque: reduce daño y devuelve el golpe (el Counter de Ike)
+    counter: {
+      startup: 3, active: 0, recovery: 0,
+      box: null, damage: 0, base: 0, growth: 0, angle: 0,
+      isStance: true, maxDuration: 40,
+      counterMode: true,     // al recibir golpe: anula y contraataca ×1.2
+      counterMult: 1.2, counterDamage: 12, counterBase: 8, counterAngle: 40,
+      endLag: 14,
+    },
+
+    // --- DOMONO (Ness): PK Fire (especial neutro) ---
+    // Proyectil que estalla en llamas al impacto (el PK Fire de Ness)
+    pkFire: {
+      startup: 11, active: 0, recovery: 20,
+      projectile: { speed: 14, life: 40, radius: 0.34, y: 1.0, fire: true },
+      damage: 6, base: 4, growth: 10, angle: 25,
+      burst: true, burstRadius: 1.8, burstDamage: 9, burstBase: 5, burstGrowth: 13, burstAngle: 55,
+      lingering: true, lingerFrames: 50, // la llama queda un rato en el suelo
+    },
+    // --- DOMONO (Ness): PK Thunder (especial de costado / proyectil eléctrico) ---
+    // Esfera eléctrica que daña y puede golpearlo para lanzarlo (el PK Thunder de Ness)
+    pkThunder: {
+      startup: 12, active: 0, recovery: 22,
+      projectile: { speed: 16, life: 50, radius: 0.4, y: 1.1, electric: true },
+      damage: 10, base: 7, growth: 14, angle: 30,
+    },
+    // --- DOMONO (Ness): PK Thunder recovery (especial hacia arriba) ---
+    // Impulso eléctrico hacia arriba que además pega (recuperación de Ness)
+    pkThunderUp: {
+      startup: 5, active: 12, recovery: 15,
+      box: { x: 0.1, y: 1.2, w: 1.2, h: 1.9 },
+      damage: 8, base: 6, growth: 18, angle: 80, boost: true, electric: true,
+    },
+    // --- DOMONO (Ness): PK Magnet (especial hacia abajo) ---
+    // Campo de absorción: reduce daño recibido y cura un poco (el PK Magnet de Ness)
+    pkMagnet: {
+      startup: 3, active: 0, recovery: 0,
+      box: null, damage: 0, base: 0, growth: 0, angle: 0,
+      isStance: true, maxDuration: 70,
+      magnetMode: true,      // absorbe: reduce daño ×0.4 y cura un poco por golpe
+      absorbMult: 0.4, healPerHit: 4, endLag: 10,
+    },
+
+    // --- FAXO (Richter): Holy Water (especial neutro) ---
+    // Agua bendita que deja llamas en el suelo (el Holy Water de Richter)
+    holyWater: {
+      startup: 12, active: 0, recovery: 20,
+      projectile: { speed: 11, life: 35, radius: 0.36, y: 0.8, holy: true },
+      damage: 5, base: 4, growth: 8, angle: 20,
+      groundFlame: true,     // deja una llama azul en el suelo
+      flameFrames: 70, flameDamage: 6, flameBase: 3, flameGrowth: 8, flameRadius: 0.9,
+    },
+    // --- FAXO (Richter): Uppercut Whip (especial hacia arriba) ---
+    // Latigazo ascendente de recuperación (el Uppercut de Richter)
+    uppercut: {
+      startup: 6, active: 4, recovery: 16,
+      box: { x: 0.5, y: 2.1, w: 1.4, h: 1.2 },
+      damage: 9, base: 6, growth: 16, angle: 85,
+      launchesUp: true, launchSpeed: 17, maxHeight: 5, fallSpeed: 20,
+    },
+    // --- FAXO (Richter): Vampire Killer Whip (especial de costado) ---
+    // El látigo largo de Richter: alcance enorme hacia adelante
+    whip: {
+      startup: 12, active: 5, recovery: 20,
+      box: { x: 2.2, y: 0.9, w: 2.6, h: 0.7 },   // alcance muy largo (el látigo)
+      damage: 13, base: 8, growth: 13, angle: 35,
+    },
+    // --- FAXO (Richter): Axe (especial hacia abajo / proyectil en arco) ---
+    // Hacha que vuela en arco (el Axe de Richter)
+    axe: {
+      startup: 11, active: 0, recovery: 19,
+      projectile: { speed: 13, life: 60, radius: 0.4, y: 1.2, arc: true },
+      damage: 11, base: 8, growth: 13, angle: 30,
+      arcHeight: 4.5,        // altura del arco
+    },
+
+    // --- CHUBITCOIN (Pac-Man): Bonus Fruit (especial neutro) ---
+    // Mantené el especial para cargar: el ciclo de frutas sube de tier
+    // (cereza → fresa → naranja → manzana → melón → Galaxian → campana → llave).
+    // Soltalo para tirar la fruta cargada: más tier = más daño.
+    bonusFruit: {
+      startup: 10, active: 0, recovery: 18,
+      projectile: { speed: 14, life: 60, radius: 0.3, y: 1.1 },
+      damage: 4, base: 4, growth: 8, angle: 30,
+      fruitCharge: true,     // se carga manteniendo el especial y se lanza al soltar
+      tiered: true,          // el tier cargado escala daño/repulsión (p tiers)
+      fruitFrames: 12,       // cuadros por fruta del ciclo
+    },
+    // --- CHUBITCOIN (Pac-Man): Power Pellet (especial de costado) ---
+    // Embestida con la cápsula amarilla comiendo todo (el Power Pellet)
+    powerPellet: {
+      startup: 10, active: 6, recovery: 20,
+      box: { x: 1.3, y: 1.0, w: 2.2, h: 1.2 },
+      damage: 13, base: 8, growth: 14, angle: 34, lunge: 11,
+    },
+    // --- CHUBITCOIN (Pac-Man): Pac-Jump (especial hacia arriba) ---
+    // Impulso hacia arriba que deja un trampolín (recuperación de Pac-Man)
+    pacJump: {
+      startup: 4, active: 10, recovery: 16,
+      box: { x: 0.1, y: 0.9, w: 1.2, h: 1.6 },
+      damage: 6, base: 5, growth: 16, angle: 80, boost: true,
+    },
+    // --- CHUBITCOIN (Pac-Man): Fire Hydrant (especial hacia abajo) ---
+    // Manguera que queda en el piso y dispara chorros de agua al rival
+    fireHydrant: {
+      startup: 14, active: 0, recovery: 26,
+      projectile: { speed: 0, life: 480, radius: 0.45, y: 0.45 },
+      damage: 7, base: 5, growth: 10, angle: 55,
+      hydrant: { interval: 55, shot: 'waterShot' }, // chorros cada N frames
+      burst: true, burstRadius: 1.5, burstDamage: 6, burstBase: 5, burstGrowth: 12, burstAngle: 60,
+      water: true,
+    },
+    // --- CHUBITCOIN (Pac-Man): chorro de agua de la Fire Hydrant ---
+    waterShot: {
+      startup: 0, active: 0, recovery: 0,
+      projectile: { speed: 16, life: 55, radius: 0.2, y: 0, water: true },
+      damage: 4, base: 3, growth: 6, angle: 25,
+    },
   },
   shotCooldown: 24, // cuadros antes de poder lanzar otro proyectil
 
   // ------------------------------------------------------------------ personajes
   // peso: más alto = vuela menos · power: multiplica daño y knockback de sus golpes.
   characters: {
-    coco: { name: 'El Coco', color: '#4d8bff', weight: 100, power: 1.0, runSpeed: 7.6, airSpeed: 6.2, jumpSpeed: 13.2, doubleJumpSpeed: 12.2, width: 0.8, height: 1.8 },
-    domono: { name: 'Dj Domono', color: '#f3f0e8', weight: 128, power: 1.15, runSpeed: 6.3, airSpeed: 5.3, jumpSpeed: 12.4, doubleJumpSpeed: 11.6, width: 0.95, height: 1.95 },
-    faxo: { name: 'Dr Faxo', color: '#9aa0a6', weight: 92, power: 1.0, runSpeed: 8.1, airSpeed: 6.6, jumpSpeed: 13.6, doubleJumpSpeed: 12.6, width: 0.8, height: 1.8 },
-    
-    // === PABLO QUEMANDO RUEDAS (Kenai) - Kirby-like ===
+    // === COCO = IKE (espada pesada, fuerte y lento) ===
+    coco: {
+      name: 'El Coco', color: '#4d8bff',
+      weight: 118, power: 1.25, runSpeed: 6.6, airSpeed: 5.4, jumpSpeed: 12.6, doubleJumpSpeed: 11.6,
+      width: 0.85, height: 1.85,
+      // Especiales estilo Ike
+      specials: {
+        neutral: 'eruption',   // Eruption (carga de fuego)
+        up: 'swordSlash',      // Aether (sube y baja con la espada)
+        side: 'quickDraw',     // Quick Draw (embestida con espada)
+        down: 'counter',       // Counter (postura de contraataque)
+      },
+    },
+    // === DOMONO = NESS (flota, PK powers, rápido y liviano) ===
+    domono: {
+      name: 'Dj Domono', color: '#f3f0e8',
+      weight: 88, power: 0.92, runSpeed: 7.8, airSpeed: 6.8, jumpSpeed: 13.0, doubleJumpSpeed: 12.4,
+      width: 0.8, height: 1.85,
+      floaty: 0.82,            // cae más lento (Ness es flotante)
+      // Especiales estilo Ness
+      specials: {
+        neutral: 'pkFire',     // PK Fire (proyectil que estalla)
+        up: 'pkThunderUp',     // PK Thunder recovery (impulso eléctrico)
+        side: 'pkThunder',     // PK Thunder (proyectil eléctrico controlable)
+        down: 'pkMagnet',      // PK Magnet (absorción/curación)
+      },
+    },
+    // === FAXO = RICHTER (látigo largo, sub-armas, alcance) ===
+    faxo: {
+      name: 'Dr Faxo', color: '#9aa0a6',
+      weight: 96, power: 1.05, runSpeed: 7.6, airSpeed: 6.2, jumpSpeed: 13.2, doubleJumpSpeed: 12.3,
+      width: 0.8, height: 1.8,
+      // Especiales estilo Richter
+      specials: {
+        neutral: 'holyWater',  // Holy Water (llama en el suelo)
+        up: 'uppercut',        // Uppercut Whip (latigazo de recuperación)
+        side: 'whip',          // Vampire Killer (látigo largo)
+        down: 'axe',           // Axe (hacha en arco)
+      },
+    },
+
+    // === PABLO QUEMANDO RUEDAS (Kenai) = KIRBY ===
     pablo: { 
       name: 'Kenai', 
       color: '#ff8a1f', 
@@ -166,10 +357,17 @@ export const GAME_CONFIG = {
       // === KIRBY MECHANICS ===
       maxJumps: 6,                    // 1 suelo + 5 aéreos (Kirby tiene 5-6)
       jumpHeightMultiplier: 0.95,     // saltos subsiguientes un poco más bajos
-      
+
+      // Especiales estilo Kirby
+      specials: {
+        neutral: 'inhale',     // Inhale (succiona y escupe)
+        up: 'swordSlash',      // Final Cutter (sube y baja)
+        side: 'hammer',        // Hammer (martillazo fuerte)
+        down: 'blockForm',     // Stone (piedra)
+      },
+
       // === STANCE SYSTEM ===
       stance: 'normal',               // 'gordo' | 'flaco' | 'normal'
-      stanceSwitchCooldown: 0,        // frames
       
       // Stats por stance (se aplican multiplicadores al base)
       stances: {
@@ -235,8 +433,23 @@ export const GAME_CONFIG = {
       swordSlash: { moveId: 'swordSlash' }, // ↑ + Especial (reemplaza el upSpecial genérico)
       blockForm: { moveId: 'blockForm' }, // ↓ + Especial
     },
+
+    // === CHUBITCOIN = PAC-MAN (frutas, Power Pellet, manguera) ===
+    // Stats del splash art: "PESO: BILLETES PESADOS · AGILIDAD: HODL MAESTRO ·
+    // PODER: VALOR EXPLOSIVO" → medio-pesado, tirando fuerte y veloz.
+    chubit: {
+      name: 'Chubitcoin', color: '#ffd23c',
+      weight: 104, power: 1.12, runSpeed: 7.4, airSpeed: 6.0, jumpSpeed: 12.9, doubleJumpSpeed: 12.0,
+      width: 0.85, height: 1.85,
+      // Especiales estilo Pac-Man
+      specials: {
+        neutral: 'bonusFruit',  // Bonus Fruit: cargar manteniendo el especial, lanzar al soltar
+        up: 'pacJump',          // Pac-Jump: impulso de recuperación + trampolín
+        side: 'powerPellet',    // Power Pellet: embestida mordiendo todo
+        down: 'fireHydrant',    // Fire Hydrant: manguera que tira chorros de agua
+      },
+    },
   },
-  defaultCharacters: ['coco', 'faxo', 'domono', 'pablo'],
 
   // ------------------------------------------------------------------ escenarios
   stages: {
@@ -269,6 +482,25 @@ export const GAME_CONFIG = {
         car: { w: 3.6, h: 1.7, damage: 16, base: 11, growth: 18, angle: 28 },
         hazardCd: 45,               // frames de inmunidad tras un choque
       },
+    },
+    escritorio: {
+      name: 'El Escritorio',
+      // EL PISO ES LA MESA GIGANTE (como el mapa desk de vita-machines): ancha y
+      // segura de borde a borde; los bordes del blast quedan para KOs volando.
+      // Abajo, muy abajo, está el piso de la habitación (visual de la caída).
+      solids: [{ l: -26, r: 26, top: -6.5, bottom: -10 }],
+      oneWays: [
+        { l: -10, r: 10, top: 0 },       // pila de libros central (acá spawnean)
+        { l: -19, r: -13, top: 2.6 },    // lomo del libro izquierdo
+        { l: 13, r: 19, top: 2.6 },      // lomo del libro derecho
+        { l: -3.5, r: 3.5, top: 5.2 },   // la taza gigante (plataforma alta)
+      ],
+      spawns: [{ x: -6, y: 0 }, { x: 6, y: 0 }, { x: -2.5, y: 0 }, { x: 2.5, y: 0 }],
+      respawn: { x: 0, y: 11 },
+      blast: { left: -30, right: 30, bottom: -19, top: 24 },
+      camera: { minWidth: 22, padding: 7 },
+      // Sin tráfico en este mapa (es interior). El Renderer dibuja el escritorio.
+      traffic: null,
     },
   },
   defaultStage: 'mormones',
@@ -311,12 +543,12 @@ export const GAME_CONFIG = {
   // En online cada jugador usa el set de P1 en su propia máquina; P2-P6 son para
   // varios humanos en una sola compu (teclado + joysticks).
   players: [
-    { short: 'P1', color: '#4d8bff', label: 'WASD + F/G/H', controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'KeyF', attack: 'KeyG', special: 'KeyH' } },
+    { short: 'P1', color: '#4d8bff', label: 'WASD + ESP/G/H', controls: { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'Space', attack: 'KeyG', special: 'KeyH' } },
     { short: 'P2', color: '#ff5a36', label: 'Flechas + , . /', controls: { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown', jump: 'Comma', attack: 'Period', special: 'Slash' } },
     { short: 'P3', color: '#5cc24a', label: 'IJKL + U/O/P', controls: { left: 'KeyJ', right: 'KeyL', up: 'KeyI', down: 'KeyK', jump: 'KeyU', attack: 'KeyO', special: 'KeyP' } },
     { short: 'P4', color: '#ffc93c', label: 'Num 8456 + 1/2/3', controls: { left: 'Numpad4', right: 'Numpad6', up: 'Numpad8', down: 'Numpad5', jump: 'Numpad1', attack: 'Numpad2', special: 'Numpad3' } },
     { short: 'P5', color: '#ff6ec7', label: 'Teclas 1-7', controls: { left: 'Digit1', right: 'Digit2', up: 'Digit3', down: 'Digit4', jump: 'Digit5', attack: 'Digit6', special: 'Digit7' } },
-    { short: 'P6', color: '#4dd0e1', label: 'Num 7/9/0/. + * ÷', controls: { left: 'Numpad7', right: 'Numpad9', up: 'Numpad0', down: 'NumpadDecimal', jump: 'NumpadAdd', attack: 'NumpadMultiply', special: 'NumpadDivide' } },
+    { short: 'P6', color: '#4dd0e1', label: 'Num 7/9/0/. + * ¼', controls: { left: 'Numpad7', right: 'Numpad9', up: 'Numpad0', down: 'NumpadDecimal', jump: 'NumpadAdd', attack: 'NumpadMultiply', special: 'NumpadDivide' } },
   ],
   maxPlayers: 6,
 };
