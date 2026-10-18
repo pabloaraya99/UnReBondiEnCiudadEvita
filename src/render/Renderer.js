@@ -1514,9 +1514,23 @@ export class Renderer {
       const torso = model.group.children.find(c =>
         c.isMesh && c.geometry && c.geometry.type === 'CapsuleGeometry' && c.position.y > 1.1 && c.position.y < 1.4
       );
+      // ojos: se resuelven UNA vez acá (blanco+iris+pupila en la cara;
+      // |x| acota, z>0.08 excluye nariz/orejas que también son esferas)
+      const eyes = [];
+      for (const c of model.group.children) {
+        if (!c.isGroup) continue;
+        for (const m of c.children) {
+          if (m.isMesh && m.geometry && m.geometry.type === 'SphereGeometry'
+            && Math.abs(m.position.x) > 0.03 && Math.abs(m.position.x) < 0.14
+            && m.position.y > 0.12 && m.position.y < 0.22 && m.position.z > 0.08) {
+            eyes.push({ mesh: m, baseY: m.scale.y });
+          }
+        }
+      }
       this.lineupBobs.push({
         group: model.group,
         torso,
+        eyes,
         baseY: 0,
         phase: Math.abs(x) * 0.9,
         blinkTimer: Math.random() * 8,
@@ -1553,24 +1567,18 @@ export class Renderer {
         const breath = 1 + Math.abs(Math.sin(t * 1.8 + b.phase * 0.7)) * 0.015;
         b.torso.scale.y = breath;
       }
-      // parpadeo aleatorio
+      // parpadeo: curva cerrar→abrir en 0.14s, ojos se restauran al terminar
       b.blinkTimer -= dt;
       if (b.blinkDur > 0) {
         b.blinkDur -= dt;
-        const eyeScale = 1 - Math.min(1, b.blinkDur / 0.12);
-        // buscar ojos en el head (esferas pequeñas en y ~0.15-0.2)
-        const head = b.group.children.find(c => c.isGroup && c.children.some(m => m.isMesh && m.geometry && m.geometry.type === 'SphereGeometry' && m.position.y > 0.12 && m.position.y < 0.25));
-        if (head) {
-          for (const eye of head.children) {
-            if (eye.isMesh && eye.geometry && eye.geometry.type === 'SphereGeometry' && eye.position.y > 0.12 && eye.position.y < 0.22) {
-              eye.scale.y = 1 - eyeScale;
-            }
-          }
-        }
+        const p = Math.min(1, Math.max(0, 1 - b.blinkDur / 0.14)); // 0→1
+        const close = p < 0.5 ? p * 2 : (1 - p) * 2;              // 0→1→0
+        const s = 1 - close * 0.9;                                  // 1→0.1→1
+        for (const e of b.eyes) e.mesh.scale.y = e.baseY * s;
       } else if (b.blinkTimer <= 0) {
         // iniciar parpadeo
         b.blinkTimer = 4 + Math.random() * 6; // cada 4-10s
-        b.blinkDur = 0.15;
+        b.blinkDur = 0.14;
       }
     }
   }
