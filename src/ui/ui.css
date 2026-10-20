@@ -172,16 +172,41 @@
 }
 
 /* ---------- lobby ---------- */
-/* El lobby deja ver el escenario + el lineup de personajes (sin overlay pesado).
-   Layout compacto: con las tarjetas splash altas, usamos el alto disponible sin
-   que los botones de abajo queden fuera de pantalla */
+/* El lobby deja ver el escenario + el lineup de personajes 3D: header arriba,
+   centro despejado, grilla de puertos abajo-izquierda y controles abajo-derecha */
 .lobby-screen {
   background: linear-gradient(rgba(12, 16, 30, 0.10), rgba(12, 16, 30, 0.35) 82%);
-  justify-content: space-between !important;
-  padding: 1.2vh 0 1.5vh;
-  gap: 10px;
+  padding: 1.2vh 2vw 1.5vh;
+  gap: 8px;
   overflow: hidden;
 }
+.lobby-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.lobby-spacer { flex: 1 1 auto; min-height: 40px; }
+.lobby-bottom-area {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(10px, 1.5vw, 26px);
+  align-items: end;
+  flex-shrink: 0;
+}
+.lobby-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  width: min(320px, 30vw);
+}
+.lobby-controls .btn-smash { width: 100%; text-align: center; }
 .lobby-screen .ui-title {
   font-size: 2rem;
   text-shadow: 0 3px 0 #7a5c1e, 0 6px 18px rgba(0,0,0,0.75);
@@ -201,6 +226,7 @@
   font-size: 0.85rem;
 }
 /* ---------- capas de movimiento del lobby (fx) ---------- */
+/* 2 capas baked (gradients en el propio div): 2 nodos en vez de ~23 */
 .lobby-fx {
   position: absolute;
   inset: 0;
@@ -213,57 +239,22 @@
   position: relative;
   z-index: 1;
 }
-.lobby-smoke {
-  position: absolute;
-  border-radius: 50%;
-  will-change: transform;
+.lobby-fx-smoke {
+  background:
+    radial-gradient(ellipse 320px 160px at 14% 22%, rgba(255,255,255,0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 200px at 55% 60%, rgba(255,255,255,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 300px 150px at 86% 35%, rgba(255,255,255,0.09) 0%, transparent 70%);
+  animation: titleSmokeDrift 44s ease-in-out infinite alternate;
 }
-.lobby-dust {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(244, 241, 232, 0.45);
-}
-.lobby-glint {
-  position: absolute;
-  will-change: transform, opacity;
-}
-.lobby-glint-core {
-  position: absolute;
-  inset: 25%;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 250, 230, 0.95) 0%, rgba(255, 230, 150, 0.5) 50%, transparent 75%);
-}
-.lobby-glint-arm-h {
-  position: absolute;
-  top: 45%;
-  left: 0;
-  width: 100%;
-  height: 12%;
-  background: linear-gradient(90deg, transparent, rgba(255, 250, 230, 0.85), transparent);
-}
-.lobby-glint-arm-v {
-  position: absolute;
-  top: 0;
-  left: 45%;
-  width: 12%;
-  height: 100%;
-  background: linear-gradient(180deg, transparent, rgba(255, 250, 230, 0.85), transparent);
-}
-@keyframes lobbySmokeDrift {
-  0% { transform: translateX(0) translateY(0); }
-  50% { transform: translateX(55vw) translateY(-2%); }
-  100% { transform: translateX(110vw) translateY(-5%); }
-}
-@keyframes lobbyDustDrift {
-  0% { transform: translate(0, 0); opacity: 0; }
-  12% { opacity: 0.5; }
-  88% { opacity: 0.35; }
-  100% { transform: translate(-5vw, 3vh); opacity: 0; }
-}
-@keyframes lobbyGlintTwinkle {
-  0%, 100% { transform: scale(0.4) rotate(0deg); opacity: 0; }
-  40% { transform: scale(1) rotate(12deg); opacity: 1; }
-  70% { transform: scale(0.7) rotate(20deg); opacity: 0.5; }
+.lobby-fx-glints {
+  background:
+    radial-gradient(circle 12px at 12% 18%, rgba(255,250,230,0.5) 0%, transparent 100%),
+    radial-gradient(circle 10px at 84% 30%, rgba(255,250,230,0.45) 0%, transparent 100%),
+    radial-gradient(circle 11px at 20% 62%, rgba(255,250,230,0.5) 0%, transparent 100%),
+    radial-gradient(circle 9px at 76% 55%, rgba(255,250,230,0.4) 0%, transparent 100%),
+    radial-gradient(circle 2.5px at 30% 40%, rgba(6,214,160,0.8) 0%, transparent 100%),
+    radial-gradient(circle 2.5px at 66% 72%, rgba(255,209,102,0.85) 0%, transparent 100%);
+  animation: titleSparkTwinkle 6s ease-in-out infinite alternate;
 }
 /* botón de pelea: glow que respira (llamativo sin ser molesto) */
 .lobby-fight-btn:not(:disabled) {
@@ -312,13 +303,20 @@
   justify-content: center;
   max-width: 96vw;
 }
+/* grilla del lobby local: 1 fila ≤5 puertos, filas balanceadas si hay más */
+.lobby-grid {
+  display: grid;
+  gap: clamp(8px, 1vw, 14px);
+  justify-content: center;
+  width: 100%;
+}
 /* con muchos puertos (8-10) la grilla ocupa su espacio y scrollea en vez de
-   empujar el botón de pelea fuera de pantalla */
+   empujar los controles fuera de pantalla */
 .lobby-slots-scroll {
   flex: 0 1 auto;
   min-height: 0;
   max-height: 52vh;
-  overflow-y: auto;
+  overflow: auto;
   overscroll-behavior: contain;
   padding: 4px 2px;
 }
@@ -337,6 +335,41 @@
   text-align: center;
   min-height: 0;
 }
+/* ---- tarjeta de puerto inclinada (solo lobby local; online va derecho) ---- */
+.lobby-grid .lobby-slot {
+  width: auto;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  transform: skewX(var(--skew-angle));
+  background: var(--bg-panel);
+  border: 2px solid rgba(6, 214, 160, 0.45);
+  border-radius: var(--radius-md);
+  transition: transform var(--transition-fast), border-color var(--transition-fast),
+              box-shadow var(--transition-fast);
+}
+.lobby-grid .lobby-slot:hover,
+.lobby-grid .lobby-slot:focus-within {
+  transform: skewX(var(--skew-angle)) translateY(-4px);
+  border-color: var(--color-neon-cyan);
+  box-shadow: 0 0 15px rgba(6, 214, 160, 0.35), var(--shadow-panel);
+}
+.lobby-grid .lobby-slot.off {
+  border-color: #3a3f52;
+  opacity: 0.55;
+}
+/* contenido contrapendiente: queda derecho dentro del marco inclinado */
+.slot-inner {
+  transform: skewX(calc(var(--skew-angle) * -1));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 12px 11px;
+}
+/* tipo + dificultad en una fila (ahorra alto con 2 filas de puertos) */
+.slot-actions { display: flex; gap: 6px; }
+.slot-actions .slot-btn { flex: 1; min-width: 0; padding: 7px 4px; font-size: var(--text-xs); }
+.lobby-grid .slot-char { min-height: 0; }
 .lobby-slot .slot-tag {
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -539,10 +572,12 @@
   50% { box-shadow: inset 0 0 0 2px rgba(120, 130, 170, 0.55), inset 0 0 18px rgba(120, 130, 170, 0.12); }
 }
 .lobby-slot .slot-char-card:hover {
-  border-color: var(--color-bondi-yellow);
+  border-color: var(--color-neon-cyan);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   transform: translateY(-4px);
 }
+/* en la grilla del lobby la foto es más chica (entran 2 filas de puertos) */
+.lobby-grid .slot-char-card img { height: clamp(76px, 12vh, 130px); }
 .lobby-slot .slot-char-card img {
   width: 100%;
   height: clamp(130px, 26vh, 210px);
@@ -623,7 +658,7 @@
   letter-spacing: 0.42em;
   text-align: center;
   text-transform: uppercase;
-  color: var(--color-bondi-yellow);
+  color: var(--text-primary);
   background: #161a26;
   border: 2px solid #3a3f52;
   border-radius: 8px;
@@ -632,8 +667,8 @@
 }
 .online-code-input:focus {
   outline: none;
-  border-color: var(--color-bondi-yellow);
-  box-shadow: 0 0 18px rgba(233, 196, 106, 0.35);
+  border-color: var(--color-neon-cyan);
+  box-shadow: 0 0 18px rgba(6, 214, 160, 0.35);
 }
 .online-code-input::placeholder { color: #4a5168; }
 
@@ -660,8 +695,8 @@
   border: 2px solid #3a3f52;
 }
 .online-chip:first-child {
-  border-color: var(--color-bondi-yellow);
-  color: var(--color-bondi-yellow);
+  border-color: var(--color-neon-cyan);
+  color: var(--color-neon-cyan);
 }
 .online-wait {
   opacity: 0.7;

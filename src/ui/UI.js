@@ -312,82 +312,57 @@ export class UI {
     this.clear();
     const s = el('div', 'ui-screen lobby-screen');
 
-    // capas de movimiento de fondo (mismo estilo que el title screen, más liviano)
+    // capas de movimiento de fondo (2 capas baked — 2 nodos en vez de ~23)
     const fx = el('div', 'lobby-fx');
-    // humo: blobs suaves que derivan (sin filter:blur)
-    [
-      { top: '12%', w: 300, dur: 28, delay: 0, op: 0.10 },
-      { top: '48%', w: 380, dur: 34, delay: 8, op: 0.08 },
-      { top: '70%', w: 260, dur: 24, delay: 14, op: 0.09 },
-    ].forEach((d) => {
-      const puff = el('div', 'lobby-smoke');
-      puff.style.cssText = `top:${d.top};left:-${d.w}px;width:${d.w}px;height:${d.w * 0.5}px;background:radial-gradient(ellipse,rgba(255,255,255,${d.op}) 0%,rgba(255,255,255,${d.op * 0.4}) 40%,transparent 72%);animation:lobbySmokeDrift ${d.dur}s linear ${d.delay}s infinite;`;
-      fx.append(puff);
-    });
-    // motas de polvo que derivan
-    [
-      { top: '22%', left: '8%', size: 2, dur: 20, delay: 0 },
-      { top: '55%', left: '78%', size: 3, dur: 24, delay: 6 },
-      { top: '38%', left: '45%', size: 2, dur: 18, delay: 11 },
-      { top: '72%', left: '90%', size: 2, dur: 22, delay: 3 },
-    ].forEach((d) => {
-      const mote = el('div', 'lobby-dust');
-      mote.style.cssText = `top:${d.top};left:${d.left};width:${d.size}px;height:${d.size}px;animation:lobbyDustDrift ${d.dur}s linear ${d.delay}s infinite;`;
-      fx.append(mote);
-    });
-    // brillos flotantes que titilan (cruz + núcleo, como en el title)
-    [
-      { top: '18%', left: '12%', size: 12, dur: 3.6, delay: 0 },
-      { top: '30%', left: '84%', size: 10, dur: 4.2, delay: 1.5 },
-      { top: '62%', left: '20%', size: 11, dur: 3.9, delay: 2.8 },
-      { top: '55%', left: '76%', size: 9, dur: 4.6, delay: 0.9 },
-    ].forEach((d) => {
-      const gl = el('div', 'lobby-glint');
-      gl.style.cssText = `top:${d.top};left:${d.left};width:${d.size}px;height:${d.size}px;animation:lobbyGlintTwinkle ${d.dur}s ease-in-out ${d.delay}s infinite;`;
-      const core = el('div', 'lobby-glint-core');
-      const armH = el('div', 'lobby-glint-arm-h');
-      const armV = el('div', 'lobby-glint-arm-v');
-      gl.append(core, armH, armV);
-      fx.append(gl);
-    });
+    fx.append(el('div', 'fx-layer lobby-fx-smoke'), el('div', 'fx-layer lobby-fx-glints'));
     s.append(fx);
 
-    s.append(el('div', 'ui-title', 'ELEGÍ TU PELEADOR'), el('div', 'ui-subtitle', 'Tocá la tarjeta para cambiar de personaje'));
+    // header arriba
+    const header = el('div', 'lobby-header');
+    header.append(
+      el('div', 'ui-title', 'ELEGÍ TU PELEADOR'),
+      el('div', 'ui-subtitle', 'Tocá la tarjeta para cambiar de personaje'),
+    );
     // indicador de joystick conectado (Gamepad API)
     const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
     if (pads.some((p) => p?.connected)) {
-      const gp = el('div', 'lobby-gamepad-ind', '🎮 Joystick conectado — stick/d-pad: moverse · A: saltar · X: atacar · B/Y: especial');
-      s.append(gp);
+      header.append(el('div', 'lobby-gamepad-ind', '🎮 Joystick conectado — stick/d-pad: moverse · A: saltar · X: atacar · B/Y: especial'));
     }
+    s.append(header);
 
-    const row = el('div', 'lobby-slots');
+    // centro despejado: ahí se ve el lineup 3D de los peleadores
+    s.append(el('div', 'lobby-spacer'));
+
     const rerender = () => { this.showLobby(slots); };
 
-    // grilla scrolleable: con 8-10 puertos no empuja el botón de pelea
+    // grilla de puertos abajo-izquierda (1 fila ≤5; filas balanceadas si hay más)
     const scroll = el('div', 'lobby-slots-scroll');
     if (this._slotsCollapsed) scroll.classList.add('collapsed');
-    scroll.append(row);
+    const grid = el('div', 'lobby-grid');
+    const cols = slots.length <= 5 ? slots.length : Math.ceil(slots.length / 2);
+    grid.style.gridTemplateColumns = `repeat(${cols}, minmax(112px, 190px))`;
+    scroll.append(grid);
 
     slots.forEach((slot, i) => {
-      const cfg = GAME_CONFIG.players[i];
-      const card = el('div', `lobby-slot ui-panel${slot.type === 'off' ? ' off' : ''}`);
-      card.append(el('div', 'slot-tag', `PUERTO ${i + 1}`));
+      const card = el('div', `lobby-slot${slot.type === 'off' ? ' off' : ''}`);
+      const inner = el('div', 'slot-inner');
+      inner.append(el('div', 'slot-tag', `PUERTO ${i + 1}`));
 
       // tipo de slot: cerrado → humano → CPU
-      card.append(smallBtn(TYPE_LABEL[slot.type], () => {
+      const typeBtn = smallBtn(TYPE_LABEL[slot.type], () => {
         slot.type = slot.type === 'off' ? 'human' : slot.type === 'human' ? 'cpu' : 'off';
         rerender();
-      }));
+      });
+      typeBtn.classList.add('slot-btn');
 
-      // personaje (cicla por GAME_CONFIG.characters) — muestra la TARJETA SPLASH ART
-      // del personaje (estilo champion select) en vez del retrato recortado
+      // personaje (cicla) — tarjeta splash art estilo champion select
       const ch = GAME_CONFIG.characters[slot.character];
       const charBtn = smallBtn('', () => {
         const idx = CHARACTER_IDS.indexOf(slot.character);
         slot.character = CHARACTER_IDS[(idx + 1) % CHARACTER_IDS.length];
         rerender();
       });
-      charBtn.classList.add('slot-char', 'slot-char-card');
+      charBtn.classList.add('slot-btn', 'slot-char', 'slot-char-card');
       const charImg = document.createElement('img');
       charImg.alt = ch.name;
       charImg.draggable = false;
@@ -397,7 +372,6 @@ export class UI {
       const nameTag = el('div', 'slot-char-name', ch.name);
       nameTag.style.background = ch.color;
       charBtn.append(charImg, nameTag);
-      card.append(charBtn);
 
       // dificultad (solo si es CPU)
       const diffBtn = smallBtn(
@@ -408,15 +382,21 @@ export class UI {
           rerender();
         });
       diffBtn.disabled = slot.type !== 'cpu';
-      card.append(diffBtn);
+      diffBtn.classList.add('slot-btn');
 
-      card.querySelectorAll('.slot-btn').forEach((b) => b.classList.add('slot-btn'));
-      row.append(card);
+      // tipo + dificultad en una fila (ahorra alto con 2 filas de puertos)
+      const actions = el('div', 'slot-actions');
+      actions.append(typeBtn, diffBtn);
+
+      inner.append(charBtn, actions);
+      card.append(inner);
+      grid.append(card);
     });
     s.append(scroll);
 
+    // controles abajo-derecha: mapa + pelear + volver
     const active = slots.filter((x) => x.type !== 'off').length;
-    const bottom = el('div', 'lobby-bottom');
+    const controls = el('div', 'lobby-controls');
 
     // con muchos puertos la grilla puede tapar la pantalla: toggle para colapsar
     if (slots.length >= 8) {
@@ -425,29 +405,34 @@ export class UI {
         () => { this._slotsCollapsed = !this._slotsCollapsed; rerender(); },
       );
       toggle.classList.add('slot-btn', 'lobby-slots-toggle');
-      bottom.append(toggle);
+      controls.append(toggle);
     }
 
     // selector de mapa: cicla por GAME_CONFIG.stages — al cambiar, el renderer
     // reconstruye el escenario 3D de fondo (onStageChange en main.js)
     const stageIds = Object.keys(GAME_CONFIG.stages);
-    const stageBtn = smallBtn(`MAPA: ${GAME_CONFIG.stages[this._stageId ?? GAME_CONFIG.defaultStage].name}`, () => {
+    const stageBtn = btn(`MAPA: ${GAME_CONFIG.stages[this._stageId ?? GAME_CONFIG.defaultStage].name}`, () => {
       const cur = stageIds.indexOf(this._stageId ?? GAME_CONFIG.defaultStage);
       this._stageId = stageIds[(cur + 1) % stageIds.length];
       // avisar al renderer para que cambie el escenario 3D de fondo
       this.actions.onStageChange?.(this._stageId);
       rerender();
     });
-    stageBtn.classList.add('lobby-stage-btn');
-    bottom.append(stageBtn);
+    stageBtn.classList.add('btn-smash', 'lobby-stage-btn');
+    controls.append(stageBtn);
 
     const fight = btn(`¡A PELEAR! (${active} jugadores)`, () => this.actions.onFight(slots, this._stageId ?? GAME_CONFIG.defaultStage));
     fight.disabled = active < 2;
-    fight.classList.add('lobby-fight-btn');
+    fight.classList.add('btn-smash', 'btn-primary', 'lobby-fight-btn');
+    controls.append(fight);
+
     const back = btn('VOLVER', () => this.actions.onMenu());
-    back.classList.add('secondary');
-    bottom.append(fight, back);
-    s.append(bottom);
+    back.classList.add('btn-smash', 'btn-outline-cyan');
+    controls.append(back);
+
+    const bottomArea = el('div', 'lobby-bottom-area');
+    bottomArea.append(scroll, controls);
+    s.append(bottomArea);
     this.root.append(s);
   }
 
@@ -467,6 +452,7 @@ export class UI {
     const create = el('div', 'ui-panel online-panel');
     create.append(el('div', 'slot-tag', 'CREAR SALA'), el('div', 'online-panel-text', 'Generás un código, se lo mandás a tus amigos y cuando se unen, arrancás la pelea.'));
     const createBtn = btn('CREAR SALA', () => ctx.onCreate?.());
+    createBtn.classList.add('btn-smash', 'btn-primary');
     create.append(createBtn);
     grid.append(create);
 
@@ -480,6 +466,7 @@ export class UI {
     input.spellcheck = false;
     join.append(input, el('div', 'online-panel-text', 'Pegá el código de 6 letras que te pasó el anfitrión.'));
     const joinBtn = btn('ENTRAR', () => ctx.onJoin?.(input.value.trim()));
+    joinBtn.classList.add('btn-smash', 'btn-primary');
     joinBtn.disabled = ctx.busy;
     join.append(joinBtn);
     input.addEventListener('keydown', (e) => {
@@ -490,7 +477,7 @@ export class UI {
 
     s.append(grid);
     const back = btn('VOLVER', () => ctx.onLeave?.());
-    back.classList.add('secondary');
+    back.classList.add('btn-smash', 'btn-outline-cyan');
     s.append(back);
     this.root.append(s);
     setTimeout(() => input.focus(), 50);
@@ -599,12 +586,13 @@ export class UI {
       const active = room.fighters.length;
       const start = btn(`¡A PELEAR! (${active} jugadores)`, () => ctx.onStart?.());
       start.disabled = active < 2;
+      start.classList.add('btn-smash', 'btn-primary', 'lobby-fight-btn');
       bottom.append(start);
     } else {
       bottom.append(el('div', 'online-wait', '… esperando al anfitrión …'));
     }
     const leave = btn('SALIR DE LA SALA', () => ctx.onLeave?.());
-    leave.classList.add('secondary');
+    leave.classList.add('btn-smash', 'btn-outline-magenta');
     bottom.append(leave);
     s.append(bottom);
     this.root.append(s);
@@ -792,7 +780,8 @@ function el(tag, cls, html) {
 function btn(label, onClick) {
   const b = document.createElement('button');
   b.className = 'ui-btn';
-  b.textContent = label;
+  // span interno: .btn-smash lo contrapendientea para que el texto quede derecho
+  b.innerHTML = `<span>${label}</span>`;
   b.onclick = onClick;
   return b;
 }
