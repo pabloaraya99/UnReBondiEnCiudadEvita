@@ -5,6 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { GAME_CONFIG } from '../config.js';
 import { CameraRig } from './CameraRig.js';
 import { buildKenai } from './KenaiModel.js';
@@ -1612,13 +1613,18 @@ export class Renderer {
    *  Cada modelo tiene un color de carrocería fijo. La rotación y el pivotaje vertical se
    *  aplican SIEMPRE sobre el clone (no sobre el original del pool): el Peugeot tiene
    *  esqueleto jerárquico y su offset en Y cambia al rotarlo, así que pivotar el original
-   *  sin rotar lo dejaba flotando "desde arriba". */
+   *  sin rotar lo dejaba flotando "desde arriba".
+   *  El Peugeot además es SkinnedMesh (62 skins): clone(true) deja el esqueleto apuntando
+   *  a los huesos ORIGINALES (que viven en el pool, fuera de la escena), así que la carrocería
+   *  se dibujaba clavada en el origen (en el medio de la plataforma) mientras las ruedas
+   *  normales seguían al auto en la calle. skeletonClone() reenlaza huesos + bind del clone. */
   makeTrafficCar(id, poolIds) {
     const poolId = poolIds[id % poolIds.length];
     const def = CAR_MODEL_FILES.find((d) => d.id === poolId);
     const src = this.carModelPool?.get(poolId);
+    const tint = new THREE.Color(def?.color ?? 0xf4f1e8);
     if (src) {
-      const clone = src.clone(true);
+      const clone = skeletonClone(src);
       if (def?.rotY) clone.rotation.y = def.rotY;
       clone.updateMatrixWorld(true);
       // pivotar el clone ya rotado: apoyar en el suelo (y=0) y centrar en x/z
@@ -1628,7 +1634,6 @@ export class Renderer {
       clone.position.z -= ctr.z;
       clone.position.y -= b.min.y;
       // tinte de color del modelo (deja vidrios/metasles/neumáticos casi igual)
-      const tint = new THREE.Color(def?.color ?? 0xf4f1e8);
       clone.traverse((o) => {
         if (!o.isMesh || !o.material) return;
         // clone(true) comparte materiales con el pool: SIEMPRE clonar antes de
