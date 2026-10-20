@@ -185,7 +185,7 @@ export class UI {
     coco: 'damas',         // Damas Gratis - Se te ve la tanga 8bit
     domono: 'calle',       // Una calle me separa 8bit
     faxo: 'damas',         // Damas Gratis - Se te ve la tanga 8bit
-    chubitcoin: 'calle',   // Una calle me separa 8bit
+    chubitcoin: 'pajaritos', // Cumbia de los pajaritos 8bit (tema anterior del title)
   };
 
   /** Galería de champions: splash art grande, lore, habilidades, stats y controles. */
@@ -703,6 +703,32 @@ export class UI {
       this._lastCenter = msg;
       this.centerMsg.innerHTML = msg ? `<span>${msg}</span>` : '';
     }
+  }
+
+  // ================================================================ PAUSA
+
+  /** Overlay de pausa (partida local): se apila sobre el HUD sin limpiarlo. */
+  showPause(opts = {}) {
+    if (this.pauseOverlay) return;
+    const s = el('div', 'pause-overlay');
+    const panel = el('div', 'pause-panel');
+    panel.append(el('div', 'ui-title', 'PAUSA'));
+    const resume = btn('CONTINUAR', () => opts.onResume?.());
+    resume.classList.add('btn-smash', 'btn-primary');
+    const quit = btn('ABANDONAR', () => opts.onQuit?.());
+    quit.classList.add('btn-smash', 'btn-outline-magenta');
+    panel.append(resume, quit, el('div', 'pause-hint', 'ESC para continuar · M silencia'));
+    s.append(panel);
+    this.root.append(s);
+    this.pauseOverlay = s;
+    resume.focus();
+  }
+
+  /** Cierra el overlay de pausa si existe (llamado al salir de playing). */
+  hidePause() {
+    if (!this.pauseOverlay) return;
+    this.pauseOverlay.remove();
+    this.pauseOverlay = null;
   }
 
   // ================================================================ RESULTADOS

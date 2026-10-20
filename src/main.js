@@ -82,6 +82,7 @@ const app = {
   slots: defaultSlots(),
   online: null, // { room, link, isHost, selfId } cuando hay sala abierta
   onlineRematch: false, // la partida actual es online
+  paused: false, // pausa local (ESC) durante la partida
 };
 
 /** Lobby por defecto: P1 humano (Pablo) + 3 CPU + resto de puertos cerrados. */
@@ -128,6 +129,9 @@ const ui = new UI(document.body, {
 });
 
 function setState(s) {
+  // al cambiar de pantalla se cierra la pausa si quedó abierta
+  app.paused = false;
+  ui.hidePause();
   app.state = s;
   // música de fondo según la pantalla (archivos en public/assets/music/)
   if (s === 'menu' || s === 'lobby' || s === 'online-home' || s === 'online-room') audio.playMusic('menu');
@@ -147,6 +151,20 @@ function setState(s) {
     if (s === 'lobby') { renderer.showLineup(); ui.showLobby(app.slots); }
     else if (s === 'online-home') { renderer.showLineup(); showOnlineHome(); }
     else if (s === 'online-room') { renderer.showLineup(); showOnlineRoom(); }
+  }
+}
+
+/** Pausa/reanuda la partida local (ESC). En online no se usa: ahí ESC
+ *  pide confirmar salida (pausar de un solo lado desincroniza el rollback). */
+function setPaused(on) {
+  app.paused = on;
+  if (on) {
+    ui.showPause({
+      onResume: () => setPaused(false),
+      onQuit: () => setState('lobby'),
+    });
+  } else {
+    ui.hidePause();
   }
 }
 
@@ -177,6 +195,7 @@ function startMatch(slots, stageId = GAME_CONFIG.defaultStage) {
   renderer.snapCamera(app.match);
   ui.showHUD(app.match);
   app.state = 'playing';
+  app.paused = false;
   audio.playMusic('battle');
 }
 
@@ -340,6 +359,7 @@ function startOnlineMatch() {
   renderer.snapCamera(app.match);
   ui.showHUD(app.match);
   app.state = 'playing';
+  app.paused = false;
   audio.playMusic('battle');
 }
 
@@ -469,46 +489,14 @@ function loop(now) {
   accumulator += frameTime;
 
   if (app.state === 'playing' && app.match) {
-    let steps = 0;
-    while (accumulator >= DT && steps < MAX_STEPS) {
-      if (app.onlineRematch && app.online) {
-        stepOnline();
-      } else {
-        const inputs = app.match.players.map((p, i) =>
-          app.cpus[i] ? app.cpus[i].decide(app.match) : readMask(i)
-        );
-        app.match.step(inputs);
-        audio.onEvents(app.match.events);
-        renderer.onEvents(app.match.events, app.match);
-      }
-      accumulator -= DT;
-      lastStepAt = now;
-      steps++;
-    }
-    renderer.render(app.match, accumulator / DT, DT);
-    ui.updateHUD(app.match);
-
-    // fin de partida → resultados (cuando ya se puede revancha)
-    if (app.match.phase === 'finished' && app.match.canRematch) {
-      app.state = 'results';
-      if (app.onlineRematch && app.online) {
-        ui.showResults(app.match, {
-          online: true,
-          isHost: app.online.isHost,
-          onLeaveOnline: () => leaveOnline(() => setState('menu')),
-        });
-      } else {
-        ui.showResults(app.match);
-      }
-    }
-
-    // ESC → online: salir con confirmación / local: volver al lobby
+    // teclas de partida (se leen aunque esté en pausa)
     if (keys['Escape']) {
       keys['Escape'] = false;
       if (app.onlineRematch && app.online) {
+        // online: pausar de un solo lado desincroniza → solo abandonar con confirmación
         if (confirm('¿Abandonar la sala online?')) leaveOnline(() => setState('menu'));
       } else {
-        setState('lobby');
+        setPaused(!app.paused);
       }
     }
     // F1 → mostrar/ocultar hitboxes de debug
@@ -520,6 +508,45 @@ function loop(now) {
     if (keys['KeyM']) {
       keys['KeyM'] = false;
       ui.toast(audio.toggleMute() ? 'Sonido silenciado (M)' : 'Sonido activado (M)');
+    }
+
+    if (app.paused) {
+      // pausa: no se simula; el canvas queda congelado en el último cuadro
+      accumulator = 0;
+      lastStepAt = now;
+    } else {
+      let steps = 0;
+      while (accumulator >= DT && steps < MAX_STEPS) {
+        if (app.onlineRematch && app.online) {
+          stepOnline();
+        } else {
+          const inputs = app.match.players.map((p, i) =>
+            app.cpus[i] ? app.cpus[i].decide(app.match) : readMask(i)
+          );
+          app.match.step(inputs);
+          audio.onEvents(app.match.events);
+          renderer.onEvents(app.match.events, app.match);
+        }
+        accumulator -= DT;
+        lastStepAt = now;
+        steps++;
+      }
+      renderer.render(app.match, accumulator / DT, DT);
+      ui.updateHUD(app.match);
+
+      // fin de partida → resultados (cuando ya se puede revancha)
+      if (app.match.phase === 'finished' && app.match.canRematch) {
+        app.state = 'results';
+        if (app.onlineRematch && app.online) {
+          ui.showResults(app.match, {
+            online: true,
+            isHost: app.online.isHost,
+            onLeaveOnline: () => leaveOnline(() => setState('menu')),
+          });
+        } else {
+          ui.showResults(app.match);
+        }
+      }
     }
   } else {
     // menú / lobby / resultados: solo el escenario de fondo + lineup si estamos en lobby

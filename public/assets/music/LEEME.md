@@ -9,9 +9,13 @@ Poné acá tus canciones (cumbias 8-bit de Suno, o lo que quieras) y el juego la
 
 | Nombre del archivo | Dónde suena |
 |---|---|
-| `menu.mp3` | Pantalla de título / menú principal |
+| `menu.mp3` | Pantalla de título / menú principal (Cumbia NES chiptune La resaka — 26.8s, loopea) |
 | `battle.mp3` | Durante la pelea |
 | `results.mp3` | Pantalla de resultados |
+| `champions.mp3` | Galería Peleadores — Kenai |
+| `damas.mp3` | Galería Peleadores — El Coco / Dr Faxo |
+| `calle.mp3` | Galería Peleadores — Dj Domono |
+| `pajaritos.mp3` | Galería Peleadores — Chubitcoin (era el tema del title) |
 
 3. **Formatos aceptados**: `.mp3`, `.ogg`, `.wav` (el `.mp3` es el más compatible).
 

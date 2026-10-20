@@ -24,7 +24,7 @@ let musicName = null;             // nombre de la pista actual
 let musicWant = null;             // pista pedida por el juego
 let unlocked = false;             // ya se hizo resume() tras el primer gesto
 const MUSIC_VOL = 0.45;           // volumen base de la música (los SFX van arriba)
-const MUSIC_TRACKS = ['menu', 'battle', 'results', 'champions', 'damas', 'calle']; // todas las pistas
+const MUSIC_TRACKS = ['menu', 'battle', 'results', 'champions', 'damas', 'calle', 'pajaritos']; // todas las pistas
 
 // tag <audio> de respaldo: algunos browsers permiten autoplay muted y con
 // el primer gesto lo desmuteamos (arranca antes que el Web Audio path)
@@ -212,6 +212,7 @@ export const audio = {
   },
   /**
    * Pide música de fondo. name: 'menu' | 'battle' | 'results' | 'champions' | 'damas'
+   *                          | 'calle' | 'pajaritos'
    * Antes del primer gesto: usa <audio> muted autoplay (puede arrancar sin gesto).
    * Después del primer gesto: Web Audio es la única fuente (sin duplicar).
    */

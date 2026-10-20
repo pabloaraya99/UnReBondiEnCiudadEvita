@@ -960,6 +960,48 @@
 .champ-back:hover { background: #f2d06e; }
 
 /* ============================================================
+   PAUSA: overlay sobre la partida (solo partida local)
+   ============================================================ */
+.pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 11, 16, 0.78);
+  pointer-events: auto;
+  animation: pauseIn 0.16s var(--ease-ui);
+}
+@keyframes pauseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.pause-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-width: min(86vw, 360px);
+  padding: clamp(24px, 5vh, 44px) clamp(28px, 5vw, 56px);
+  background: var(--bg-panel);
+  border: 2px solid var(--color-neon-cyan);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 50px rgba(6, 214, 160, 0.18), var(--shadow-panel);
+  text-align: center;
+}
+.pause-panel .ui-title {
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  text-shadow: 0 4px 0 #7a5c1e;
+}
+.pause-panel .btn-smash { width: min(72vw, 260px); }
+.pause-hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+/* ============================================================
    RESULTS: pantalla de victoria con splash art del campeón
    ============================================================ */
 .results-screen {
