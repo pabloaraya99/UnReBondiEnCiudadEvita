@@ -220,9 +220,6 @@ export class UI {
     champions.textContent = 'PELEADORES';
     champions.style.cssText = 'position:absolute;top:calc(2% + 120px);left:50%;transform:translateX(-50%);padding:10px 28px;font-size:clamp(12px,1.6vw,17px);font-weight:900;letter-spacing:0.05em;color:#14161a;background:#9b59b6;border:3px solid #14161a;border-radius:10px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
     champions.onclick = () => this.actions.onChampions?.();
-    const help = document.createElement('div');
-    help.textContent = 'P1: A/D mover · ESPACIO saltar · G atacar · H especial';
-    help.style.cssText = 'position:absolute;top:calc(2% + 164px);left:0;right:0;margin:0 auto;width:max-content;font-size:clamp(11px,1.5vw,15px);font-weight:700;color:rgba(244,241,232,0.85);text-shadow:0 1px 3px rgba(0,0,0,0.9);z-index:50;';
 
     const version = document.createElement('div');
     version.textContent = 'v5';
@@ -245,7 +242,7 @@ export class UI {
     `;
     document.head.appendChild(st);
 
-    s.append(bgShake, posteImg, flash, fxLayer, titleWrap, play, online, champions, help, version);
+    s.append(bgShake, posteImg, flash, fxLayer, titleWrap, play, online, champions, version);
 
     // overlay "TOCÁ PARA EMPEZAR": patrón estándar de juegos web.
     // Al tocar, se saca y desbloquea el audio (los browsers exigen un gesto).
@@ -266,13 +263,14 @@ export class UI {
 
   // ================================================================ CHAMPIONS (galería)
 
-  /** Temas por campeón: cada uno tiene su cumbia propia al posarse sobre él. */
+  /** Temas por campeón: cada uno tiene su cumbia propia al posarse sobre él.
+   *  Solo temas que NO son de title/pelea/resultados (esos van en sus pantallas). */
   static CHAMPION_MUSIC = {
-    pablo: 'battle',        // Bailan Rochas y Chetas
-    coco: 'menu',           // Cumbia de los pajaritos
-    domono: 'champions',    // Smash Brawl Cumbia remix
-    faxo: 'results',        // Marcianito
-    chubitcoin: 'damas',    // Damas Gratis - Se te ve la tanga 8bit
+    pablo: 'champions',    // Smash Brawl Cumbia remix
+    coco: 'damas',         // Damas Gratis - Se te ve la tanga 8bit
+    domono: 'calle',       // Una calle me separa 8bit
+    faxo: 'damas',         // Damas Gratis - Se te ve la tanga 8bit
+    chubitcoin: 'calle',   // Una calle me separa 8bit
   };
 
   /** Galería de champions: splash art grande, lore, habilidades, stats y controles. */
