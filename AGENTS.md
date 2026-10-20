@@ -60,7 +60,8 @@ src/
     ui.css           → design system (tokens :root Cyber-Cumbia: paleta, tipografía Bungee +
                        Chakra Petch, radios, glows, easings) + estilos de todas las pantallas
 test/
-  pablo.test.js      → 17 tests de simulación (node --test). Deben pasar siempre.
+  pablo.test.js      → 24 tests de simulación (node --test). Deben pasar siempre.
+  net.test.js        → 4 tests de red/sala (node --test).
 public/assets/
   models/            → GLB de modelos 3D (cuando se generen con IAs externas)
   concept/kenai/     → imágenes de referencia de personajes
