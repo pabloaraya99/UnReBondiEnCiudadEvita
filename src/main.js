@@ -10,7 +10,10 @@ import { wireHost, wireGuest } from './net/wire.js';
 import { audio } from './audio.js';
 import './ui/ui.css';
 
-// El navegador solo deja sonar audio después de un gesto del jugador
+// El navegador solo deja sonar audio después de un gesto del jugador.
+// init() precarga y decodifica todas las pistas apenas carga la página
+// (el ctx queda suspended); unlock() con el primer gesto las arranca.
+audio.init();
 const unlockAudio = () => audio.unlock();
 window.addEventListener('pointerdown', unlockAudio, true);
 window.addEventListener('keydown', unlockAudio, true);
@@ -127,9 +130,10 @@ const ui = new UI(document.body, {
 function setState(s) {
   app.state = s;
   // música de fondo según la pantalla (archivos en public/assets/music/)
-  if (s === 'menu' || s === 'lobby' || s === 'online-home' || s === 'online-room' || s === 'champions') audio.playMusic('menu');
+  if (s === 'menu' || s === 'lobby' || s === 'online-home' || s === 'online-room') audio.playMusic('menu');
+  else if (s === 'champions') audio.playMusic('champions');
   else if (s === 'playing') audio.playMusic('battle');
-  else if (s === 'results') audio.stopMusic();
+  else if (s === 'results') audio.playMusic('results');
   // el canvas 3D se oculta en el menú y champions (pantallas de solo UI)
   // y se muestra en el resto (lobby usa el lineup 3D, playing usa el escenario)
   const canvas = renderer.renderer.domElement;

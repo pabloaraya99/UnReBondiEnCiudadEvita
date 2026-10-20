@@ -763,35 +763,77 @@ export class UI {
    */
   showResults(match, opts = {}) {
     this.clear();
-    const s = el('div', 'ui-screen');
+    const s = el('div', 'ui-screen results-screen');
     const w = match.winner;
     const winnerSlot = w >= 0 ? GAME_CONFIG.players[match.fighters[w].index % GAME_CONFIG.players.length] : null;
+
     if (w >= 0) {
       const f = match.fighters[w];
-      s.append(
-        el('div', 'ui-title', `¡GANÓ ${winnerSlot.short}!`),
-        el('div', 'ui-subtitle', `${f.spec.name} — quedó con ${f.stocks} ${f.stocks === 1 ? 'vida' : 'vidas'}`),
-      );
+      const cid = f.characterId;
+      const splash = CHARACTER_SPLASH[cid];
+      const spec = f.spec;
+
+      // confeti simple (puros divs animados, sin canvas)
+      for (let i = 0; i < 28; i++) {
+        const c = el('div', 'res-confetti');
+        const colors = ['#e9c46a', '#d8352a', '#2dd4bf', '#4d8bff', '#f4f1e8', '#9b59b6'];
+        c.style.cssText = `left:${Math.random() * 100}vw;animation-delay:${Math.random() * 2.5}s;animation-duration:${2.5 + Math.random() * 2}s;background:${colors[i % colors.length]};width:${6 + Math.random() * 8}px;height:${10 + Math.random() * 12}px;`;
+        s.append(c);
+      }
+
+      // fondo tenue del splash art del ganador
+      const bg = el('div', 'res-bg');
+      bg.style.backgroundImage = `url('${splash}')`;
+      s.append(bg);
+
+      // corona + título
+      const crown = el('div', 'res-crown', '👑');
+      const title = el('div', 'res-title', `¡GANÓ ${winnerSlot.short}!`);
+      const name = el('div', 'res-name', spec.name);
+
+      // splash art grande del campeón
+      const artWrap = el('div', 'res-art-wrap');
+      const art = el('img', 'res-art');
+      art.src = splash;
+      art.alt = spec.name;
+      art.draggable = false;
+      artWrap.append(art);
+
+      // stats de la pelea
+      const fStats = el('div', 'res-stats');
+      const stocksTxt = `${f.stocks} ${f.stocks === 1 ? 'vida' : 'vidas'}`;
+      fStats.append(el('div', 'res-stat', `<b>${stocksTxt}</b> restantes`));
+      const pct = Math.round(f.percent);
+      fStats.append(el('div', 'res-stat', `<b>${pct}%</b> de daño recibido`));
+
+      s.append(crown, title, name, artWrap, fStats);
     } else {
-      s.append(el('div', 'ui-title', 'EMPATE'), el('div', 'ui-subtitle', 'Nadie quedó en pie'));
+      s.append(
+        el('div', 'res-crown', '💥'),
+        el('div', 'res-title', 'EMPATE'),
+        el('div', 'res-name', 'Nadie quedó en pie'),
+      );
     }
 
+    // botones
+    const btns = el('div', 'res-btns');
     if (opts.online) {
       const rematch = btn('REVANCHA', () => this.actions.onRematch());
       rematch.disabled = !opts.isHost;
       if (!opts.isHost) rematch.title = 'Solo el anfitrión puede dar revancha';
       const leave = btn('SALIR DE LA SALA', () => opts.onLeaveOnline?.());
       leave.classList.add('secondary');
-      const note = el('div', 'controls-help', opts.isHost ? 'La revancha reinicia la sala para todos' : 'Esperando que el anfitrión decida');
-      s.append(rematch, leave, note);
+      btns.append(rematch, leave);
+      if (!opts.isHost) btns.append(el('div', 'res-note', 'Esperando que el anfitrión decida…'));
     } else {
       const rematch = btn('REVANCHA', () => this.actions.onRematch());
       const lobby = btn('LOBBY', () => this.actions.onLobby());
       lobby.classList.add('secondary');
       const menu = btn('MENÚ', () => this.actions.onMenu());
       menu.classList.add('secondary');
-      s.append(rematch, lobby, menu);
+      btns.append(rematch, lobby, menu);
     }
+    s.append(btns);
     this.root.append(s);
   }
 }

@@ -17,13 +17,14 @@ let muted = false;
 // ------------------------------------------------------------------ música
 const MUSIC_BASE = '/assets/music/';
 const musicCache = new Map();     // nombre → AudioBuffer (ya decodificado)
-const musicPending = new Map();   // nombre → Promise<AudioBuffer|null> (fetch en curso)
+const musicPending = new Map();   // nombre → Promise (fetch+decode en curso)
 let musicSource = null;           // AudioBufferSourceNode actual
 let musicGain = null;             // GainNode de la música (para fade)
 let musicName = null;             // nombre de la pista actual
-let musicWant = null;             // pista que el juego pidió (si el load termina después, la arranca)
+let musicWant = null;             // pista pedida por el juego
+let unlocked = false;             // ya se hizo resume() tras el primer gesto
 const MUSIC_VOL = 0.45;           // volumen base de la música (los SFX van arriba)
-const MUSIC_TRACKS = ['menu', 'battle']; // pistas que existen (se precargan todas)
+const MUSIC_TRACKS = ['menu', 'battle', 'results', 'champions']; // todas las pistas
 
 /** Descarga + decodifica una pista. Se cachea y no reintenta si no existe. */
 async function loadMusic(name) {
@@ -47,14 +48,14 @@ async function loadMusic(name) {
   return p;
 }
 
-/** Arranca una pista ya cacheada (sin fade largo: arranca casi de una). */
+/** Arranca una pista ya cacheada (sin fade: arranca al toque). */
 function startMusicNow(buffer) {
   stopMusicNow(0.15);
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.loop = true;
   const g = ctx.createGain();
-  g.gain.value = MUSIC_VOL; // sin fade-in: arranca al toque
+  g.gain.value = MUSIC_VOL;
   src.connect(g).connect(master);
   src.start();
   musicSource = src;
@@ -76,6 +77,18 @@ function stopMusicNow(fade = 0.2) {
     g.gain.linearRampToValueAtTime(0, ctx.currentTime + fade);
     src.stop(ctx.currentTime + fade + 0.05);
   } catch { /* ya parado */ }
+}
+
+/** Llamar cuando se pide música: si el ctx ya está desbloqueado, arranca ya;
+ *  si no, deja musicWant y arranca solo en unlock(). */
+function tryStartWanted() {
+  if (!unlocked || !ctx || ctx.state !== 'running') return;
+  if (!musicWant) return;
+  const cached = musicCache.get(musicWant);
+  if (cached) startMusicNow(cached);
+  else loadMusic(musicWant).then((buf) => {
+    if (buf && musicWant && ctx?.state === 'running') startMusicNow(buf);
+  });
 }
 
 function noise(c, dur) {
@@ -141,43 +154,41 @@ const SFX = {
 };
 
 export const audio = {
+  /** Prepara el AudioContext y precarga TODAS las pistas apenas carga la página
+   *  (el ctx queda suspended hasta el primer gesto, pero fetch+decode corren ya). */
+  init() {
+    if (ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ctx = new AC(); // arranca suspended (política de autoplay)
+    master = ctx.createGain();
+    master.gain.value = muted ? 0 : 0.7;
+    master.connect(ctx.destination);
+    // precargar y decodificar todas las pistas en background
+    for (const t of MUSIC_TRACKS) loadMusic(t);
+  },
+  /** Desbloquea el audio con el primer gesto del jugador y arranca la música pedida. */
   unlock() {
-    if (!ctx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      ctx = new AC();
-      master = ctx.createGain();
-      master.gain.value = muted ? 0 : 0.7;
-      master.connect(ctx.destination);
-      // precargar todas las pistas en background: cuando playMusic las pida,
-      // ya están decodificadas y arrancan al toque (sin el delay de fetch+decode)
-      for (const t of MUSIC_TRACKS) loadMusic(t);
-    }
+    this.init();
+    if (!ctx) return;
     if (ctx.state === 'suspended') ctx.resume();
+    unlocked = true;
+    tryStartWanted();
   },
   play(name, strength) {
     if (!ctx || ctx.state !== 'running') return;
     SFX[name]?.(ctx, ctx.currentTime + 0.005, strength);
   },
   /**
-   * Reproduce música de fondo. name: 'menu' | 'battle'
-   * Si ya está cacheada, arranca instantáneamente. Si no, la carga y la
-   * arranca apenas termine (sin bloquear el juego).
+   * Pide música de fondo. name: 'menu' | 'battle' | 'results' | 'champions'
+   * Si el audio ya está desbloqueado y la pista está cacheada, arranca al toque.
+   * Si no, queda pendiente y arranca sola en unlock() o cuando termine de cargar.
    */
   playMusic(name) {
-    if (!ctx || ctx.state !== 'running') return;
+    this.init(); // por si nadie llamó unlock todavía
     if (musicName === name && musicSource) return; // ya suena
     musicWant = name;
-    const cached = musicCache.get(name);
-    if (cached) {
-      // ya decodificada: arranca de una
-      startMusicNow(cached);
-    } else {
-      // todavía cargando: arrancar apenas esté lista (si el usuario no pidió otra)
-      loadMusic(name).then((buf) => {
-        if (buf && musicWant === name && ctx?.state === 'running') startMusicNow(buf);
-      });
-    }
+    tryStartWanted();
   },
   /** Para la música con fade. */
   stopMusic(fade = 0.3) {

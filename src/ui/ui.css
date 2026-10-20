@@ -800,3 +800,116 @@
 }
 .champ-back:hover { background: #f2d06e; }
 
+/* ============================================================
+   RESULTS: pantalla de victoria con splash art del campeón
+   ============================================================ */
+.results-screen {
+  background: #0c0e14;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.res-bg {
+  position: absolute;
+  inset: -20px;
+  background-size: cover;
+  background-position: center top;
+  opacity: 0.1;
+  filter: blur(20px) saturate(0.6);
+  pointer-events: none;
+}
+.res-confetti {
+  position: absolute;
+  top: -20px;
+  border-radius: 2px;
+  z-index: 1;
+  pointer-events: none;
+  animation: resConfettiFall linear forwards;
+  opacity: 0.9;
+}
+@keyframes resConfettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0.2; }
+}
+.res-crown {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(36px, 6vw, 64px);
+  animation: resBounce 1.2s ease-in-out infinite;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+}
+@keyframes resBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-10px) scale(1.08); }
+}
+.res-title {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 900;
+  color: #e9c46a;
+  text-shadow: 0 4px 0 #7a5c1e, 0 8px 24px rgba(0,0,0,0.8);
+  letter-spacing: 0.03em;
+  animation: resTitleIn 0.5s ease-out;
+}
+@keyframes resTitleIn {
+  from { transform: scale(2.2); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+.res-name {
+  position: relative;
+  z-index: 2;
+  font-size: clamp(20px, 3vw, 34px);
+  font-weight: 900;
+  color: #f4f1e8;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+}
+.res-art-wrap {
+  position: relative;
+  z-index: 2;
+  margin: 12px 0 8px;
+  animation: resArtIn 0.6s ease-out;
+}
+@keyframes resArtIn {
+  from { transform: translateY(40px) scale(0.8); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+.res-art {
+  max-height: 38vh;
+  max-width: min(40vw, 380px);
+  object-fit: contain;
+  border-radius: 16px;
+  border: 3px solid #e9c46a;
+  box-shadow: 0 0 40px rgba(233,196,106,0.35), 0 16px 48px rgba(0,0,0,0.7);
+}
+.res-stats {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 24px;
+  margin: 6px 0 14px;
+}
+.res-stat {
+  font-size: clamp(13px, 1.6vw, 17px);
+  color: rgba(244,241,232,0.8);
+}
+.res-stat b { color: #e9c46a; }
+.res-btns {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.res-note {
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(244,241,232,0.6);
+  margin-top: 6px;
+}
+
+
