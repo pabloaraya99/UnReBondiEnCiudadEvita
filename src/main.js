@@ -6,6 +6,7 @@ import { IN } from './sim/input.js';
 import { UI } from './ui/UI.js';
 import { Room, ROLLBACK_FRAMES } from './net/Room.js';
 import { hostLink, guestLink, randomCode } from './net/peerLink.js';
+import { wireHost, wireGuest } from './net/wire.js';
 import { audio } from './audio.js';
 import './ui/ui.css';
 
@@ -190,7 +191,7 @@ function showOnlineHome() {
           name: MY_NAME,
         });
         app.online = { room, link, isHost: true, selfId: 'host' };
-        wireHost(link, room);
+        wireHost(link, room, makeOnlineHooks());
         room.code = link.code;
         setState('online-room');
         ui.toast(`Sala creada: ${link.code}`);
@@ -209,7 +210,7 @@ function showOnlineHome() {
         // esperar el welcome del host
         const room = new Room({ host: false, selfId: '' });
         app.online = { room, link, isHost: false, selfId: '' };
-        wireGuest(link, room);
+        wireGuest(link, room, makeOnlineHooks());
         room.code = code;
         link.send({ t: 'hello', name: MY_NAME });
         setState('online-room');
@@ -264,101 +265,32 @@ function showOnlineRoom() {
   });
 }
 
-/** Cablea un link de anfitrión: hello/want-char son suyos; el resto se relé + se procesa. */
-function wireHost(link, room) {
-  room.send = (msg) => link.send(msg);
-  link.onMessage((msg, fromId, conn) => {
-    if (!msg || !msg.t) return;
-    if (msg.t === 'hello') {
-      const humans = room.fighters.filter((f) => f.owner !== 'cpu').length;
-      if (room.state !== 'lobby' || humans >= GAME_CONFIG.maxPlayers) {
-        conn.send(JSON.stringify({ t: 'closed' }));
-        return;
-      }
-      const id = room.addMember(msg.name || 'Jugador');
-      link.register(conn, id);
-      // un fighter humano para el nuevo miembro (si hay lugar)
-      if (room.fighters.length < GAME_CONFIG.maxPlayers) {
-        room.fighters.push({ owner: id, character: 'coco', ai: null });
-      }
-      conn.send(JSON.stringify(room.welcomeFor(id, msg.name)));
-      room.send({ t: 'roster', members: room.members });
-      room.broadcastConfig();
-      showOnlineRoomIfLobby();
-      return;
-    }
-    if (msg.t === 'want-char') {
-      const fg = room.fighters[msg.fighterIdx];
-      if (room.state === 'lobby' && fg && fg.owner === fromId) {
-        room.fighters[msg.fighterIdx] = { ...fg, character: msg.character };
-        room.broadcastConfig();
-      }
-      return;
-    }
-    // el resto: procesar localmente + relé a los demás
-    room.receive(msg, fromId);
-    for (const m of room.members) {
-      if (m.id !== fromId) link.sendTo(m.id, { ...msg, from: fromId });
-    }
-  });
-  link.onLeave((id) => {
-    const member = room.members.find((m) => m.id === id);
-    // índices de los fighters que controlaba (antes de removerlo)
-    const idxs = room.fighters.map((f, i) => (f.owner === id ? i : -1)).filter((i) => i >= 0);
-    room.removeMember(id);
-    if (room.state === 'lobby') {
-      room.fighters = room.fighters.filter((f) => f.owner !== id);
-      room.broadcastConfig();
-      showOnlineRoomIfLobby();
-    }
-    room.send({ t: 'roster', members: room.members });
-    room.send({ t: 'leave', i: idxs, f: room.frame, name: member?.name ?? id });
-    ui.toast('Alguien se desconectó');
-  });
-  wireRoomEvents(room);
-}
-
-/** Cablea un link de guest: todo llega del host (con from explícito). */
-function wireGuest(link, room) {
-  room.send = (msg) => link.send(msg);
-  link.onMessage((msg) => {
-    if (!msg || !msg.t) return;
-    if (msg.t === 'welcome') {
-      room.selfId = msg.selfId;
-      room.members = msg.members;
-      room.fighters = msg.fighters;
-      room.stageId = msg.stageId;
-      room.stocks = msg.stocks;
+/** Hooks de UI para wireHost/wireGuest (mismo comportamiento que el glue inline de antes). */
+function makeOnlineHooks() {
+  return {
+    maxPlayers: GAME_CONFIG.maxPlayers,
+    toast: (m) => ui.toast(m),
+    // host: re-render solo si estamos en la pantalla de sala
+    onLobbyChange: () => { if (app.state === 'online-room') showOnlineRoom(); },
+    // guest: el welcome pinta la sala (igual que antes, incondicional)
+    onWelcome: (msg) => {
       app.online.selfId = msg.selfId;
       showOnlineRoom();
-      return;
-    }
-    room.receive(msg, msg.from ?? 'host');
-  });
-  link.onLeave(() => {
-    ui.toast('Se cortó la conexión con el anfitrión');
-    leaveOnline(() => setState('menu'));
-  });
-  wireRoomEvents(room);
-}
-
-/** Eventos de Room comunes a host y guest. */
-function wireRoomEvents(room) {
-  room.onEvent = (type, data) => {
-    if (type === 'config' && app.state === 'online-room') showOnlineRoom();
-    else if (type === 'roster' && app.state === 'online-room') showOnlineRoom();
-    else if (type === 'start') startOnlineMatch();
-    else if (type === 'resync') { /* lo consume stepOnline */ }
-    else if (type === 'leave' && data?.name) ui.toast(`${data.name} se fue`);
-    else if (type === 'closed') { ui.toast('La sala ya empezó'); leaveOnline(() => setState('menu')); }
-    else if (type === 'rtt' && data != null && app.state === 'online-room') {
-      // ping respondido: nada que hacer, room.rtt ya quedó guardado
-    }
+    },
+    // guest: se cortó la conexión con el anfitrión
+    onHostLost: () => leaveOnline(() => setState('menu')),
+    onEvent: (type, data) => {
+      if (type === 'config' && app.state === 'online-room') showOnlineRoom();
+      else if (type === 'roster' && app.state === 'online-room') showOnlineRoom();
+      else if (type === 'start') startOnlineMatch();
+      else if (type === 'resync') { /* lo consume stepOnline */ }
+      else if (type === 'leave' && data?.name) ui.toast(`${data.name} se fue`);
+      else if (type === 'closed') { ui.toast('La sala ya empezó'); leaveOnline(() => setState('menu')); }
+      else if (type === 'rtt' && data != null && app.state === 'online-room') {
+        // ping respondido: nada que hacer, room.rtt ya quedó guardado
+      }
+    },
   };
-}
-
-function showOnlineRoomIfLobby() {
-  if (app.state === 'online-room') showOnlineRoom();
 }
 
 /** Construye la partida online a partir de la config de la sala (idéntica en todos los peers). */
@@ -497,6 +429,7 @@ function executeRollback(rb, upTo) {
 // loop principal (física a paso fijo, render interpolado)
 // ================================================================
 const DT = GAME_CONFIG.physicsStep;
+const MAX_STEPS = 50;
 let last = performance.now();
 let accumulator = 0;
 let lastStepAt = performance.now();
@@ -520,7 +453,8 @@ function loop(now) {
   accumulator += frameTime;
 
   if (app.state === 'playing' && app.match) {
-    while (accumulator >= DT) {
+    let steps = 0;
+    while (accumulator >= DT && steps < MAX_STEPS) {
       if (app.onlineRematch && app.online) {
         stepOnline();
       } else {
@@ -533,6 +467,7 @@ function loop(now) {
       }
       accumulator -= DT;
       lastStepAt = now;
+      steps++;
     }
     renderer.render(app.match, accumulator / DT, DT);
     ui.updateHUD(app.match);
