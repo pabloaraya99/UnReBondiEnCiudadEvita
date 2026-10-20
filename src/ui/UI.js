@@ -624,7 +624,7 @@ export class UI {
       const slot = GAME_CONFIG.players[f.index % GAME_CONFIG.players.length];
       const card = el('div', 'hud-card');
       card.style.setProperty('--pcolor', slot.color);
-      // rectángulo con CLOSE-UP del rostro (zoom + centrado por CSS según FACE_POS)
+      // cara en paralelogramo con CLOSE-UP del rostro (zoom por CSS con --fx/--fy)
       const face = el('div', 'hud-face');
       const img = el('img', 'hud-face-img');
       img.src = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai3d 1.png';
@@ -633,16 +633,17 @@ export class UI {
       const pos = FACE_POS[f.characterId] || [0.5, 0.27];
       img.style.setProperty('--fx', pos[0]);
       img.style.setProperty('--fy', pos[1]);
-      // el % queda integrado abajo del rectángulo del rostro (chip de color llamativo)
-      const pct = el('div', 'hud-pct', '0%');
-      face.append(img, pct);
+      face.append(img);
       const info = el('div', 'hud-info');
       const name = el('div', 'hud-name', `${slot.short} · ${f.spec.name}`);
+      // el % sin chip: es texto que cambia de color según el daño (updateHUD)
+      const pct = el('div', 'hud-pct', '0%');
+      // vidas: iconitos del personaje con aro del color del jugador
       const stocks = el('div', 'hud-stocks');
-      info.append(name, stocks);
+      info.append(name, pct, stocks);
       card.append(face, info);
       hud.append(card);
-      return { card, pct, stocks, f };
+      return { card, pct, stocks, f, lastPct: f.percent, stockKey: '' };
     });
 
     this.centerMsg = el('div', '');
@@ -657,15 +658,34 @@ export class UI {
     for (const c of this.hudCards) {
       const f = c.f;
       c.pct.textContent = `${Math.floor(f.percent)}%`;
-      // chip del %: amarillo bondi → naranja → rojo (texto oscuro siempre encima)
-      const t = Math.min(1, f.percent / 150);
-      c.pct.style.background = `rgb(242, ${Math.round(201 - 140 * t)}, ${Math.round(76 - 60 * t)})`;
-      // vidas
-      c.stocks.innerHTML = '';
-      for (let i = 0; i < match.stocks; i++) {
-        const dot = el('div', `hud-stock${i < f.stocks ? '' : ' lost'}`);
-        dot.style.background = i < f.stocks ? GAME_CONFIG.players[f.index % GAME_CONFIG.players.length].color : 'transparent';
-        c.stocks.append(dot);
+      // el TEXTO del % cambia de color con el daño: blanco → amarillo → naranja → magenta
+      const p = f.percent;
+      c.pct.style.color = p >= 120 ? 'var(--color-cumbia-magenta)'
+        : p >= 80 ? '#FF9A3C'
+          : p >= 40 ? 'var(--color-bondi-yellow)'
+            : 'var(--text-primary)';
+      // sacudida de la tarjeta al recibir daño (reinicio con reflow para repetir)
+      if (p > c.lastPct + 0.5) {
+        c.card.classList.remove('shake-damage');
+        void c.card.offsetWidth;
+        c.card.classList.add('shake-damage');
+      }
+      c.lastPct = p;
+      // vidas: iconitos del personaje — solo se reconstruyen si cambió el estado
+      const stockKey = `${f.stocks}/${match.stocks}`;
+      if (stockKey !== c.stockKey) {
+        c.stockKey = stockKey;
+        c.stocks.innerHTML = '';
+        const splash = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai3d 1.png';
+        for (let i = 0; i < match.stocks; i++) {
+          const dot = el('div', `hud-stock${i < f.stocks ? '' : ' lost'}`);
+          const si = el('img');
+          si.src = splash;
+          si.alt = '';
+          si.draggable = false;
+          dot.append(si);
+          c.stocks.append(dot);
+        }
       }
       c.card.classList.toggle('dead', f.state === 'dead');
     }
