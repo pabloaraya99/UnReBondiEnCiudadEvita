@@ -85,10 +85,13 @@ function tryStartWanted() {
   if (!unlocked || !ctx || ctx.state !== 'running') return;
   if (!musicWant) return;
   const cached = musicCache.get(musicWant);
-  if (cached) startMusicNow(cached);
-  else loadMusic(musicWant).then((buf) => {
-    if (buf && musicWant && ctx?.state === 'running') startMusicNow(buf);
-  });
+  if (cached) {
+    startMusicNow(cached);
+  } else {
+    loadMusic(musicWant).then((buf) => {
+      if (buf && musicWant && unlocked && ctx?.state === 'running') startMusicNow(buf);
+    });
+  }
 }
 
 function noise(c, dur) {
@@ -168,10 +171,14 @@ export const audio = {
     for (const t of MUSIC_TRACKS) loadMusic(t);
   },
   /** Desbloquea el audio con el primer gesto del jugador y arranca la música pedida. */
-  unlock() {
+  async unlock() {
     this.init();
     if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume();
+    // resume() es async: hay que esperarlo antes de intentar tocar
+    if (ctx.state === 'suspended') {
+      try { await ctx.resume(); } catch { /* sin permiso */ }
+    }
+    if (ctx.state !== 'running') return;
     unlocked = true;
     tryStartWanted();
   },
@@ -189,6 +196,12 @@ export const audio = {
     if (musicName === name && musicSource) return; // ya suena
     musicWant = name;
     tryStartWanted();
+    // fallback: si el ctx todavía no está running (resume pendiente),
+    // reintentar en el próximo tick y a los 100ms
+    if (!unlocked || ctx?.state !== 'running') {
+      setTimeout(tryStartWanted, 0);
+      setTimeout(tryStartWanted, 100);
+    }
   },
   /** Para la música con fade. */
   stopMusic(fade = 0.3) {
