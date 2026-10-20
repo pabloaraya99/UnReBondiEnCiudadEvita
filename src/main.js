@@ -125,6 +125,10 @@ const ui = new UI(document.body, {
 
 function setState(s) {
   app.state = s;
+  // música de fondo según la pantalla (archivos en public/assets/music/)
+  if (s === 'menu' || s === 'lobby' || s === 'online-home' || s === 'online-room') audio.playMusic('menu');
+  else if (s === 'playing') audio.playMusic('battle');
+  else if (s === 'results') audio.stopMusic();
   // el canvas 3D se oculta en el menú (title screen estático = solo la imagen)
   // y se muestra en el resto (lobby usa el lineup 3D, playing usa el escenario)
   const canvas = renderer.renderer.domElement;
@@ -167,6 +171,7 @@ function startMatch(slots, stageId = GAME_CONFIG.defaultStage) {
   renderer.snapCamera(app.match);
   ui.showHUD(app.match);
   app.state = 'playing';
+  audio.playMusic('battle');
 }
 
 // ================================================================
@@ -196,9 +201,9 @@ function showOnlineHome() {
         setState('online-room');
         ui.toast(`Sala creada: ${link.code}`);
       } catch (err) {
-        console.error(err);
+        console.error('[online] host error:', err);
         ui.showOnlineHome({ busy: false });
-        ui.toast('No se pudo crear la sala (señal caída?)');
+        ui.toast('No se pudo crear la sala (¿internet?)');
       }
     },
     onJoin: async (rawCode) => {
@@ -215,9 +220,13 @@ function showOnlineHome() {
         link.send({ t: 'hello', name: MY_NAME });
         setState('online-room');
       } catch (err) {
-        console.error(err);
+        console.error('[online] join error:', err);
         ui.showOnlineHome({ busy: false });
-        const msg = err?.message === 'no-existe' ? 'No existe esa sala' : 'No se pudo conectar';
+        const msg = err?.message === 'no-existe'
+          ? 'No existe esa sala (revisá el código)'
+          : err?.message === 'sin-respuesta'
+            ? 'La sala no responde (¿el anfitrión está abierto?)'
+            : 'No se pudo conectar (¿internet? ¿firewall?)';
         ui.toast(msg);
       }
     },
@@ -325,6 +334,7 @@ function startOnlineMatch() {
   renderer.snapCamera(app.match);
   ui.showHUD(app.match);
   app.state = 'playing';
+  audio.playMusic('battle');
 }
 
 /** Sale de la sala online (botón o desconexión) y limpia todo. */

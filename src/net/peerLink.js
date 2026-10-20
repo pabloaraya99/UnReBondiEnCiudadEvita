@@ -17,6 +17,19 @@ import { Peer } from 'peerjs';
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const CODE_LEN = 6;
 
+// STUN servers públicos: sin ellos, detrás de NAT/celular WebRTC no puede
+// encontrar ruta y el join muere en timeout ("No se pudo conectar").
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
+];
+
+const PEER_OPTS = {
+  config: { iceServers: ICE_SERVERS },
+  debug: 1,
+};
+
 export function randomCode() {
   let s = '';
   for (let i = 0; i < CODE_LEN; i++) s += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
@@ -28,7 +41,7 @@ const PREFIX = 'urb-';
 /** Crea la sala (anfitrión). code opcional; si el id está ocupado, reintenta. */
 export function hostLink(code = randomCode(), tries = 4) {
   return new Promise((resolve, reject) => {
-    const peer = new Peer(PREFIX + code);
+    const peer = new Peer(PREFIX + code, PEER_OPTS);
     const conns = new Map(); // peerId → DataConnection (guests conectados)
     const byConn = new Map(); // DataConnection → peerId asignado
     let selfId = 'host';
@@ -104,15 +117,16 @@ export function hostLink(code = randomCode(), tries = 4) {
 /** Se une a una sala existente (guest). */
 export function guestLink(code) {
   return new Promise((resolve, reject) => {
-    const peer = new Peer(); // id aleatorio
+    const peer = new Peer(PEER_OPTS); // id aleatorio
     let conn = null;
     let messageHandler = () => {};
     let openHandler = () => {};
     let leaveHandler = () => {};
     const timeout = setTimeout(() => {
+      try { conn?.close(); } catch { /* nada */ }
       try { peer.destroy(); } catch { /* nada */ }
       reject(new Error('sin-respuesta'));
-    }, 12000);
+    }, 18000);
 
     const link = {
       isHost: false,

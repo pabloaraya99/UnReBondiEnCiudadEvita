@@ -142,13 +142,6 @@ export class UI {
       fxLayer.append(gl);
     });
 
-    // EL BONDI 56: cruza el fondo de lado a lado cada tanto (ícono del juego)
-    const bondiImg = document.createElement('img');
-    bondiImg.src = '/assets/ui/props/bondi-56.png';
-    bondiImg.alt = '';
-    bondiImg.draggable = false;
-    bondiImg.style.cssText = 'position:absolute;left:0;bottom:3%;width:min(32vw,440px);pointer-events:none;user-select:none;will-change:translate;animation:bondiPasa 16s linear infinite,bondiBob 0.8s ease-in-out infinite;';
-
     // título: abajo, mitad de tamaño, SIN transform translateX (queda más nítido)
     const titleWrap = document.createElement('div');
     titleWrap.style.cssText = 'position:absolute;bottom:4%;left:0;right:0;margin:0 auto;width:min(32vw,400px);animation:titleShake 3s ease-in-out infinite;';
@@ -174,7 +167,7 @@ export class UI {
     help.style.cssText = 'position:absolute;top:calc(2% + 116px);left:0;right:0;margin:0 auto;width:max-content;font-size:clamp(11px,1.5vw,15px);font-weight:700;color:rgba(244,241,232,0.85);text-shadow:0 1px 3px rgba(0,0,0,0.9);z-index:50;';
 
     const version = document.createElement('div');
-    version.textContent = 'v4-bondi-poste';
+    version.textContent = 'v5';
     version.style.cssText = 'position:absolute;bottom:12px;right:14px;font-size:12px;font-weight:700;color:rgba(244,241,232,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.9);';
 
     // keyframes inline: todos transform/opacity (GPU-composited, baratos)
@@ -191,12 +184,10 @@ export class UI {
       @keyframes dustDrift{0%{transform:translate(0,0);opacity:0}10%{opacity:0.55}90%{opacity:0.4}100%{transform:translate(-6vw,4vh);opacity:0}}
       @keyframes impactFlash{0%,88%,100%{opacity:0}92%{opacity:0.7}96%{opacity:0.25}}
       @keyframes glintTwinkle{0%,100%{transform:scale(0.4) rotate(0deg);opacity:0}40%{transform:scale(1) rotate(12deg);opacity:1}70%{transform:scale(0.7) rotate(20deg);opacity:0.5}}
-      @keyframes bondiPasa{0%{translate:-45vw 0}100%{translate:112vw 0}}
-      @keyframes bondiBob{0%,100%{transform:translateY(0) rotate(0deg)}35%{transform:translateY(-4px) rotate(-0.8deg)}70%{transform:translateY(-2px) rotate(0.5deg)}}
     `;
     document.head.appendChild(st);
 
-    s.append(bgShake, posteImg, flash, fxLayer, bondiImg, titleWrap, play, online, help, version);
+    s.append(bgShake, posteImg, flash, fxLayer, titleWrap, play, online, help, version);
     this.root.append(s);
   }
 

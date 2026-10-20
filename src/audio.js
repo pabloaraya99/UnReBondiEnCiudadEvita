@@ -1,13 +1,60 @@
 /**
- * Audio mínimo sintetizado con Web Audio (sin archivos). Alcanza para probar que los eventos de la simulación
- * llegan al sonido; en la fase de estética se puede portar el motor completo de Vita Machines (src/audio/).
+ * Audio del juego: SFX sintetizados + música desde archivos.
  *
- *   audio.unlock()                  con el primer gesto del jugador (el navegador no deja sonar antes)
- *   audio.play('hit', { strength }) efecto
+ * SFX: Web Audio sintetizado (sin archivos). Música: archivos MP3/OGG/WAV
+ * en public/assets/music/ (ver LEEME.md ahí para la convención de nombres).
+ *
+ *   audio.unlock()                    con el primer gesto del jugador
+ *   audio.play('hit', { strength })   efecto de sonido
+ *   audio.playMusic('menu')           música de fondo ('menu'|'battle'|'results')
+ *   audio.stopMusic()                 para la música con fade
+ *   audio.toggleMute()                mute general (M)
  */
 let ctx = null;
 let master = null;
 let muted = false;
+
+// ------------------------------------------------------------------ música
+const MUSIC_BASE = '/assets/music/';
+const musicCache = new Map(); // nombre → AudioBuffer
+let musicSource = null;       // AudioBufferSourceNode actual
+let musicGain = null;         // GainNode de la música (para fade)
+let musicName = null;         // nombre de la pista actual
+const MUSIC_VOL = 0.45;       // volumen base de la música (los SFX van arriba)
+
+/** Carga y decodifica una pista. Devuelve null si no existe (no crashea). */
+async function loadMusic(name) {
+  if (musicCache.has(name)) return musicCache.get(name);
+  // probar .mp3 primero, después .ogg, después .wav
+  for (const ext of ['mp3', 'ogg', 'wav']) {
+    try {
+      const res = await fetch(`${MUSIC_BASE}${name}.${ext}`);
+      if (!res.ok) continue;
+      const buf = await res.arrayBuffer();
+      const decoded = await ctx.decodeAudioData(buf);
+      musicCache.set(name, decoded);
+      return decoded;
+    } catch { /* probar siguiente ext */ }
+  }
+  musicCache.set(name, null); // no existe: no reintentar
+  return null;
+}
+
+/** Detiene la música actual con fade corto. */
+function stopMusicNow(fade = 0.3) {
+  if (!musicSource || !musicGain) return;
+  const src = musicSource;
+  const g = musicGain;
+  musicSource = null;
+  musicGain = null;
+  musicName = null;
+  try {
+    g.gain.cancelScheduledValues(ctx.currentTime);
+    g.gain.setValueAtTime(g.gain.value, ctx.currentTime);
+    g.gain.linearRampToValueAtTime(0, ctx.currentTime + fade);
+    src.stop(ctx.currentTime + fade + 0.05);
+  } catch { /* ya parado */ }
+}
 
 function noise(c, dur) {
   const safeDur = Math.max(0.01, Number.isFinite(dur) ? dur : 0.1);
@@ -86,6 +133,34 @@ export const audio = {
   play(name, strength) {
     if (!ctx || ctx.state !== 'running') return;
     SFX[name]?.(ctx, ctx.currentTime + 0.005, strength);
+  },
+  /**
+   * Reproduce música de fondo. name: 'menu' | 'battle' | 'results'
+   * (carga /assets/music/<name>.mp3 — ver LEEME.md en esa carpeta).
+   * Si la pista ya está sonando, no la reinicia. Si no existe el archivo, no hace nada.
+   */
+  async playMusic(name) {
+    if (!ctx || ctx.state !== 'running') return;
+    if (musicName === name && musicSource) return; // ya suena
+    const buffer = await loadMusic(name);
+    if (!buffer) return; // no hay archivo: silencio
+    // si ya hay música, la frenamos
+    stopMusicNow(0.25);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.loop = true;
+    const g = ctx.createGain();
+    g.gain.value = 0; // arranca en 0 y sube (fade-in)
+    src.connect(g).connect(master);
+    src.start();
+    g.gain.linearRampToValueAtTime(MUSIC_VOL, ctx.currentTime + 0.8);
+    musicSource = src;
+    musicGain = g;
+    musicName = name;
+  },
+  /** Para la música con fade. */
+  stopMusic(fade = 0.4) {
+    stopMusicNow(fade);
   },
   toggleMute() {
     muted = !muted;
