@@ -179,6 +179,12 @@ const SFX = {
   go: (c, t) => tone(c, t, { type: 'square', from: 880, dur: 0.4, gain: 0.14 }),
   win: (c, t) => [523, 659, 784, 1047].forEach((f, i) => tone(c, t + i * 0.13, { type: 'triangle', from: f, dur: 0.3, gain: 0.16 })),
   ui: (c, t) => tone(c, t, { type: 'sine', from: 660, dur: 0.07, gain: 0.08 }),
+  // sonidos de UI: hi-hat seco al pasar por botones + click de boletera
+  uiHover: (c, t) => hiss(c, t, { dur: 0.05, gain: 0.05, freq: 7000, q: 1.4 }),
+  uiClick: (c, t) => {
+    tone(c, t, { type: 'square', from: 1300, to: 700, dur: 0.04, gain: 0.09 });
+    hiss(c, t, { dur: 0.05, gain: 0.15, freq: 4000, q: 0.9 });
+  },
 };
 
 export const audio = {

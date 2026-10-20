@@ -943,24 +943,9 @@
   padding: 6px 0;
 }
 .champ-controls b { color: var(--color-bondi-yellow); }
-.champ-back {
-  position: relative;
-  z-index: 2;
-  display: block;
-  margin: 6px auto 0;
-  padding: 10px 28px;
-  font-size: 14px;
-  font-weight: 900;
-  color: #14161a;
-  background: var(--color-bondi-yellow);
-  border: 3px solid #14161a;
-  border-radius: 10px;
-  cursor: pointer;
-}
-.champ-back:hover { background: #f2d06e; }
 
 /* ============================================================
-   PAUSA: overlay sobre la partida (solo partida local)
+   RESULTS: pantalla de victoria con splash art del campeón
    ============================================================ */
 .pause-overlay {
   position: absolute;

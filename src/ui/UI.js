@@ -1,4 +1,5 @@
 import { GAME_CONFIG } from '../config.js';
+import { audio } from '../audio.js';
 
 const CHARACTER_IDS = Object.keys(GAME_CONFIG.characters);
 // tarjetas splash art de los personajes (estilo cómic con stats) para el champion select
@@ -93,6 +94,18 @@ export class UI {
     parent.appendChild(this.root);
     this.hudCards = [];
     this.centerMsg = null;
+    // sonidos de UI (delegación en todo botón de cualquier pantalla):
+    // hi-hat al pasar por encima + click de boletera al apretar
+    this.root.addEventListener('pointerover', (e) => {
+      const b = e.target.closest?.('button');
+      if (b === this._sfxHover) return;
+      this._sfxHover = b || null;
+      if (b && !b.disabled) audio.play('uiHover');
+    });
+    this.root.addEventListener('click', (e) => {
+      const b = e.target.closest?.('button');
+      if (b && !b.disabled) audio.play('uiClick');
+    });
   }
 
   /** Limpia la pantalla actual. */
@@ -296,8 +309,8 @@ export class UI {
       s.append(controls);
 
       // volver
-      const back = el('button', 'champ-back', 'VOLVER AL TÍTULO');
-      back.onclick = () => this.actions.onMenu();
+      const back = btn('VOLVER AL TÍTULO', () => this.actions.onMenu());
+      back.classList.add('btn-smash', 'btn-outline-cyan');
       s.append(back);
     };
 
