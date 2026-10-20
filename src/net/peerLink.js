@@ -105,7 +105,7 @@ export function hostLink(code = randomCode(), tries = 4) {
 export function guestLink(code) {
   return new Promise((resolve, reject) => {
     const peer = new Peer(); // id aleatorio
-    const conn = peer.connect(PREFIX + code.toUpperCase(), { reliable: true });
+    let conn = null;
     let messageHandler = () => {};
     let openHandler = () => {};
     let leaveHandler = () => {};
@@ -118,32 +118,39 @@ export function guestLink(code) {
       isHost: false,
       code: code.toUpperCase(),
       send(msg) {
-        if (conn.open) conn.send(JSON.stringify(msg));
+        if (conn && conn.open) conn.send(JSON.stringify(msg));
       },
       onMessage(fn) { messageHandler = fn; },
       onOpen(fn) { openHandler = fn; },
       onLeave(fn) { leaveHandler = fn; },
       close() {
-        try { conn.close(); } catch { /* nada */ }
+        try { conn?.close(); } catch { /* nada */ }
         peer.destroy();
       },
       peer,
     };
 
-    conn.on('open', () => {
-      clearTimeout(timeout);
-      openHandler();
-      resolve(link);
-    });
-    conn.on('data', (raw) => {
-      let msg;
-      try { msg = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return; }
-      messageHandler(msg, 'host', null);
-    });
-    conn.on('close', () => leaveHandler('host'));
-    conn.on('error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
+    // IMPORTANTE: conectar SOLO después del 'open' del peer. Si peer.connect()
+    // se llama con el socket de señalización todavía cerrado, la oferta WebRTC
+    // nunca sale: el host jamás recibe 'connection' y el join muere en timeout
+    // ("No se pudo conectar").
+    peer.on('open', () => {
+      conn = peer.connect(PREFIX + code.toUpperCase(), { reliable: true });
+      conn.on('open', () => {
+        clearTimeout(timeout);
+        openHandler();
+        resolve(link);
+      });
+      conn.on('data', (raw) => {
+        let msg;
+        try { msg = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { return; }
+        messageHandler(msg, 'host', null);
+      });
+      conn.on('close', () => leaveHandler('host'));
+      conn.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
     });
     peer.on('error', (err) => {
       clearTimeout(timeout);
