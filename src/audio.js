@@ -79,17 +79,18 @@ function stopMusicNow(fade = 0.2) {
   } catch { /* ya parado */ }
 }
 
-/** Llamar cuando se pide música: si el ctx ya está desbloqueado, arranca ya;
- *  si no, deja musicWant y arranca solo en unlock(). */
+/** Llamar cuando se pide música: si el ctx está desbloqueado (incluso si aún
+ *  resume), Web Audio encola el source y suena apenas el ctx quede running. */
 function tryStartWanted() {
-  if (!unlocked || !ctx || ctx.state !== 'running') return;
+  if (!unlocked || !ctx) return;
   if (!musicWant) return;
+  if (musicName === musicWant && musicSource) return;
   const cached = musicCache.get(musicWant);
   if (cached) {
     startMusicNow(cached);
   } else {
     loadMusic(musicWant).then((buf) => {
-      if (buf && musicWant && unlocked && ctx?.state === 'running') startMusicNow(buf);
+      if (buf && musicWant && unlocked) startMusicNow(buf);
     });
   }
 }
@@ -171,14 +172,12 @@ export const audio = {
     for (const t of MUSIC_TRACKS) loadMusic(t);
   },
   /** Desbloquea el audio con el primer gesto del jugador y arranca la música pedida. */
-  async unlock() {
+  unlock() {
     this.init();
     if (!ctx) return;
-    // resume() es async: hay que esperarlo antes de intentar tocar
-    if (ctx.state === 'suspended') {
-      try { await ctx.resume(); } catch { /* sin permiso */ }
-    }
-    if (ctx.state !== 'running') return;
+    // resume() sin await: Web Audio encola los sources y suena apenas el ctx arranque.
+    // Si esperáramos la promise, la música llegaría tarde.
+    if (ctx.state === 'suspended') ctx.resume();
     unlocked = true;
     tryStartWanted();
   },
@@ -188,20 +187,14 @@ export const audio = {
   },
   /**
    * Pide música de fondo. name: 'menu' | 'battle' | 'results' | 'champions'
-   * Si el audio ya está desbloqueado y la pista está cacheada, arranca al toque.
-   * Si no, queda pendiente y arranca sola en unlock() o cuando termine de cargar.
+   * Si el audio ya está desbloqueado, arranca al toque (Web Audio encola si
+   * el ctx aún está resumiendo). Si no, queda pendiente hasta unlock().
    */
   playMusic(name) {
     this.init(); // por si nadie llamó unlock todavía
     if (musicName === name && musicSource) return; // ya suena
     musicWant = name;
     tryStartWanted();
-    // fallback: si el ctx todavía no está running (resume pendiente),
-    // reintentar en el próximo tick y a los 100ms
-    if (!unlocked || ctx?.state !== 'running') {
-      setTimeout(tryStartWanted, 0);
-      setTimeout(tryStartWanted, 100);
-    }
   },
   /** Para la música con fade. */
   stopMusic(fade = 0.3) {

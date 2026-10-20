@@ -209,7 +209,7 @@ export class UI {
 
     // start: arriba, donde estaba el título
     const play = document.createElement('button');
-    play.textContent = 'PARÁ DE MANO';
+    play.textContent = 'PARME DE MANOS';
     play.style.cssText = 'position:absolute;top:2%;left:50%;transform:translateX(-50%);padding:14px 48px;font-size:clamp(16px,2.2vw,24px);font-weight:900;letter-spacing:0.05em;color:#10121a;background:#e9c46a;border:4px solid #14161a;border-radius:14px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
     play.onclick = () => this.actions.onPlay();
     const online = document.createElement('button');
