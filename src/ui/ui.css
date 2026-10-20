@@ -912,4 +912,38 @@
   margin-top: 6px;
 }
 
+/* ============================================================
+   TAP TO START: overlay de primer arranque (desbloquea audio)
+   ============================================================ */
+.tap-start-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 12, 20, 0.55);
+  cursor: pointer;
+  pointer-events: auto;
+  animation: tapFadeIn 0.4s ease-out;
+}
+@keyframes tapFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.tap-start-text {
+  font-size: clamp(22px, 4vw, 42px);
+  font-weight: 900;
+  color: #e9c46a;
+  text-shadow: 0 3px 0 #7a5c1e, 0 8px 24px rgba(0,0,0,0.8);
+  letter-spacing: 0.06em;
+  animation: tapPulse 1.4s ease-in-out infinite;
+  user-select: none;
+}
+@keyframes tapPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.8; }
+}
+
+
 

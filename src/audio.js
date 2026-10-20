@@ -26,6 +26,38 @@ let unlocked = false;             // ya se hizo resume() tras el primer gesto
 const MUSIC_VOL = 0.45;           // volumen base de la música (los SFX van arriba)
 const MUSIC_TRACKS = ['menu', 'battle', 'results', 'champions']; // todas las pistas
 
+// tag <audio> de respaldo: algunos browsers permiten autoplay muted y con
+// el primer gesto lo desmuteamos (arranca antes que el Web Audio path)
+let htmlAudio = null;
+
+/** Crea el <audio> muted+autoplay con la pista pedida (camino rápido de algunos browsers). */
+function ensureHtmlAudio(name) {
+  if (!htmlAudio) {
+    htmlAudio = new Audio();
+    htmlAudio.loop = true;
+    htmlAudio.muted = true; // los browsers permiten autoplay muted
+    htmlAudio.preload = 'auto';
+  }
+  const src = `${MUSIC_BASE}${name}.mp3`;
+  if (htmlAudio.src !== new URL(src, location.href).href) {
+    htmlAudio.src = src;
+    htmlAudio.load();
+  }
+  // autoplay muted: intenta arrancar sin gesto (funciona en Chrome/Edge a veces)
+  const p = htmlAudio.play();
+  if (p) p.catch(() => { /* bloqueado: esperar gesto */ });
+}
+
+/** Sincroniza el <audio> con el estado: playing o pausado. */
+function syncHtmlAudio(playing, name) {
+  if (!htmlAudio) return;
+  if (!playing) { htmlAudio.pause(); return; }
+  if (name && htmlAudio.src.includes(`${name}.mp3`)) {
+    htmlAudio.muted = !unlocked; // desmutea cuando el gesto ya pasó
+    if (htmlAudio.paused) htmlAudio.play().catch(() => {});
+  }
+}
+
 /** Descarga + decodifica una pista. Se cachea y no reintenta si no existe. */
 async function loadMusic(name) {
   if (musicCache.has(name)) return musicCache.get(name);
@@ -171,14 +203,18 @@ export const audio = {
     // precargar y decodificar todas las pistas en background
     for (const t of MUSIC_TRACKS) loadMusic(t);
   },
-  /** Desbloquea el audio con el primer gesto del jugador y arranca la música pedida. */
+  /** Desbloquea el audio con el primer gesto del jugador y arranca la música. */
   unlock() {
     this.init();
     if (!ctx) return;
-    // resume() sin await: Web Audio encola los sources y suena apenas el ctx arranque.
-    // Si esperáramos la promise, la música llegaría tarde.
+    // Web Audio: resume sin await (en sources y suena apenas el ctx arranque)
     if (ctx.state === 'suspended') ctx.resume();
     unlocked = true;
+    // desmutear el <audio> de respaldo y sincronizar
+    if (htmlAudio) {
+      htmlAudio.muted = false;
+      if (musicWant && htmlAudio.paused) htmlAudio.play().catch(() => {});
+    }
     tryStartWanted();
   },
   play(name, strength) {
@@ -187,18 +223,24 @@ export const audio = {
   },
   /**
    * Pide música de fondo. name: 'menu' | 'battle' | 'results' | 'champions'
-   * Si el audio ya está desbloqueado, arranca al toque (Web Audio encola si
-   * el ctx aún está resumiendo). Si no, queda pendiente hasta unlock().
+   * Usa doble camino: <audio> muted autoplay (arranca sin gesto en algunos
+   * browsers) + Web Audio (calidad y control de fade). Al primer gesto se
+   * desmutea el <audio> y el Web Audio queda como fuente principal.
    */
   playMusic(name) {
-    this.init(); // por si nadie llamó unlock todavía
+    this.init();
     if (musicName === name && musicSource) return; // ya suena
     musicWant = name;
+    // camino rápido: <audio> muted autoplay (puede arrancar sin gesto)
+    ensureHtmlAudio(name);
+    syncHtmlAudio(true, name);
+    // camino principal: Web Audio (arranca cuando el ctx esté listo)
     tryStartWanted();
   },
   /** Para la música con fade. */
   stopMusic(fade = 0.3) {
     musicWant = null;
+    syncHtmlAudio(false);
     stopMusicNow(fade);
   },
   toggleMute() {

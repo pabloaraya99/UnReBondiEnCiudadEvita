@@ -246,6 +246,21 @@ export class UI {
     document.head.appendChild(st);
 
     s.append(bgShake, posteImg, flash, fxLayer, titleWrap, play, online, champions, help, version);
+
+    // overlay "TOCÁ PARA EMPEZAR": patrón estándar de juegos web.
+    // Al tocar, se saca y desbloquea el audio (los browsers exigen un gesto).
+    if (!this._audioUnlocked) {
+      const tap = el('div', 'tap-start-overlay');
+      tap.innerHTML = '<div class="tap-start-text">TOCÁ PARA EMPEZAR</div>';
+      tap.onclick = () => {
+        this._audioUnlocked = true;
+        tap.remove();
+        // disparar unlock manualmente por si el listener de window no alcanzó
+        import('../audio.js').then((m) => m.audio.unlock());
+      };
+      s.append(tap);
+    }
+
     this.root.append(s);
   }
 
