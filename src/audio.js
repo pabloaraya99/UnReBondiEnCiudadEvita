@@ -16,32 +16,54 @@ let muted = false;
 
 // ------------------------------------------------------------------ música
 const MUSIC_BASE = '/assets/music/';
-const musicCache = new Map(); // nombre → AudioBuffer
-let musicSource = null;       // AudioBufferSourceNode actual
-let musicGain = null;         // GainNode de la música (para fade)
-let musicName = null;         // nombre de la pista actual
-const MUSIC_VOL = 0.45;       // volumen base de la música (los SFX van arriba)
+const musicCache = new Map();     // nombre → AudioBuffer (ya decodificado)
+const musicPending = new Map();   // nombre → Promise<AudioBuffer|null> (fetch en curso)
+let musicSource = null;           // AudioBufferSourceNode actual
+let musicGain = null;             // GainNode de la música (para fade)
+let musicName = null;             // nombre de la pista actual
+let musicWant = null;             // pista que el juego pidió (si el load termina después, la arranca)
+const MUSIC_VOL = 0.45;           // volumen base de la música (los SFX van arriba)
+const MUSIC_TRACKS = ['menu', 'battle']; // pistas que existen (se precargan todas)
 
-/** Carga y decodifica una pista. Devuelve null si no existe (no crashea). */
+/** Descarga + decodifica una pista. Se cachea y no reintenta si no existe. */
 async function loadMusic(name) {
   if (musicCache.has(name)) return musicCache.get(name);
-  // probar .mp3 primero, después .ogg, después .wav
-  for (const ext of ['mp3', 'ogg', 'wav']) {
-    try {
-      const res = await fetch(`${MUSIC_BASE}${name}.${ext}`);
-      if (!res.ok) continue;
-      const buf = await res.arrayBuffer();
-      const decoded = await ctx.decodeAudioData(buf);
-      musicCache.set(name, decoded);
-      return decoded;
-    } catch { /* probar siguiente ext */ }
-  }
-  musicCache.set(name, null); // no existe: no reintentar
-  return null;
+  if (musicPending.has(name)) return musicPending.get(name);
+  const p = (async () => {
+    for (const ext of ['mp3', 'ogg', 'wav']) {
+      try {
+        const res = await fetch(`${MUSIC_BASE}${name}.${ext}`);
+        if (!res.ok) continue;
+        const buf = await res.arrayBuffer();
+        const decoded = await ctx.decodeAudioData(buf);
+        musicCache.set(name, decoded);
+        return decoded;
+      } catch { /* probar siguiente ext */ }
+    }
+    musicCache.set(name, null);
+    return null;
+  })();
+  musicPending.set(name, p);
+  return p;
+}
+
+/** Arranca una pista ya cacheada (sin fade largo: arranca casi de una). */
+function startMusicNow(buffer) {
+  stopMusicNow(0.15);
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.loop = true;
+  const g = ctx.createGain();
+  g.gain.value = MUSIC_VOL; // sin fade-in: arranca al toque
+  src.connect(g).connect(master);
+  src.start();
+  musicSource = src;
+  musicGain = g;
+  musicName = musicWant;
 }
 
 /** Detiene la música actual con fade corto. */
-function stopMusicNow(fade = 0.3) {
+function stopMusicNow(fade = 0.2) {
   if (!musicSource || !musicGain) return;
   const src = musicSource;
   const g = musicGain;
@@ -127,6 +149,9 @@ export const audio = {
       master = ctx.createGain();
       master.gain.value = muted ? 0 : 0.7;
       master.connect(ctx.destination);
+      // precargar todas las pistas en background: cuando playMusic las pida,
+      // ya están decodificadas y arrancan al toque (sin el delay de fetch+decode)
+      for (const t of MUSIC_TRACKS) loadMusic(t);
     }
     if (ctx.state === 'suspended') ctx.resume();
   },
@@ -135,31 +160,28 @@ export const audio = {
     SFX[name]?.(ctx, ctx.currentTime + 0.005, strength);
   },
   /**
-   * Reproduce música de fondo. name: 'menu' | 'battle' | 'results'
-   * (carga /assets/music/<name>.mp3 — ver LEEME.md en esa carpeta).
-   * Si la pista ya está sonando, no la reinicia. Si no existe el archivo, no hace nada.
+   * Reproduce música de fondo. name: 'menu' | 'battle'
+   * Si ya está cacheada, arranca instantáneamente. Si no, la carga y la
+   * arranca apenas termine (sin bloquear el juego).
    */
-  async playMusic(name) {
+  playMusic(name) {
     if (!ctx || ctx.state !== 'running') return;
     if (musicName === name && musicSource) return; // ya suena
-    const buffer = await loadMusic(name);
-    if (!buffer) return; // no hay archivo: silencio
-    // si ya hay música, la frenamos
-    stopMusicNow(0.25);
-    const src = ctx.createBufferSource();
-    src.buffer = buffer;
-    src.loop = true;
-    const g = ctx.createGain();
-    g.gain.value = 0; // arranca en 0 y sube (fade-in)
-    src.connect(g).connect(master);
-    src.start();
-    g.gain.linearRampToValueAtTime(MUSIC_VOL, ctx.currentTime + 0.8);
-    musicSource = src;
-    musicGain = g;
-    musicName = name;
+    musicWant = name;
+    const cached = musicCache.get(name);
+    if (cached) {
+      // ya decodificada: arranca de una
+      startMusicNow(cached);
+    } else {
+      // todavía cargando: arrancar apenas esté lista (si el usuario no pidió otra)
+      loadMusic(name).then((buf) => {
+        if (buf && musicWant === name && ctx?.state === 'running') startMusicNow(buf);
+      });
+    }
   },
   /** Para la música con fade. */
-  stopMusic(fade = 0.4) {
+  stopMusic(fade = 0.3) {
+    musicWant = null;
     stopMusicNow(fade);
   },
   toggleMute() {
