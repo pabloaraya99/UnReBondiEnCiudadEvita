@@ -22,6 +22,60 @@ const DIFFICULTIES = ['easy', 'normal', 'hard'];
 const DIFFICULTY_LABEL = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };
 const TYPE_LABEL = { off: 'Cerrado', human: 'Humano', cpu: 'CPU' };
 
+// lore + habilidades para la galería de champions (no es gameplay: solo texto de UI)
+const CHAMPION_LORE = {
+  pablo: {
+    title: 'Kenai · El Quemador',
+    lore: 'El pibe del barrio que siempre está quemando ruedas en la esquina. Tiene 6 saltos como Kirby y un sistema de stances que lo hace versátil: gordo (pesado y con superarmadura), flaco (rápido y escurridizo) o normal. Cambiá de stance con el especial neutro en el suelo.',
+    abilities: [
+      { key: 'Neutro (H)', name: 'Inhale', desc: 'Succiona al rival y lo escupe con daño. En el suelo cambia de stance.' },
+      { key: 'Arriba (H)', name: 'Final Cutter', desc: 'Sube con la hoja y baja cortando. Gran recuperación.' },
+      { key: 'Costado (H)', name: 'Hammer', desc: 'Martillazo lento pero devastador. Cuidado con el lag.' },
+      { key: 'Abajo (H)', name: 'Stone', desc: 'Se convierte en piedra y cae pesado. Superarmadura mientras dura.' },
+    ],
+  },
+  coco: {
+    title: 'El Coco · El Pesado',
+    lore: 'El tipo más grosso del barrio. No habla mucho, pero cuando saca la espada todos se corren. Pesadísimo y lento, pero cada golpe duele. Si te acercás sin cuidado, te contraratea.',
+    abilities: [
+      { key: 'Neutro (H)', name: 'Eruption', desc: 'Carga fuego en la espada y estalla delante. Alarga el daño con la llama.' },
+      { key: 'Arriba (H)', name: 'Aether', desc: 'Salta girando con la espada y aterriza con onda de impacto.' },
+      { key: 'Costado (H)', name: 'Quick Draw', desc: 'Embestida rápida con la espada. Ideal para cerrar distancia.' },
+      { key: 'Abajo (H)', name: 'Counter', desc: 'Postura de contraataque: anula el golpe y devuelve ×1.2 de daño.' },
+    ],
+  },
+  domono: {
+    title: 'Dj Domono · El Eléctrico',
+    lore: 'El DJ del barrio. Flota como si la gravedad fuera opcional y tira rayos PK como si estuviera en un set. Rápido, impredecible, y con el PK Magnet se cura de los golpes.',
+    abilities: [
+      { key: 'Neutro (H)', name: 'PK Fire', desc: 'Proyectil eléctrico que estalla y deja llama en el suelo.' },
+      { key: 'Arriba (H)', name: 'PK Thunder Up', desc: 'Impulso eléctrico hacia arriba. Recuperación con daño.' },
+      { key: 'Costado (H)', name: 'PK Thunder', desc: 'Esfera eléctrica que podés curvar con ←/→ mientras vuela.' },
+      { key: 'Abajo (H)', name: 'PK Magnet', desc: 'Absorbe daño (×0.4) y cura un poco por golpe recibido.' },
+    ],
+  },
+  faxo: {
+    title: 'Dr Faxo · El de Alcance',
+    lore: 'El doctor del barrio (no preguntes de qué). Su látigo Vampire Killer tiene un alcance ridículo, y tira agua bendita y hachas como si fuera normal. Controla el espacio como nadie.',
+    abilities: [
+      { key: 'Neutro (H)', name: 'Holy Water', desc: 'Deja una llama azul en el suelo que daña mientras dura.' },
+      { key: 'Arriba (H)', name: 'Uppercut Whip', desc: 'Latigazo ascendente de recuperación. Lanza alto.' },
+      { key: 'Costado (H)', name: 'Vampire Killer', desc: 'Látigo con alcance enorme. El mejor poke del juego.' },
+      { key: 'Abajo (H)', name: 'Axe', desc: 'Hacha en arco parabólico. Pega desde arriba y en el suelo.' },
+    ],
+  },
+  chubit: {
+    title: 'Chubitcoin · El Versátil',
+    lore: 'El crypto-bro del grupo. Come power pellets, tira frutas como proyectiles y se mueve como un fantasma. Versátil, con trampolín para recuperarse y la Fire Hydrant para controlar el stage.',
+    abilities: [
+      { key: 'Neutro (H)', name: 'Bonus Fruit', desc: 'Mantené para cargar (cereza→fresa→…→llave). Soltá para lanzar. Más tier = más daño.' },
+      { key: 'Arriba (H)', name: 'Pac-Jump', desc: 'Impulso de recuperación + trampolín que deja en el suelo.' },
+      { key: 'Costado (H)', name: 'Power Pellet', desc: 'Embestida mordiendo todo. Larga distancia y fuerte.' },
+      { key: 'Abajo (H)', name: 'Fire Hydrant', desc: 'Manguera en el piso que dispara chorros de agua al rival.' },
+    ],
+  },
+};
+
 /**
  * Capa de interfaz genérica (HTML encima del canvas).
  * Máquina de pantallas: menú → lobby → HUD (partida) → resultados.
@@ -162,9 +216,13 @@ export class UI {
     online.textContent = 'JUGAR EN LÍNEA';
     online.style.cssText = 'position:absolute;top:calc(2% + 62px);left:50%;transform:translateX(-50%);padding:12px 36px;font-size:clamp(13px,1.8vw,19px);font-weight:900;letter-spacing:0.05em;color:#f4f1e8;background:#3d6b8c;border:3px solid #14161a;border-radius:12px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
     online.onclick = () => this.actions.onOnline?.();
+    const champions = document.createElement('button');
+    champions.textContent = 'CHAMPIONS';
+    champions.style.cssText = 'position:absolute;top:calc(2% + 120px);left:50%;transform:translateX(-50%);padding:10px 28px;font-size:clamp(12px,1.6vw,17px);font-weight:900;letter-spacing:0.05em;color:#14161a;background:#9b59b6;border:3px solid #14161a;border-radius:10px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
+    champions.onclick = () => this.actions.onChampions?.();
     const help = document.createElement('div');
     help.textContent = 'P1: A/D mover · ESPACIO saltar · G atacar · H especial';
-    help.style.cssText = 'position:absolute;top:calc(2% + 116px);left:0;right:0;margin:0 auto;width:max-content;font-size:clamp(11px,1.5vw,15px);font-weight:700;color:rgba(244,241,232,0.85);text-shadow:0 1px 3px rgba(0,0,0,0.9);z-index:50;';
+    help.style.cssText = 'position:absolute;top:calc(2% + 164px);left:0;right:0;margin:0 auto;width:max-content;font-size:clamp(11px,1.5vw,15px);font-weight:700;color:rgba(244,241,232,0.85);text-shadow:0 1px 3px rgba(0,0,0,0.9);z-index:50;';
 
     const version = document.createElement('div');
     version.textContent = 'v5';
@@ -187,7 +245,120 @@ export class UI {
     `;
     document.head.appendChild(st);
 
-    s.append(bgShake, posteImg, flash, fxLayer, titleWrap, play, online, help, version);
+    s.append(bgShake, posteImg, flash, fxLayer, titleWrap, play, online, champions, help, version);
+    this.root.append(s);
+  }
+
+  // ================================================================ CHAMPIONS (galería)
+
+  /** Galería de champions: splash art grande, lore, habilidades, stats y controles. */
+  showChampions(startId = 'pablo') {
+    this.clear();
+    const s = el('div', 'ui-screen champions-screen');
+    const ids = CHARACTER_IDS;
+    let cur = Math.max(0, ids.indexOf(startId));
+
+    const render = () => {
+      s.innerHTML = '';
+      const id = ids[cur];
+      const spec = GAME_CONFIG.characters[id];
+      const lore = CHAMPION_LORE[id];
+      const stats = GAME_CONFIG.smashStats?.[id];
+      const statKeys = GAME_CONFIG.smashStatKeys ?? ['peso', 'poder', 'velocidad', 'salto', 'arco'];
+      const splash = CHARACTER_SPLASH[id];
+
+      // fondo tenue del splash art
+      const bg = el('div', 'champ-bg');
+      bg.style.backgroundImage = `url('${splash}')`;
+      s.append(bg);
+
+      // panel principal
+      const panel = el('div', 'champ-panel');
+
+      // ---- lado izquierdo: splash art grande ----
+      const artCol = el('div', 'champ-art-col');
+      const art = el('img', 'champ-art');
+      art.src = splash;
+      art.alt = spec.name;
+      art.draggable = false;
+      artCol.append(art);
+      // nombre grande debajo del arte
+      const bigName = el('div', 'champ-big-name', spec.name);
+      artCol.append(bigName);
+
+      // ---- lado derecho: info ----
+      const infoCol = el('div', 'champ-info-col');
+      infoCol.append(el('div', 'champ-title', lore.title));
+
+      // stats estilo Smash (barras de 1-5)
+      if (stats) {
+        const statsBox = el('div', 'champ-stats');
+        for (const k of statKeys) {
+          const row = el('div', 'champ-stat-row');
+          row.append(el('span', 'champ-stat-label', k.charAt(0).toUpperCase() + k.slice(1)));
+          const bars = el('div', 'champ-stat-bars');
+          for (let i = 1; i <= 5; i++) {
+            const bar = el('div', `champ-stat-bar${i <= stats[k] ? ' on' : ''}`);
+            bars.append(bar);
+          }
+          row.append(bars);
+          statsBox.append(row);
+        }
+        infoCol.append(statsBox);
+      }
+
+      // lore
+      infoCol.append(el('div', 'champ-lore', lore.lore));
+
+      // habilidades
+      const abilBox = el('div', 'champ-abilities');
+      abilBox.append(el('div', 'champ-abil-header', 'HABILIDADES'));
+      for (const ab of lore.abilities) {
+        const row = el('div', 'champ-abil-row');
+        const key = el('span', 'champ-abil-key', ab.key);
+        const name = el('span', 'champ-abil-name', ab.name);
+        const desc = el('span', 'champ-abil-desc', ab.desc);
+        row.append(key, name, desc);
+        abilBox.append(row);
+      }
+      infoCol.append(abilBox);
+
+      panel.append(artCol, infoCol);
+      s.append(panel);
+
+      // ---- navegación ----
+      const nav = el('div', 'champ-nav');
+      const prev = el('button', 'champ-nav-btn', '◀ ANTERIOR');
+      prev.onclick = () => { cur = (cur - 1 + ids.length) % ids.length; render(); };
+      // thumbnails de todos
+      const thumbs = el('div', 'champ-thumbs');
+      ids.forEach((tid, i) => {
+        const t = el('button', `champ-thumb${i === cur ? ' active' : ''}`);
+        const ti = el('img');
+        ti.src = CHARACTER_SPLASH[tid];
+        ti.alt = GAME_CONFIG.characters[tid].name;
+        ti.draggable = false;
+        t.append(ti);
+        t.onclick = () => { cur = i; render(); };
+        thumbs.append(t);
+      });
+      const next = el('button', 'champ-nav-btn', 'SIGUIENTE ▶');
+      next.onclick = () => { cur = (cur + 1) % ids.length; render(); };
+      nav.append(prev, thumbs, next);
+      s.append(nav);
+
+      // controles abajo
+      const controls = el('div', 'champ-controls');
+      controls.innerHTML = '<b>CONTROLES P1:</b> A/D mover · W arriba · ESPACIO saltar · G atacar · H especial · F1 debug';
+      s.append(controls);
+
+      // volver
+      const back = el('button', 'champ-back', 'VOLVER AL TÍTULO');
+      back.onclick = () => this.actions.onMenu();
+      s.append(back);
+    };
+
+    render();
     this.root.append(s);
   }
 

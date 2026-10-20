@@ -104,6 +104,7 @@ const emptyMatch = new Match({ players: [] });
 const ui = new UI(document.body, {
   onPlay: () => setState('lobby'),
   onOnline: () => setState('online-home'),
+  onChampions: () => setState('champions'),
   onFight: (slots, stageId) => startMatch(slots, stageId),
   onRematch: () => {
     if (app.onlineRematch && app.online) {
@@ -126,16 +127,17 @@ const ui = new UI(document.body, {
 function setState(s) {
   app.state = s;
   // música de fondo según la pantalla (archivos en public/assets/music/)
-  if (s === 'menu' || s === 'lobby' || s === 'online-home' || s === 'online-room') audio.playMusic('menu');
+  if (s === 'menu' || s === 'lobby' || s === 'online-home' || s === 'online-room' || s === 'champions') audio.playMusic('menu');
   else if (s === 'playing') audio.playMusic('battle');
   else if (s === 'results') audio.stopMusic();
-  // el canvas 3D se oculta en el menú (title screen estático = solo la imagen)
+  // el canvas 3D se oculta en el menú y champions (pantallas de solo UI)
   // y se muestra en el resto (lobby usa el lineup 3D, playing usa el escenario)
   const canvas = renderer.renderer.domElement;
-  if (s === 'menu') {
+  if (s === 'menu' || s === 'champions') {
     canvas.style.display = 'none';
     renderer.clearLineup();
-    ui.showMenu();
+    if (s === 'menu') ui.showMenu();
+    else ui.showChampions();
   } else {
     canvas.style.display = '';
     if (s === 'lobby') { renderer.showLineup(); ui.showLobby(app.slots); }

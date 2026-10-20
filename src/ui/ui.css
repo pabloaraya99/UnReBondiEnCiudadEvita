@@ -599,3 +599,204 @@
   from { opacity: 0; transform: translate(-50%, 14px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
+
+/* ============================================================
+   CHAMPIONS: galería de personajes (lore, habilidades, stats)
+   ============================================================ */
+.champions-screen {
+  background: #0c0e14;
+  overflow: hidden;
+}
+.champ-bg {
+  position: absolute;
+  inset: -20px;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.12;
+  filter: blur(18px) saturate(0.7);
+  pointer-events: none;
+}
+.champ-panel {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: clamp(16px, 3vw, 40px);
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3vh 4vw 0;
+  height: 72vh;
+}
+.champ-art-col {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.champ-art {
+  max-height: 52vh;
+  max-width: min(38vw, 460px);
+  object-fit: contain;
+  border-radius: 14px;
+  border: 3px solid #3a3f52;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+}
+.champ-big-name {
+  font-size: clamp(22px, 3.2vw, 38px);
+  font-weight: 900;
+  color: #e9c46a;
+  text-shadow: 0 3px 0 #7a5c1e, 0 6px 18px rgba(0,0,0,0.8);
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+.champ-info-col {
+  flex: 1;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding-right: 8px;
+  max-height: 68vh;
+}
+.champ-title {
+  font-size: clamp(18px, 2.4vw, 26px);
+  font-weight: 900;
+  color: #f4f1e8;
+  border-bottom: 2px solid #3a3f52;
+  padding-bottom: 6px;
+}
+.champ-lore {
+  font-size: clamp(13px, 1.5vw, 16px);
+  line-height: 1.55;
+  color: rgba(244,241,232,0.88);
+}
+/* barras de stats estilo Smash */
+.champ-stats { display: flex; flex-direction: column; gap: 5px; }
+.champ-stat-row { display: flex; align-items: center; gap: 10px; }
+.champ-stat-label {
+  width: 90px;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(244,241,232,0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.champ-stat-bars { display: flex; gap: 4px; }
+.champ-stat-bar {
+  width: 28px;
+  height: 12px;
+  border-radius: 3px;
+  background: #2a2e3c;
+  border: 1px solid #3a3f52;
+}
+.champ-stat-bar.on {
+  background: linear-gradient(90deg, #e9c46a, #f2d06e);
+  border-color: #c9a44a;
+}
+/* habilidades */
+.champ-abilities { display: flex; flex-direction: column; gap: 6px; }
+.champ-abil-header {
+  font-size: 13px;
+  font-weight: 900;
+  color: #e9c46a;
+  letter-spacing: 0.08em;
+}
+.champ-abil-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  background: rgba(16,18,26,0.65);
+  border: 1px solid #2a2e3c;
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+.champ-abil-key {
+  font-size: 11px;
+  font-weight: 800;
+  color: #14161a;
+  background: #e9c46a;
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+.champ-abil-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #f4f1e8;
+}
+.champ-abil-desc {
+  font-size: 12px;
+  color: rgba(244,241,232,0.7);
+  flex-basis: 100%;
+  padding-left: 2px;
+}
+/* navegación */
+.champ-nav {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 10px 0 4px;
+}
+.champ-nav-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #f4f1e8;
+  background: #3a3f52;
+  border: 2px solid #14161a;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.champ-nav-btn:hover { background: #4d5470; }
+.champ-thumbs { display: flex; gap: 8px; }
+.champ-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  border: 2px solid #3a3f52;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  background: #1a1d28;
+  opacity: 0.55;
+  transition: opacity 0.15s, border-color 0.15s, transform 0.15s;
+}
+.champ-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.champ-thumb:hover { opacity: 0.85; transform: scale(1.08); }
+.champ-thumb.active {
+  opacity: 1;
+  border-color: #e9c46a;
+  box-shadow: 0 0 12px rgba(233,196,106,0.5);
+}
+/* controles + volver */
+.champ-controls {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(244,241,232,0.75);
+  padding: 6px 0;
+}
+.champ-controls b { color: #e9c46a; }
+.champ-back {
+  position: relative;
+  z-index: 2;
+  display: block;
+  margin: 6px auto 0;
+  padding: 10px 28px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #14161a;
+  background: #e9c46a;
+  border: 3px solid #14161a;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.champ-back:hover { background: #f2d06e; }
+
