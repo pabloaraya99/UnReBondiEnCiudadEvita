@@ -30,7 +30,7 @@ const MUSIC_TRACKS = ['menu', 'battle', 'results', 'champions', 'damas']; // tod
 // el primer gesto lo desmuteamos (arranca antes que el Web Audio path)
 let htmlAudio = null;
 
-/** Crea el <audio> muted+autoplay con la pista pedida (camino rápido de algunos browsers). */
+/** Crea el <audio> muted+autoplay con la pista pedida (solo antes del primer gesto). */
 function ensureHtmlAudio(name) {
   if (!htmlAudio) {
     htmlAudio = new Audio();
@@ -43,19 +43,9 @@ function ensureHtmlAudio(name) {
     htmlAudio.src = src;
     htmlAudio.load();
   }
-  // autoplay muted: intenta arrancar sin gesto (funciona en Chrome/Edge a veces)
+  // autoplay muted: intenta arrancar sin gesto (funciona en Chrome/Edge)
   const p = htmlAudio.play();
   if (p) p.catch(() => { /* bloqueado: esperar gesto */ });
-}
-
-/** Sincroniza el <audio> con el estado: playing o pausado. */
-function syncHtmlAudio(playing, name) {
-  if (!htmlAudio) return;
-  if (!playing) { htmlAudio.pause(); return; }
-  if (name && htmlAudio.src.includes(`${name}.mp3`)) {
-    htmlAudio.muted = !unlocked; // desmutea cuando el gesto ya pasó
-    if (htmlAudio.paused) htmlAudio.play().catch(() => {});
-  }
 }
 
 /** Descarga + decodifica una pista. Se cachea y no reintenta si no existe. */
@@ -83,6 +73,8 @@ async function loadMusic(name) {
 /** Arranca una pista ya cacheada (sin fade: arranca al toque). */
 function startMusicNow(buffer) {
   stopMusicNow(0.15);
+  // Web Audio toma el control: pausar el <audio> de respaldo para no duplicar
+  if (htmlAudio) htmlAudio.pause();
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.loop = true;
@@ -210,11 +202,8 @@ export const audio = {
     // Web Audio: resume sin await (en sources y suena apenas el ctx arranque)
     if (ctx.state === 'suspended') ctx.resume();
     unlocked = true;
-    // desmutear el <audio> de respaldo y sincronizar
-    if (htmlAudio) {
-      htmlAudio.muted = false;
-      if (musicWant && htmlAudio.paused) htmlAudio.play().catch(() => {});
-    }
+    // el <audio> queda pausado: Web Audio es la fuente principal (sin duplicar)
+    if (htmlAudio) htmlAudio.pause();
     tryStartWanted();
   },
   play(name, strength) {
@@ -222,25 +211,27 @@ export const audio = {
     SFX[name]?.(ctx, ctx.currentTime + 0.005, strength);
   },
   /**
-   * Pide música de fondo. name: 'menu' | 'battle' | 'results' | 'champions'
-   * Usa doble camino: <audio> muted autoplay (arranca sin gesto en algunos
-   * browsers) + Web Audio (calidad y control de fade). Al primer gesto se
-   * desmutea el <audio> y el Web Audio queda como fuente principal.
+   * Pide música de fondo. name: 'menu' | 'battle' | 'results' | 'champions' | 'damas'
+   * Antes del primer gesto: usa <audio> muted autoplay (puede arrancar sin gesto).
+   * Después del primer gesto: Web Audio es la única fuente (sin duplicar).
    */
   playMusic(name) {
     this.init();
-    if (musicName === name && musicSource) return; // ya suena
+    if (musicName === name && musicSource) return; // ya suena por Web Audio
     musicWant = name;
-    // camino rápido: <audio> muted autoplay (puede arrancar sin gesto)
-    ensureHtmlAudio(name);
-    syncHtmlAudio(true, name);
-    // camino principal: Web Audio (arranca cuando el ctx esté listo)
-    tryStartWanted();
+    if (unlocked) {
+      // Web Audio ya tiene el control: no usar <audio> (evita duplicado)
+      if (htmlAudio) htmlAudio.pause();
+      tryStartWanted();
+    } else {
+      // aún no hay gesto: <audio> muted puede arrancar solo en algunos browsers
+      ensureHtmlAudio(name);
+    }
   },
   /** Para la música con fade. */
   stopMusic(fade = 0.3) {
     musicWant = null;
-    syncHtmlAudio(false);
+    if (htmlAudio) htmlAudio.pause();
     stopMusicNow(fade);
   },
   toggleMute() {
