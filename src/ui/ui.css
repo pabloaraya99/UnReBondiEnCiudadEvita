@@ -1083,7 +1083,7 @@
   object-fit: contain;
   border-radius: 16px;
   border: 3px solid var(--color-bondi-yellow);
-  box-shadow: 0 0 40px rgba(233,196,106,0.35), 0 16px 48px rgba(0,0,0,0.7);
+  box-shadow: 0 0 40px rgba(255,209,102,0.35), 0 16px 48px rgba(0,0,0,0.7);
 }
 .res-stats {
   position: relative;
@@ -1094,7 +1094,7 @@
 }
 .res-stat {
   font-size: clamp(13px, 1.6vw, 17px);
-  color: rgba(244,241,232,0.8);
+  color: var(--text-muted);
 }
 .res-stat b { color: var(--color-bondi-yellow); }
 .res-btns {
@@ -1109,8 +1109,50 @@
   width: 100%;
   text-align: center;
   font-size: 13px;
-  color: rgba(244,241,232,0.6);
+  color: var(--text-muted);
   margin-top: 6px;
+}
+/* tabla del podio: posiciones, KOs y daño (contadores del sim) */
+.res-table {
+  position: relative;
+  z-index: 2;
+  width: min(92vw, 560px);
+  margin: 4px auto 14px;
+  background: var(--bg-panel);
+  border: 1px solid rgba(6, 214, 160, 0.35);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+  max-height: min(36vh, 320px);
+  overflow-y: auto;
+}
+.res-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 56px 80px;
+  gap: 6px;
+  padding: 6px 14px;
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: clamp(12px, 1.4vw, 15px);
+  color: var(--text-primary);
+}
+.res-row span:nth-child(3),
+.res-row span:nth-child(4) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.res-row:nth-child(even) { background: rgba(255, 255, 255, 0.03); }
+.res-row.res-head {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(6, 214, 160, 0.1);
+  border-bottom: 1px solid rgba(6, 214, 160, 0.35);
+}
+.res-row.winner {
+  color: var(--color-bondi-yellow);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--color-bondi-yellow);
 }
 
 /* ============================================================

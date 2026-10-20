@@ -321,3 +321,55 @@ test('el respawn se reparte simétrico según el total de luchadores', async () 
   const expected = [-3, -1.8, -0.6, 0.6, 1.8, 3].map((o) => r.x + o);
   seen.forEach((x, i) => assert.ok(Math.abs(x - expected[i]) < 1e-9, `spawn ${i}: ${x} ≈ ${expected[i]}`));
 });
+
+// ================================================================ CONTADORES DE RESULTADOS
+
+test('applyHit acredita daño infligido y last-hitter; los autos no', () => {
+  const m = started();
+  const [p, r] = m.fighters;
+  const move = { damage: 12, base: 20, growth: 40, angle: 45 };
+  const before = r.percent;
+  m.applyHit(r, p, move, 1, { x: r.x, y: r.y });
+  assert.equal(p.damageDealt, 12, 'daño acreditado al atacante');
+  assert.equal(r.percent - before, 12, 'la víctima recibió el mismo 12');
+  assert.equal(r.lastHitBy, 0, 'quedó registrado quién pegó');
+  // hazard del escenario (autos): attacker null → no cambia contadores
+  m.applyHit(r, null, move, 1, { x: r.x, y: r.y });
+  assert.equal(p.damageDealt, 12, 'el auto no suma daño a nadie');
+  assert.equal(r.lastHitBy, 0, 'el auto no pisa al last-hitter');
+});
+
+test('el KO se acredita al último rival que pegó y se limpia el registro', () => {
+  const m = started();
+  const [p, r] = m.fighters;
+  const stocks0 = m.stocks;
+  m.applyHit(r, p, { damage: 5, base: 10, growth: 20, angle: 45 }, 1, { x: r.x, y: r.y });
+  r.x = m.stage.blast.right + 10; // se va fuera de zona
+  m.checkBlastZones();
+  assert.equal(p.kos, 1, 'el KO acreditó al last-hitter');
+  assert.equal(r.stocks, stocks0 - 1, 'perdió una vida');
+  assert.equal(r.lastHitBy, -1, 'el registro se limpia tras acreditar');
+});
+
+test('KO sin last-hitter (caída propia o autos) no acredita a nadie', () => {
+  const m = started();
+  const [, r] = m.fighters;
+  const stocks0 = m.stocks;
+  r.x = m.stage.blast.left - 10; // nunca le pegó nadie
+  m.checkBlastZones();
+  assert.equal(m.fighters[0].kos, 0, 'sin crédito para el rival');
+  assert.equal(r.kos, 0, 'tampoco para la víctima');
+  assert.equal(r.stocks, stocks0 - 1, 'igual perdió la vida');
+});
+
+test('los contadores viajan en el snapshot (rollback)', () => {
+  const m = started();
+  const [p, r] = m.fighters;
+  const snap = m.snapshot();
+  m.applyHit(r, p, { damage: 30, base: 50, growth: 60, angle: 45 }, 1, { x: r.x, y: r.y });
+  assert.ok(p.damageDealt > 0, 'antes del restore hay daño acumulado');
+  m.restore(snap);
+  assert.equal(p.damageDealt, 0, 'restore devuelve damageDealt');
+  assert.equal(p.kos, 0, 'restore devuelve kos');
+  assert.equal(r.lastHitBy, -1, 'restore devuelve lastHitBy');
+});

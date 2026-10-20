@@ -385,6 +385,11 @@ export class Match {
       victim.percent += absorbed;                       // daño reducido ×absorbMult
       victim.percent = Math.max(0, victim.percent - bf.healPerHit); // y cura
       victim.hitlag = 2;
+      // contadores de resultados: el atacante igual infligió el daño absorbido
+      if (attacker && attacker !== victim) {
+        attacker.damageDealt += absorbed;
+        victim.lastHitBy = attacker.index;
+      }
       this.events.push({ type: 'magnet', victim: victim.index, attacker: attacker ? attacker.index : -1, x: point.x, y: point.y, damage: absorbed, healed: bf.healPerHit });
       return;
     }
@@ -414,6 +419,11 @@ export class Match {
     }
 
     victim.percent += damage;
+    // contadores de resultados: daño infligido + quién last-hit-eó (acredita KO)
+    if (attacker && attacker !== victim) {
+      attacker.damageDealt += damage;
+      victim.lastHitBy = attacker.index;
+    }
     const kb = (move.base + (move.growth * victim.percent) / 100) * (100 / victim.weight) * power; // el peso también cambia con el stance
     const rad = (move.angle * Math.PI) / 180;
     victim.vx = cos(rad) * kb * dir;
@@ -458,6 +468,14 @@ export class Match {
       const cx = Math.max(b.left, Math.min(b.right, f.x));
       const cy = Math.max(b.bottom, Math.min(b.top, f.y));
       f.knockOut();
+      // KO acreditado al último rival que le pegó (estilo Smash). Sin crédito
+      // si nunca le pegó nadie o si fue solo autos/SD (lastHitBy = -1).
+      const credit = f.lastHitBy;
+      if (credit >= 0 && credit !== f.index) {
+        const scorer = this.fighters[credit];
+        if (scorer) scorer.kos += 1;
+      }
+      f.lastHitBy = -1;
       this.events.push({ type: 'ko', i: f.index, x: cx, y: cy, stocks: f.stocks, from: f.x < b.left ? 'left' : f.x > b.right ? 'right' : f.y < b.bottom ? 'bottom' : 'top' });
     }
   }

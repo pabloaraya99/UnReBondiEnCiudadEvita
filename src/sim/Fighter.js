@@ -45,6 +45,10 @@ export class Fighter {
     this.shotCd = 0;
     this.hazardCd = 0; // inmunidad breve tras choque con hazard del escenario (autos)
     this.koTimer = 0;
+    // Contadores de resultados (deterministas; entran al snapshot para rollback)
+    this.damageDealt = 0; // daño total infligido a rivales
+    this.kos = 0;         // vidas que se llevó este luchador
+    this.lastHitBy = -1;  // índice del último rival que le pegó (acredita el KO)
     this.attack = null; // { id, frame, hit: [índices ya golpeados] }
     this.prevMask = 0;
     this.buf = { jump: 0, attack: 0, special: 0 };
@@ -806,6 +810,8 @@ export class Fighter {
       upSpecialUsed: this.upSpecialUsed, fastFall: this.fastFall, airFrames: this.airFrames,
       jumpHeld: this.jumpHeld, state: this.state, hitstun: this.hitstun, hitlag: this.hitlag,
       invuln: this.invuln, dropT: this.dropT, shotCd: this.shotCd, hazardCd: this.hazardCd, koTimer: this.koTimer,
+      // Contadores de resultados
+      damageDealt: this.damageDealt, kos: this.kos, lastHitBy: this.lastHitBy,
       prevMask: this.prevMask,
       attack: this.attack ? { id: this.attack.id, frame: this.attack.frame, hit: [...this.attack.hit] } : null,
       buf: { ...this.buf },

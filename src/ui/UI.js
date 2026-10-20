@@ -753,7 +753,7 @@ export class UI {
       // confeti simple (puros divs animados, sin canvas)
       for (let i = 0; i < 28; i++) {
         const c = el('div', 'res-confetti');
-        const colors = ['#e9c46a', '#d8352a', '#2dd4bf', '#4d8bff', '#f4f1e8', '#9b59b6'];
+        const colors = ['#FFD166', '#EF476F', '#06D6A0', '#118AB2', '#F5F1E6', '#9b59b6'];
         c.style.cssText = `left:${Math.random() * 100}vw;animation-delay:${Math.random() * 2.5}s;animation-duration:${2.5 + Math.random() * 2}s;background:${colors[i % colors.length]};width:${6 + Math.random() * 8}px;height:${10 + Math.random() * 12}px;`;
         s.append(c);
       }
@@ -776,12 +776,11 @@ export class UI {
       art.draggable = false;
       artWrap.append(art);
 
-      // stats de la pelea
+      // stats del ganador
       const fStats = el('div', 'res-stats');
       const stocksTxt = `${f.stocks} ${f.stocks === 1 ? 'vida' : 'vidas'}`;
       fStats.append(el('div', 'res-stat', `<b>${stocksTxt}</b> restantes`));
-      const pct = Math.round(f.percent);
-      fStats.append(el('div', 'res-stat', `<b>${pct}%</b> de daño recibido`));
+      fStats.append(el('div', 'res-stat', `<b>${f.kos}</b> ${f.kos === 1 ? 'KO' : 'KOs'}`));
 
       s.append(crown, title, name, artWrap, fStats);
     } else {
@@ -792,22 +791,37 @@ export class UI {
       );
     }
 
+    // tabla del podio: KO y daño de cada luchador (contadores del sim)
+    const table = el('div', 'res-table');
+    table.append(el('div', 'res-row res-head', '<span>POS</span><span>PELEADOR</span><span>KOs</span><span>DAÑO</span>'));
+    const ranked = [...match.fighters].sort((a, b) =>
+      b.stocks - a.stocks || a.percent - b.percent || b.damageDealt - a.damageDealt);
+    ranked.forEach((f, i) => {
+      const slot = GAME_CONFIG.players[f.index % GAME_CONFIG.players.length];
+      const row = el('div', `res-row${f.index === w ? ' winner' : ''}`);
+      row.innerHTML = `<span>${i + 1}º</span><span>${slot.short} · ${f.spec.name}</span><span>${f.kos}</span><span>${Math.round(f.damageDealt)}%</span>`;
+      table.append(row);
+    });
+    s.append(table);
+
     // botones
     const btns = el('div', 'res-btns');
     if (opts.online) {
       const rematch = btn('REVANCHA', () => this.actions.onRematch());
+      rematch.classList.add('btn-smash', 'btn-primary');
       rematch.disabled = !opts.isHost;
       if (!opts.isHost) rematch.title = 'Solo el anfitrión puede dar revancha';
       const leave = btn('SALIR DE LA SALA', () => opts.onLeaveOnline?.());
-      leave.classList.add('secondary');
+      leave.classList.add('btn-smash', 'btn-outline-magenta');
       btns.append(rematch, leave);
       if (!opts.isHost) btns.append(el('div', 'res-note', 'Esperando que el anfitrión decida…'));
     } else {
       const rematch = btn('REVANCHA', () => this.actions.onRematch());
+      rematch.classList.add('btn-smash', 'btn-primary');
       const lobby = btn('LOBBY', () => this.actions.onLobby());
-      lobby.classList.add('secondary');
+      lobby.classList.add('btn-smash', 'btn-outline-cyan');
       const menu = btn('MENÚ', () => this.actions.onMenu());
-      menu.classList.add('secondary');
+      menu.classList.add('btn-smash', 'btn-outline-magenta');
       btns.append(rematch, lobby, menu);
     }
     s.append(btns);
