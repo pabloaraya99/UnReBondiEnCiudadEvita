@@ -209,8 +209,8 @@ export class UI {
 
     // start: arriba, donde estaba el título
     const play = document.createElement('button');
-    play.textContent = 'PARME DE MANOS';
-    play.style.cssText = 'position:absolute;top:2%;left:50%;transform:translateX(-50%);padding:14px 48px;font-size:clamp(16px,2.2vw,24px);font-weight:900;letter-spacing:0.05em;color:#10121a;background:#e9c46a;border:4px solid #14161a;border-radius:14px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
+    play.textContent = 'PARARME DE MANOS';
+    play.style.cssText = 'position:absolute;top:2%;left:50%;transform:translateX(-50%);padding:14px 48px;font-size:clamp(18px,2.6vw,28px);font-weight:900;letter-spacing:0.05em;color:#10121a;background:#e9c46a;border:4px solid #14161a;border-radius:14px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
     play.onclick = () => this.actions.onPlay();
     const online = document.createElement('button');
     online.textContent = 'JUGAR CON LOS PIBES';
@@ -266,6 +266,15 @@ export class UI {
 
   // ================================================================ CHAMPIONS (galería)
 
+  /** Temas por campeón: cada uno tiene su cumbia propia al posarse sobre él. */
+  static CHAMPION_MUSIC = {
+    pablo: 'battle',        // Bailan Rochas y Chetas
+    coco: 'menu',           // Cumbia de los pajaritos
+    domono: 'champions',    // Smash Brawl Cumbia remix
+    faxo: 'results',        // Marcianito
+    chubitcoin: 'damas',    // Damas Gratis - Se te ve la tanga 8bit
+  };
+
   /** Galería de champions: splash art grande, lore, habilidades, stats y controles. */
   showChampions(startId = 'pablo') {
     this.clear();
@@ -281,6 +290,12 @@ export class UI {
       const stats = GAME_CONFIG.smashStats?.[id];
       const statKeys = GAME_CONFIG.smashStatKeys ?? ['peso', 'poder', 'velocidad', 'salto', 'arco'];
       const splash = CHARACTER_SPLASH[id];
+
+      // música del campeón (si hay tema asignado)
+      const track = UI.CHAMPION_MUSIC[id];
+      if (track) {
+        import('../audio.js').then((m) => m.audio.playMusic(track));
+      }
 
       // fondo tenue del splash art
       const bg = el('div', 'champ-bg');
