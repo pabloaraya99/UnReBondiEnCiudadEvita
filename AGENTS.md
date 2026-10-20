@@ -57,7 +57,8 @@ src/
     UI.js            → pantallas: menú (logo 3D + nube de pelea animada + lineup champ-select con
                        bursts de caricatura), lobby (selección jugadores/personajes), HUD, resultados
                        + cutoutPng() (recorte de fondo de imágenes por flood fill)
-    ui.css           → estilos + Google Fonts (Bungee, Rubik Spray Paint)
+    ui.css           → design system (tokens :root Cyber-Cumbia: paleta, tipografía Bungee +
+                       Chakra Petch, radios, glows, easings) + estilos de todas las pantallas
 test/
   pablo.test.js      → 17 tests de simulación (node --test). Deben pasar siempre.
 public/assets/

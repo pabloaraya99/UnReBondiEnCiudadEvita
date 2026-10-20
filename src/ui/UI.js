@@ -106,155 +106,70 @@ export class UI {
 
   showMenu() {
     this.clear();
-    const s = document.createElement('div');
-    // pointer-events: auto porque #ui-root tiene pointer-events:none (los clics
-    // pasan al canvas 3D en el juego); sin esto el botón no recibe clics
-    s.style.cssText = 'position:fixed;inset:0;z-index:50;overflow:hidden;background:#10121a;pointer-events:auto;';
+    const s = el('div', 'title-screen screen-enter');
 
-    // fondo: capa exterior con vibración sutil + capa interior con zoom lento (Ken Burns)
-    const bgShake = document.createElement('div');
-    bgShake.style.cssText = 'position:absolute;inset:0;animation:menuBgShake 3.8s ease-in-out infinite;';
-    const bg = document.createElement('div');
-    // will-change solo en el bg (1 nodo) para hints de composición sin castigar GPU
-    bg.style.cssText = 'position:absolute;inset:-4%;background:url("/assets/ui/title-splash.jpg") center/cover no-repeat;animation:menuBgZoom 22s ease-in-out infinite alternate;will-change:transform;';
+    // fondo: capa exterior con vibración sutil + capa interior con Ken Burns
+    const bgShake = el('div', 'title-bg-shake');
+    const bg = el('div', 'title-bg');
     bgShake.append(bg);
 
-    // capa de barrio: poste con lámpara de sodio y tendido eléctrico (sobre el bg)
+    // capa de barrio: poste con lámpara de sodio y tendido eléctrico
     const posteImg = document.createElement('img');
     posteImg.src = '/assets/ui/props/poste-cables-wide.png';
     posteImg.alt = '';
     posteImg.draggable = false;
-    posteImg.style.cssText = 'position:absolute;left:0;right:0;bottom:0;width:100%;pointer-events:none;user-select:none;';
+    posteImg.className = 'title-poste';
 
-    // flash sutil de impacto: pulso blanco cálido cada ~7s desde el centro
-    const flash = document.createElement('div');
-    flash.style.cssText = 'position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,rgba(255,244,214,0.55) 0%,rgba(255,244,214,0.18) 35%,transparent 65%);animation:impactFlash 7s ease-out infinite;';
+    // flash sutil de impacto cada ~7s
+    const flash = el('div', 'title-flash');
 
-    // capas de movimiento: humo (solo gradients, sin filter:blur — más barato) + chispas + polvo + brillos
-    const fxLayer = document.createElement('div');
-    fxLayer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;';
-    // humos: blobs suaves por radial-gradient (sin blur filter = GPU amigable)
-    const smokeDefs = [
-      { top: '16%', w: 340, dur: 26, delay: 0, op: 0.20 },
-      { top: '42%', w: 460, dur: 34, delay: 6, op: 0.14 },
-      { top: '64%', w: 280, dur: 22, delay: 12, op: 0.18 },
-      { top: '28%', w: 380, dur: 30, delay: 18, op: 0.12 },
-      { top: '74%', w: 340, dur: 28, delay: 3, op: 0.16 },
-    ];
-    smokeDefs.forEach((d) => {
-      const puff = document.createElement('div');
-      puff.style.cssText = `position:absolute;top:${d.top};left:-${d.w}px;width:${d.w}px;height:${d.w * 0.5}px;border-radius:50%;background:radial-gradient(ellipse,rgba(255,255,255,${d.op}) 0%,rgba(255,255,255,${d.op * 0.45}) 40%,transparent 72%);animation:smokeDrift ${d.dur}s linear ${d.delay}s infinite;will-change:transform;`;
-      fxLayer.append(puff);
-    });
-    // chispas: puntos chicos que suben y parpadean (impacto de pelea)
-    const sparkDefs = [
-      { left: '18%', bottom: '10%', size: 5, dur: 5.5, delay: 0, color: '#ffd23c' },
-      { left: '32%', bottom: '6%', size: 4, dur: 7, delay: 1.4, color: '#ff9a3c' },
-      { left: '48%', bottom: '12%', size: 6, dur: 6, delay: 0.7, color: '#ffe08a' },
-      { left: '62%', bottom: '8%', size: 4, dur: 8, delay: 2.2, color: '#ffd23c' },
-      { left: '76%', bottom: '14%', size: 5, dur: 5, delay: 1.1, color: '#ff5a7a' },
-      { left: '86%', bottom: '9%', size: 4, dur: 7.5, delay: 3, color: '#ff9a3c' },
-    ];
-    sparkDefs.forEach((d) => {
-      const sp = document.createElement('div');
-      sp.style.cssText = `position:absolute;left:${d.left};bottom:${d.bottom};width:${d.size}px;height:${d.size}px;border-radius:50%;background:${d.color};box-shadow:0 0 ${d.size * 2.5}px ${d.color};animation:sparkFloat ${d.dur}s ease-in ${d.delay}s infinite,sparkFlicker ${d.dur * 0.35}s ease-in-out ${d.delay}s infinite;`;
-      fxLayer.append(sp);
-    });
-    // motas de polvo: puntos tenues que derivan en diagonal
-    const dustDefs = [
-      { top: '25%', left: '10%', size: 3, dur: 18, delay: 0 },
-      { top: '55%', left: '70%', size: 2, dur: 22, delay: 5 },
-      { top: '40%', left: '40%', size: 2, dur: 20, delay: 9 },
-      { top: '68%', left: '85%', size: 3, dur: 16, delay: 3 },
-      { top: '15%', left: '55%', size: 2, dur: 24, delay: 12 },
-    ];
-    dustDefs.forEach((d) => {
-      const mote = document.createElement('div');
-      mote.style.cssText = `position:absolute;top:${d.top};left:${d.left};width:${d.size}px;height:${d.size}px;border-radius:50%;background:rgba(244,241,232,0.5);animation:dustDrift ${d.dur}s linear ${d.delay}s infinite;`;
-      fxLayer.append(mote);
-    });
-    // brillos flotantes: estrellitas que titilan en el lugar (twinkle), como luciérnagas de pelea
-    const glintDefs = [
-      { top: '22%', left: '14%', size: 14, dur: 3.2, delay: 0 },
-      { top: '35%', left: '78%', size: 11, dur: 4.1, delay: 1.2 },
-      { top: '58%', left: '22%', size: 13, dur: 3.6, delay: 2.4 },
-      { top: '48%', left: '88%', size: 10, dur: 4.5, delay: 0.8 },
-      { top: '68%', left: '50%', size: 12, dur: 3.8, delay: 3.1 },
-      { top: '30%', left: '50%', size: 9, dur: 4.8, delay: 1.8 },
-    ];
-    glintDefs.forEach((d) => {
-      const gl = document.createElement('div');
-      // cruz de brillo hecha con dos barras + núcleo radial (sin images externas)
-      gl.style.cssText = `position:absolute;top:${d.top};left:${d.left};width:${d.size}px;height:${d.size}px;animation:glintTwinkle ${d.dur}s ease-in-out ${d.delay}s infinite;will-change:transform,opacity;`;
-      const core = document.createElement('div');
-      core.style.cssText = 'position:absolute;inset:25%;border-radius:50%;background:radial-gradient(circle,rgba(255,250,230,0.95) 0%,rgba(255,230,150,0.5) 50%,transparent 75%);';
-      const armH = document.createElement('div');
-      armH.style.cssText = 'position:absolute;top:45%;left:0;width:100%;height:12%;background:linear-gradient(90deg,transparent,rgba(255,250,230,0.85),transparent);';
-      const armV = document.createElement('div');
-      armV.style.cssText = 'position:absolute;top:0;left:45%;width:12%;height:100%;background:linear-gradient(180deg,transparent,rgba(255,250,230,0.85),transparent);';
-      gl.append(core, armH, armV);
-      fxLayer.append(gl);
-    });
+    // 3 capas de partículas "baked" (gradients en el propio div) — reemplazan
+    // los ~40 nodos DOM individuales (humo/chispas/polvo/glinds) del diseño viejo
+    const fx = el('div', 'title-fx');
+    fx.append(el('div', 'fx-layer fx-smoke'), el('div', 'fx-layer fx-sparks'), el('div', 'fx-layer fx-dust'));
 
-    // título: abajo, mitad de tamaño, SIN transform translateX (queda más nítido)
-    const titleWrap = document.createElement('div');
-    titleWrap.style.cssText = 'position:absolute;bottom:4%;left:0;right:0;margin:0 auto;width:min(32vw,400px);animation:titleShake 3s ease-in-out infinite;';
+    // logo (PNG) arriba-izquierda
+    const logoWrap = el('div', 'title-logo');
     const titleImg = document.createElement('img');
     titleImg.src = '/assets/ui/parallax/Title Text - Title Screen.png';
     titleImg.alt = 'Un Re Bondi En Ciudad Evita';
     titleImg.draggable = false;
-    // PNG con transparencia real (el cuadriculado del JPG se removió por color)
-    titleImg.style.cssText = 'display:block;width:100%;filter:drop-shadow(0 6px 16px rgba(0,0,0,0.75));animation:titleZoom 5s ease-in-out infinite;';
-    titleWrap.append(titleImg);
+    logoWrap.append(titleImg);
 
-    // start: arriba, donde estaba el título
+    // menú abajo-izquierda: botones inclinados (btn-smash), CTA principal primero
+    const menu = el('div', 'title-menu');
     const play = document.createElement('button');
-    play.textContent = 'PARARME DE MANOS';
-    play.style.cssText = 'position:absolute;top:2%;left:50%;transform:translateX(-50%);padding:14px 48px;font-size:clamp(18px,2.6vw,28px);font-weight:900;letter-spacing:0.05em;color:#10121a;background:#e9c46a;border:4px solid #14161a;border-radius:14px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
+    play.className = 'btn-smash btn-primary';
+    play.innerHTML = '<span>PARARME DE MANOS</span>';
     play.onclick = () => this.actions.onPlay();
     const online = document.createElement('button');
-    online.textContent = 'JUGAR CON LOS PIBES';
-    online.style.cssText = 'position:absolute;top:calc(2% + 62px);left:50%;transform:translateX(-50%);padding:12px 36px;font-size:clamp(13px,1.8vw,19px);font-weight:900;letter-spacing:0.05em;color:#f4f1e8;background:#3d6b8c;border:3px solid #14161a;border-radius:12px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
+    online.className = 'btn-smash btn-outline-cyan';
+    online.innerHTML = '<span>JUGAR CON LOS PIBES</span>';
     online.onclick = () => this.actions.onOnline?.();
     const champions = document.createElement('button');
-    champions.textContent = 'PELEADORES';
-    champions.style.cssText = 'position:absolute;top:calc(2% + 120px);left:50%;transform:translateX(-50%);padding:10px 28px;font-size:clamp(12px,1.6vw,17px);font-weight:900;letter-spacing:0.05em;color:#14161a;background:#9b59b6;border:3px solid #14161a;border-radius:10px;cursor:pointer;z-index:51;pointer-events:auto;animation:diagPulse 1.5s ease-in-out infinite;';
+    champions.className = 'btn-smash btn-outline-magenta';
+    champions.innerHTML = '<span>PELEADORES</span>';
     champions.onclick = () => this.actions.onChampions?.();
+    menu.append(play, online, champions);
 
-    const version = document.createElement('div');
-    version.textContent = 'v5';
-    version.style.cssText = 'position:absolute;bottom:12px;right:14px;font-size:12px;font-weight:700;color:rgba(244,241,232,0.75);text-shadow:0 1px 3px rgba(0,0,0,0.9);';
+    const version = el('div', 'title-version', 'v5');
 
-    // keyframes inline: todos transform/opacity (GPU-composited, baratos)
-    const st = document.createElement('style');
-    st.textContent = `
-      @keyframes diagPulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.07);box-shadow:0 0 34px rgba(233,196,106,0.7)}}
-      @keyframes menuBgZoom{0%{transform:scale(1)}100%{transform:scale(1.07)}}
-      @keyframes menuBgShake{0%,100%{transform:translate(0,0)}22%{transform:translate(2px,-1.5px)}48%{transform:translate(-1.5px,2px)}74%{transform:translate(1.5px,1.5px)}}
-      @keyframes titleZoom{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
-      @keyframes titleShake{0%,100%{transform:translate(0,0)}25%{transform:translate(1.5px,-1px)}50%{transform:translate(-1px,1.5px)}75%{transform:translate(1px,1px)}}
-      @keyframes smokeDrift{0%{transform:translateX(0) translateY(0)}50%{transform:translateX(60vw) translateY(-3%)}100%{transform:translateX(120vw) translateY(-6%)}}
-      @keyframes sparkFloat{0%{transform:translateY(0) scale(1);opacity:0}12%{opacity:1}60%{opacity:0.85}100%{transform:translateY(-48vh) scale(0.35);opacity:0}}
-      @keyframes sparkFlicker{0%,100%{opacity:1}50%{opacity:0.35}}
-      @keyframes dustDrift{0%{transform:translate(0,0);opacity:0}10%{opacity:0.55}90%{opacity:0.4}100%{transform:translate(-6vw,4vh);opacity:0}}
-      @keyframes impactFlash{0%,88%,100%{opacity:0}92%{opacity:0.7}96%{opacity:0.25}}
-      @keyframes glintTwinkle{0%,100%{transform:scale(0.4) rotate(0deg);opacity:0}40%{transform:scale(1) rotate(12deg);opacity:1}70%{transform:scale(0.7) rotate(20deg);opacity:0.5}}
-    `;
-    document.head.appendChild(st);
+    s.append(bgShake, posteImg, flash, fx, logoWrap, menu, version);
 
-    s.append(bgShake, posteImg, flash, fxLayer, titleWrap, play, online, champions, version);
-
-    // overlay "TOCÁ PARA EMPEZAR": patrón estándar de juegos web.
-    // Al tocar, se saca y desbloquea el audio (los browsers exigen un gesto).
+    // overlay "TOCÁ CUALQUIER TECLA...": primer gesto (clic o tecla) desbloquea
+    // el audio (los browsers exigen un usuario gesture)
     if (!this._audioUnlocked) {
       const tap = el('div', 'tap-start-overlay');
-      tap.innerHTML = '<div class="tap-start-text">TOCÁ PARA EMPEZAR</div>';
-      tap.onclick = () => {
+      tap.innerHTML = '<div class="tap-start-text">TOCÁ CUALQUIER TECLA PA\' ARRANCAR</div>';
+      const dismiss = () => {
+        if (this._audioUnlocked) return;
         this._audioUnlocked = true;
         tap.remove();
-        // disparar unlock manualmente por si el listener de window no alcanzó
+        window.removeEventListener('keydown', dismiss);
         import('../audio.js').then((m) => m.audio.unlock());
       };
+      tap.onclick = dismiss;
+      window.addEventListener('keydown', dismiss);
       s.append(tap);
     }
 
@@ -276,7 +191,7 @@ export class UI {
   /** Galería de champions: splash art grande, lore, habilidades, stats y controles. */
   showChampions(startId = 'pablo') {
     this.clear();
-    const s = el('div', 'ui-screen champions-screen');
+    const s = el('div', 'ui-screen champions-screen screen-enter');
     const ids = CHARACTER_IDS;
     let cur = Math.max(0, ids.indexOf(startId));
 
@@ -544,7 +459,7 @@ export class UI {
    */
   showOnlineHome(ctx = {}) {
     this.clear();
-    const s = el('div', 'ui-screen lobby-screen');
+    const s = el('div', 'ui-screen lobby-screen screen-enter');
     s.append(el('div', 'ui-title', 'ONLINE'), el('div', 'ui-subtitle', 'Creá una sala o unite con el código de un amigo'));
 
     const grid = el('div', 'online-home-grid');
@@ -791,7 +706,7 @@ export class UI {
    */
   showResults(match, opts = {}) {
     this.clear();
-    const s = el('div', 'ui-screen results-screen');
+    const s = el('div', 'ui-screen results-screen screen-enter');
     const w = match.winner;
     const winnerSlot = w >= 0 ? GAME_CONFIG.players[match.fighters[w].index % GAME_CONFIG.players.length] : null;
 
