@@ -379,7 +379,7 @@ export class UI {
       const charImg = document.createElement('img');
       charImg.alt = ch.name;
       charImg.draggable = false;
-      charImg.src = CHARACTER_SPLASH[slot.character] || '/assets/ui/pilots/Kenai3d 1.png';
+      charImg.src = CHARACTER_SPLASH[slot.character] || '/assets/ui/pilots/Kenai Splash Art.jfif';
       // zoom sutil escalonado (cardZoom en ui.css) — cada tarjeta con su fase
       charImg.style.animationDelay = `${i * 1.4}s`;
       const nameTag = el('div', 'slot-char-name', ch.name);
@@ -640,7 +640,7 @@ export class UI {
       // cara en paralelogramo con CLOSE-UP del rostro (zoom por CSS con --fx/--fy)
       const face = el('div', 'hud-face');
       const img = el('img', 'hud-face-img');
-      img.src = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai3d 1.png';
+      img.src = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai Splash Art.jfif';
       img.alt = f.spec.name;
       img.draggable = false;
       const pos = FACE_POS[f.characterId] || [0.5, 0.27];
@@ -689,7 +689,7 @@ export class UI {
       if (stockKey !== c.stockKey) {
         c.stockKey = stockKey;
         c.stocks.innerHTML = '';
-        const splash = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai3d 1.png';
+        const splash = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai Splash Art.jfif';
         for (let i = 0; i < match.stocks; i++) {
           const dot = el('div', `hud-stock${i < f.stocks ? '' : ' lost'}`);
           const si = el('img');

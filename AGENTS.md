@@ -73,11 +73,14 @@ test/
   pablo.test.js      → 24 tests de simulación (node --test). Deben pasar siempre.
   net.test.js        → 4 tests de red/sala (node --test).
 public/assets/
-  models/            → GLB de modelos 3D (cuando se generen con IAs externas)
-  concept/kenai/     → imágenes de referencia de personajes
-  ui/                → logo SVG, fondos de menú
-  ui/pilots/         → retratos de coco/domono/faxo (personas, sin autos; copiados de vita-machines);
-                       Kenai usa /assets/concept/kenai/Kenai3Dreferencia.png (mismo recurso del menú)
+  models/cars/        → GLB del tráfico (corolla, clio, peugeot, moto; meshopt)
+  textures/           → PBR del escenario (diff+rough, 1024², JPEG q75)
+  music/              → 7 pistas .mp3 con nombre canónico (ver LEEME.md: menu/battle/results/
+                        champions/damas/calle/pajaritos). Nada de archivos con nombres largos
+  ui/                 → title-splash.jpg, parallax/Title Text, props/poste-cables-wide
+  ui/pilots/         → splash arts oficiales de los 5 personajes (.jfif/.jpg, long edge ≤900)
+  (los assets pesados se comprimen in-place con sharp: JPEG q75-80 / PNG paleta; NO subir
+   originales sin comprimir — el bandwidth de Vercel es limitado)
 ART_DIRECTION.md     → biblia visual: paleta, estilo "gangster de barrio verde", prompts para IAs
 start-server.bat     → levanta el dev server en Windows con doble clic
 src/audio.js         → SFX sintetizados con Web Audio (sin archivos); audio.onEvents()
