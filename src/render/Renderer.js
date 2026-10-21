@@ -13,6 +13,7 @@ import { buildCoco } from './CocoModel.js';
 import { buildDomono } from './DomonoModel.js';
 import { buildFaxo } from './FaxoModel.js';
 import { buildChubitcoin } from './ChubitcoinModel.js';
+import { optimizeModel } from './optimizeModel.js';
 
 const FIGHTER_BUILDERS = {
   pablo: buildKenai,
@@ -21,6 +22,58 @@ const FIGHTER_BUILDERS = {
   faxo: buildFaxo,
   chubit: buildChubitcoin,
 };
+
+// Prototipos optimizados (merge por material + materiales unificados): se construyen
+// UNA sola vez por personaje y todos los luchadores clonan estos prototipos
+// compartiendo las geometrías (los materiales NO: los tintes por luchador los mutan).
+const PROTO_MODELOS = new Map();
+
+function getProto(id) {
+  let proto = PROTO_MODELOS.get(id);
+  if (!proto) {
+    const build = FIGHTER_BUILDERS[id];
+    if (!build) return null;
+    proto = optimizeModel(build());
+    PROTO_MODELOS.set(id, proto);
+  }
+  return proto;
+}
+
+/**
+ * Clona el modelo de un personaje a partir de su prototipo:
+ * geometrías COMPARTIDAS (clone() de Object3D reusa buffers) + materiales propios
+ * de esta copia (v.mats / v.mat se tipean cada frame) + parts resueltos por nombre.
+ */
+function cloneFighterModel(id) {
+  const proto = getProto(id);
+  if (!proto) return null;
+  const group = proto.group.clone();
+  const clon = new Map(); // material del prototipo → material de ESTA copia
+  const mats = [];
+  group.traverse((o) => {
+    if (!o.isMesh || Array.isArray(o.material)) return;
+    let m = clon.get(o.material);
+    if (!m) {
+      m = o.material.clone();
+      // OJO: Material.clone() serializa userData por JSON y Color.toJSON() da un
+      // NÚMERO (hex). Si base queda como número, Color.copy(base) pone color.r =
+      // undefined → NaN en el shader → el bloom difunde NaN por toda la pantalla
+      // (pantalla negra en pelea). Se restaura como {r,g,b} plano.
+      const b = o.material.userData.base;
+      const c = new THREE.Color();
+      if (typeof b === 'number') c.setHex(b, THREE.SRGBColorSpace);
+      else if (b && typeof b.r === 'number') c.setRGB(b.r, b.g, b.b);
+      else c.copy(o.material.color);
+      m.userData.base = { r: c.r, g: c.g, b: c.b };
+      clon.set(o.material, m);
+    }
+    o.material = m;
+    if (mats.indexOf(m) === -1) mats.push(m);
+  });
+  const parts = {};
+  for (const k of Object.keys(proto.parts)) parts[k] = group.getObjectByName(k) || null;
+  return { group, mats, hoodieMat: clon.get(proto.hoodieMat) || mats[0] || null, parts };
+}
 
 // Autos de Vita Machines (con créditos en README): se usan en el tráfico del escenario
 // rotY: corrección de orientación del modelo (si van de culata/de costado, se ajusta acá).
@@ -60,11 +113,60 @@ export class Renderer {
     this.stageGroup = null;
     this.stage = null;
     this.debug = false;
+    // Partículas: UN solo objeto THREE.Points con pool preasignado (antes: una malla
+    // SphereGeometry por partícula → hasta 220 draw calls; ahora 1 solo, sin límite
+    // práctico). Cada registro vive en `this.particles` y se volca a los buffers por frame.
+    this.PARTICLE_MAX = 2000;
     this.particles = [];
+    this.particlePos = new Float32Array(this.PARTICLE_MAX * 3);
+    this.particleCol = new Float32Array(this.PARTICLE_MAX * 3);
+    this.particleSize = new Float32Array(this.PARTICLE_MAX);
+    this.particleAlpha = new Float32Array(this.PARTICLE_MAX);
+    const pgeo = new THREE.BufferGeometry();
+    pgeo.setAttribute('position', new THREE.BufferAttribute(this.particlePos, 3).setUsage(THREE.DynamicDrawUsage));
+    pgeo.setAttribute('aColor', new THREE.BufferAttribute(this.particleCol, 3).setUsage(THREE.DynamicDrawUsage));
+    pgeo.setAttribute('aSize', new THREE.BufferAttribute(this.particleSize, 1).setUsage(THREE.DynamicDrawUsage));
+    pgeo.setAttribute('aAlpha', new THREE.BufferAttribute(this.particleAlpha, 1).setUsage(THREE.DynamicDrawUsage));
+    pgeo.setDrawRange(0, 0);
+    this.particleMat = new THREE.ShaderMaterial({
+      uniforms: { uScale: { value: 512 } },
+      vertexShader: `
+        attribute vec3 aColor;
+        attribute float aSize;
+        attribute float aAlpha;
+        varying vec3 vColor;
+        varying float vAlpha;
+        uniform float uScale;
+        void main() {
+          vColor = aColor;
+          vAlpha = aAlpha;
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = aSize * uScale / max(0.001, -mv.z);
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vColor;
+        varying float vAlpha;
+        void main() {
+          vec2 c = gl_PointCoord - vec2(0.5);
+          float d = length(c);
+          if (d > 0.5) discard;
+          float borde = smoothstep(0.5, 0.3, d);
+          gl_FragColor = vec4(vColor, vAlpha * borde);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+    });
+    this.particlePoints = new THREE.Points(pgeo, this.particleMat);
+    this.particlePoints.frustumCulled = false;
+    this.scene.add(this.particlePoints);
     this.projectileMeshes = new Map();
     this.carMeshes = new Map(); // autos del tráfico (hazards del Match)
     this.tmp = new THREE.Vector3();
     this.tmpColor = new THREE.Color();
+    this._dbSize = new THREE.Vector2(); // tamaño del drawing buffer (escala de píxeles de las partículas)
 
     this.setupLights();
     this.setupPostFX(container);
@@ -1504,9 +1606,8 @@ export class Renderer {
     ];
     this.lineupBobs = [];
     for (const [id, x] of spots) {
-      const builder = FIGHTER_BUILDERS[id];
-      if (!builder) continue;
-      const model = builder();
+      const model = cloneFighterModel(id);
+      if (!model) continue;
       this.applyLineupPose(model, id);
       model.group.position.set(x, 0, 1.6);
       model.group.rotation.y = Math.PI * 0.06 * (x < 0 ? 1 : -1);
@@ -1551,7 +1652,15 @@ export class Renderer {
   clearLineup() {
     if (!this.lineup) return;
     this.scene.remove(this.lineup);
-    this.lineup.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+    // se liberan SOLO los materiales propios de estos clones: las geometrías son
+    // del prototipo (compartidas con las vistas de pelea) y no se deben dispose-ar.
+    const vistos = new Set();
+    this.lineup.traverse((o) => {
+      if (o.material && !vistos.has(o.material)) {
+        vistos.add(o.material);
+        o.material.dispose();
+      }
+    });
     this.lineup = null;
     this.lineupBobs = [];
   }
@@ -1686,16 +1795,46 @@ export class Renderer {
     // al empezar la pelea se apaga la vista lejana del lobby: la cámara vuelve al
     // encuadre automático de los peleadores (efecto de acercarse al ring)
     this.cinematicView = null;
-    for (const v of this.views) this.scene.remove(v.group);
-    for (const v of this.views) this.scene.remove(v.debugHurt, v.debugHit);
+    for (const v of this.views) {
+      this.scene.remove(v.group, v.debugHurt, v.debugHit);
+      this.disposeView(v);
+    }
     this.views = match.fighters.map((f) => this.makeView(f));
     this.rig.focus.set(0, 3, 0);
   }
 
+  /** Libera una vista de pelea: sus materiales y las geometrías NO compartidas
+   *  (las de los prototipos viven para siempre: las usan todos los luchadores). */
+  disposeView(v) {
+    if (!v) return;
+    const vistos = new Set();
+    const libera = (o) => {
+      if (o.geometry && !o.geometry.userData.sharedProto && !vistos.has(o.geometry)) {
+        vistos.add(o.geometry);
+        o.geometry.dispose();
+      }
+      if (o.material) {
+        const lista = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of lista) {
+          if (!vistos.has(m)) {
+            vistos.add(m);
+            m.dispose();
+          }
+        }
+      }
+    };
+    if (v.group) v.group.traverse(libera);
+    if (v.blob) {
+      this.scene.remove(v.blob);
+      libera(v.blob);
+    }
+    if (v.debugHurt) { v.debugHurt.parent && v.debugHurt.parent.remove(v.debugHurt); libera(v.debugHurt); }
+    if (v.debugHit) { v.debugHit.parent && v.debugHit.parent.remove(v.debugHit); libera(v.debugHit); }
+  }
+
   makeView(f) {
     // Personaje con modelo propio (Kenai y los de Vita Machines) o cápsula provisoria
-    const builder = FIGHTER_BUILDERS[f.characterId];
-    if (builder) return this.makeFighterView(f, builder);
+    if (FIGHTER_BUILDERS[f.characterId]) return this.makeFighterView(f);
     return this.makeCapsuleView(f);
   }
 
@@ -1729,11 +1868,12 @@ export class Renderer {
     return ring;
   }
 
-  /** Vista de personaje con modelo detallado (Kenai, Coco, Domono, Faxo, Chubit). */
-  makeFighterView(f, builder) {
+  /** Vista de personaje con modelo detallado (Kenai, Coco, Domono, Faxo, Chubit).
+   *  El modelo viene del prototipo clonado: geometrías compartidas, materiales propios. */
+  makeFighterView(f) {
     const spec = f.spec;
     const color = new THREE.Color(spec.color);
-    const model = builder();
+    const model = cloneFighterModel(f.characterId);
     const group = new THREE.Group();
     const pivot = new THREE.Group();
     pivot.add(model.group);
@@ -1855,7 +1995,8 @@ export class Renderer {
         // Kenai tiene varios materiales: flash/opacity a todos, tinte de stance solo al hoodie
         for (const m of v.mats) {
           m.emissive.setRGB(flash ? 0.55 : 0, flash ? 0.12 : 0, flash ? 0.1 : 0);
-          m.color.copy(m.userData.base);
+          const b = m.userData.base;
+          if (b && Number.isFinite(b.r) && Number.isFinite(b.g) && Number.isFinite(b.b)) m.color.copy(b); // base inválida: conserva el color actual
           if (block) m.color.lerp(this.tmpColor.set(0x8d9096), 0.75);
           m.transparent = fighter.invuln > 0;
           m.opacity = invOp;
@@ -2162,36 +2303,63 @@ export class Renderer {
     }
   }
 
+  /** Suelta `count` partículas en (x, y): un registro por partícula en el pool
+   *  (la única malla se arma en updateParticles). Misma firma y look que antes. */
   burst(x, y, count, color, speed, life, size) {
+    const c = new THREE.Color(color);
     for (let i = 0; i < count; i++) {
-      if (this.particles.length > 220) return;
+      if (this.particles.length >= this.PARTICLE_MAX) break;
       const a = Math.random() * Math.PI * 2;
       const s = speed * (0.35 + Math.random() * 0.65);
-      const mesh = new THREE.Mesh(new THREE.SphereGeometry(size, 6, 5), new THREE.MeshBasicMaterial({ color, transparent: true }));
-      mesh.position.set(x, y, 0.4);
-      this.scene.add(mesh);
-      this.particles.push({ mesh, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: life * (0.6 + Math.random() * 0.4), max: life });
+      this.particles.push({
+        x, y,
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        life: life * (0.6 + Math.random() * 0.4), max: life,
+        size, r: c.r, g: c.g, b: c.b,
+      });
     }
   }
 
   updateParticles(dt) {
-    const alive = [];
-    for (const p of this.particles) {
+    const ps = this.particles;
+    const pos = this.particlePos;
+    const col = this.particleCol;
+    const siz = this.particleSize;
+    const alp = this.particleAlpha;
+    let w = 0; // cuántas siguen vivas (se compactan in-place)
+    for (let i = 0; i < ps.length; i++) {
+      const p = ps[i];
       p.life -= dt;
-      if (p.life <= 0) {
-        this.scene.remove(p.mesh);
-        p.mesh.geometry.dispose();
-        p.mesh.material.dispose();
-        continue;
-      }
+      if (p.life <= 0) continue;
       p.vy -= 14 * dt;
-      p.mesh.position.x += p.vx * dt;
-      p.mesh.position.y += p.vy * dt;
-      p.mesh.material.opacity = Math.min(1, p.life / (p.max * 0.5));
-      p.mesh.scale.setScalar(0.4 + (p.life / p.max) * 0.8);
-      alive.push(p);
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      const k = w * 3;
+      pos[k] = p.x;
+      pos[k + 1] = p.y;
+      pos[k + 2] = 0.4;
+      col[k] = p.r;
+      col[k + 1] = p.g;
+      col[k + 2] = p.b;
+      // diámetro en unidades de mundo (antes: esfera de radio `size` con scale 0.4→1.2)
+      siz[w] = 2 * p.size * (0.4 + (p.life / p.max) * 0.8);
+      alp[w] = Math.min(1, p.life / (p.max * 0.5));
+      ps[w] = p;
+      w++;
     }
-    this.particles = alive;
+    ps.length = w;
+    const geo = this.particlePoints.geometry;
+    geo.setDrawRange(0, w);
+    if (w > 0) {
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.aColor.needsUpdate = true;
+      geo.attributes.aSize.needsUpdate = true;
+      geo.attributes.aAlpha.needsUpdate = true;
+    }
+    // píxeles por unidad de mundo según FOV y altura del buffer (gl_PointSize va en píxeles)
+    const h = this.renderer.getDrawingBufferSize(this._dbSize).y;
+    const fovRad = this.rig.camera.fov * Math.PI / 180;
+    this.particleMat.uniforms.uScale.value = h / (2 * Math.tan(fovRad / 2));
   }
 
   // ------------------------------------------------------------------ utilidades

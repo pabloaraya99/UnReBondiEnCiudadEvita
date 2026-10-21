@@ -45,8 +45,18 @@ src/
     peerLink.js      → glue PeerJS (hostLink/guestLink, códigos de sala de 6 letras)
   render/            → VISUAL: solo LEE el estado de la simulación, nunca lo modifica.
     Renderer.js      → escena Three.js, EffectComposer (bloom), escenario "Los Mormones",
-                       partículas, eventos visuales, drawCars (tráfico), sombras de contacto
+                       partículas, eventos visuales, drawCars (tráfico), sombras de contacto,
+                       prototipos de luchadores (PROTO_MODELOS) + cloneFighterModel: los
+                       modelos se construyen UNA vez optimizados y las vistas clonan
+                       compartiendo geometrías (los materiales son propios: los tintes los
+                       mutan). OJO: Material.clone() JSON-serializa userData y Color.toJSON()
+                       da un número — userData.base se restaura como {r,g,b} plano al clonar
     CameraRig.js     → cámara compartida: encuadra luchadores, zoom acotado, shake
+    optimizeModel.js → optimización de modelos (Paso 1 draw calls): fusión de mallas
+                       hermanas por material (mergeGeometries con bake de matriz, con
+                       exclusiones: torso, ojos, mallas con hijos, transparentes), unificación
+                       de materiales iguales (partition del hoodieMat para no romper el tinte
+                       de stance) y marca de geometrías sharedProto
     KenaiModel.js    → modelo de Kenai con primitivas (hoodie/campera azul-gris, cargo, cadenas, blunt)
     CocoModel.js     → modelo de El Coco (cuero manchado de grasa, tatuajes, jogging azul, llave inglesa)
     DomonoModel.js   → modelo de Dj Domono (campera verde camuflada, consola de mano, auriculares)
