@@ -4,11 +4,11 @@ import { audio } from '../audio.js';
 const CHARACTER_IDS = Object.keys(GAME_CONFIG.characters);
 // tarjetas splash art de los personajes (estilo cómic con stats) para el champion select
 const CHARACTER_SPLASH = {
-  coco: '/assets/ui/pilots/El Coco Splash Art.jfif',
-  domono: '/assets/ui/pilots/Domono Splash Art.jfif',
-  faxo: '/assets/ui/pilots/Faxo Splash Art.jfif',
-  pablo: '/assets/ui/pilots/Kenai Splash Art.jfif',
-  chubit: '/assets/ui/pilots/Chubitcoin Splash Art.jpg',
+  coco: '/assets/ui/peleadores/El Coco Splash Art.jfif',
+  domono: '/assets/ui/peleadores/Domono Splash Art.jfif',
+  faxo: '/assets/ui/peleadores/Faxo Splash Art.jfif',
+  pablo: '/assets/ui/peleadores/Kenai/Kenai Splash Art.jfif',
+  chubit: '/assets/ui/peleadores/Chubitcoin Splash Art.jpg',
 };
 // posición de la cara en cada splash art (fracciones 0-1 de ancho/alto de la imagen).
 // El HUD hace zoom sobre ese punto para mostrar el close-up del rostro.
@@ -379,7 +379,7 @@ export class UI {
       const charImg = document.createElement('img');
       charImg.alt = ch.name;
       charImg.draggable = false;
-      charImg.src = CHARACTER_SPLASH[slot.character] || '/assets/ui/pilots/Kenai Splash Art.jfif';
+      charImg.src = CHARACTER_SPLASH[slot.character] || '/assets/ui/peleadores/Kenai/Kenai Splash Art.jfif';
       // zoom sutil escalonado (cardZoom en ui.css) — cada tarjeta con su fase
       charImg.style.animationDelay = `${i * 1.4}s`;
       const nameTag = el('div', 'slot-char-name', ch.name);
@@ -640,7 +640,7 @@ export class UI {
       // cara en paralelogramo con CLOSE-UP del rostro (zoom por CSS con --fx/--fy)
       const face = el('div', 'hud-face');
       const img = el('img', 'hud-face-img');
-      img.src = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai Splash Art.jfif';
+      img.src = CHARACTER_SPLASH[f.characterId] || '/assets/ui/peleadores/Kenai/Kenai Splash Art.jfif';
       img.alt = f.spec.name;
       img.draggable = false;
       const pos = FACE_POS[f.characterId] || [0.5, 0.27];
@@ -689,7 +689,7 @@ export class UI {
       if (stockKey !== c.stockKey) {
         c.stockKey = stockKey;
         c.stocks.innerHTML = '';
-        const splash = CHARACTER_SPLASH[f.characterId] || '/assets/ui/pilots/Kenai Splash Art.jfif';
+        const splash = CHARACTER_SPLASH[f.characterId] || '/assets/ui/peleadores/Kenai/Kenai Splash Art.jfif';
         for (let i = 0; i < match.stocks; i++) {
           const dot = el('div', `hud-stock${i < f.stocks ? '' : ' lost'}`);
           const si = el('img');
