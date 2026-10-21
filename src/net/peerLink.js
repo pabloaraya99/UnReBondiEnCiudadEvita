@@ -19,10 +19,18 @@ const CODE_LEN = 6;
 
 // STUN servers públicos: sin ellos, detrás de NAT/celular WebRTC no puede
 // encontrar ruta y el join muere en timeout ("No se pudo conectar").
+// IMPORTANTE: este config REEMPLAZA el default de PeerJS (no lo mergea), así
+// que hay que re-incluir a mano el TURN relay de la nube PeerJS — es el que
+// salva a los NAT simétricos / CGNAT (celular) donde el STUN no llega.
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun.cloudflare.com:3478' },
+  {
+    urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'],
+    username: 'peerjs',
+    credential: 'peerjsp',
+  },
 ];
 
 const PEER_OPTS = {

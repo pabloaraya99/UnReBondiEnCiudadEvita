@@ -537,6 +537,9 @@ function loop(now) {
       // fin de partida → resultados (cuando ya se puede revancha)
       if (app.match.phase === 'finished' && app.match.canRematch) {
         app.state = 'results';
+        // setState no se usa acá (asignación directa), así que la música de
+        // resultados hay que pedirla a mano
+        audio.playMusic('results');
         if (app.onlineRematch && app.online) {
           ui.showResults(app.match, {
             online: true,
