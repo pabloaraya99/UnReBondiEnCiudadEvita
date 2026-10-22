@@ -77,7 +77,7 @@ public/assets/
   textures/           → PBR del escenario (diff+rough, 1024², JPEG q75)
   music/              → 7 pistas .mp3 con nombre canónico (ver LEEME.md: menu/battle/results/
                         champions/damas/calle/pajaritos). Nada de archivos con nombres largos
-  ui/                 → title-splash.jpg, parallax/Title Text, props/poste-cables-wide
+  ui/                 → title-splash.jpg, parallax/Title Text
   ui/pilots/         → splash arts oficiales de los 5 personajes (.jfif/.jpg, long edge ≤900)
   (los assets pesados se comprimen in-place con sharp: JPEG q75-80 / PNG paleta; NO subir
    originales sin comprimir — el bandwidth de Vercel es limitado)

@@ -1160,13 +1160,6 @@
   animation: menuBgZoom 22s ease-in-out infinite alternate;
   will-change: transform;
 }
-.title-poste {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  width: 100%;
-  pointer-events: none;
-  user-select: none;
-}
 .title-flash {
   position: absolute;
   inset: 0;

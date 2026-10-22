@@ -126,13 +126,6 @@ export class UI {
     const bg = el('div', 'title-bg');
     bgShake.append(bg);
 
-    // capa de barrio: poste con lámpara de sodio y tendido eléctrico
-    const posteImg = document.createElement('img');
-    posteImg.src = '/assets/ui/props/poste-cables-wide.png';
-    posteImg.alt = '';
-    posteImg.draggable = false;
-    posteImg.className = 'title-poste';
-
     // flash sutil de impacto cada ~7s
     const flash = el('div', 'title-flash');
 
@@ -167,7 +160,7 @@ export class UI {
 
     const version = el('div', 'title-version', 'v5');
 
-    s.append(bgShake, posteImg, flash, fx, logoWrap, menu, version);
+    s.append(bgShake, flash, fx, logoWrap, menu, version);
 
     // overlay "TOCÁ CUALQUIER TECLA...": primer gesto (clic o tecla) desbloquea
     // el audio (los browsers exigen un usuario gesture)
