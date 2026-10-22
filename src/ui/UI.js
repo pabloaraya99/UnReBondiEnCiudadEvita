@@ -4,11 +4,11 @@ import { audio } from '../audio.js';
 const CHARACTER_IDS = Object.keys(GAME_CONFIG.characters);
 // tarjetas splash art de los personajes (estilo cómic con stats) para el champion select
 const CHARACTER_SPLASH = {
-  coco: '/assets/ui/peleadores/El Coco Splash Art.jfif',
-  domono: '/assets/ui/peleadores/Domono Splash Art.jfif',
-  faxo: '/assets/ui/peleadores/Faxo Splash Art.jfif',
+  coco: '/assets/ui/peleadores/El Coco/El Coco Splash Art.jfif',
+  domono: '/assets/ui/peleadores/Domono/Domono Splash Art.jfif',
+  faxo: '/assets/ui/peleadores/Faxo/Faxo Splash Art.jfif',
   pablo: '/assets/ui/peleadores/Kenai/Kenai Splash Art.jfif',
-  chubit: '/assets/ui/peleadores/Chubitcoin Splash Art.jpg',
+  chubit: '/assets/ui/peleadores/Chubitcoin/Chubitcoin Splash Art.jpg',
 };
 // posición de la cara en cada splash art (fracciones 0-1 de ancho/alto de la imagen).
 // El HUD hace zoom sobre ese punto para mostrar el close-up del rostro.
